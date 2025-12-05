@@ -10,6 +10,9 @@
  * Date: 2025-12-02
  */
 
+// Require authentication
+require_once 'auth_check.php';
+
 // Error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 0);  // Don't display errors to user
@@ -83,6 +86,42 @@ try {
         'error' => $e->getMessage(),
         'details' => (getenv('DEBUG') === '1') ? $e->getTraceAsString() : null
     ]);
+}
+
+/**
+ * Calculate snapshot_date based on Sunday boundary logic
+ *
+ * Complete week: Monday 8am - Saturday 11:59pm
+ * Safe export window: Saturday 11:59pm - Monday 7:59am (includes Sunday)
+ *
+ * @param string $uploadDateTime Format: 'Y-m-d H:i:s'
+ * @return string snapshot_date in 'Y-m-d' format (always a Sunday)
+ */
+function calculateSnapshotDate($uploadDateTime) {
+    $timestamp = strtotime($uploadDateTime);
+    $dayOfWeek = (int)date('N', $timestamp); // 1=Monday, 7=Sunday
+    $hour = (int)date('G', $timestamp); // 0-23
+
+    // Sunday → use today (already the week ending)
+    if ($dayOfWeek == 7) {
+        return date('Y-m-d', $timestamp);
+    }
+
+    // Saturday → use tomorrow (this week's Sunday)
+    if ($dayOfWeek == 6) {
+        return date('Y-m-d', strtotime('+1 day', $timestamp));
+    }
+
+    // Monday before 8am → use yesterday (still in safe window, last week's Sunday)
+    if ($dayOfWeek == 1 && $hour < 8) {
+        return date('Y-m-d', strtotime('-1 day', $timestamp));
+    }
+
+    // Monday 8am+ or Tue-Fri → current week incomplete, go back to PREVIOUS week's Sunday
+    // Logic: Current week started Mon 8am, so any upload after that needs previous week
+    // Days back = dayOfWeek (to get to this week's Sunday) + 7 (to go back one more week)
+    $daysBack = $dayOfWeek + 7;
+    return date('Y-m-d', strtotime("-$daysBack days", $timestamp));
 }
 
 /**
@@ -186,8 +225,17 @@ function processAllSubscriberReport($pdo, $filepath) {
         'by_business_unit' => []
     ];
 
-    // Today's date for snapshot
+    // Calculate snapshot_date based on Sunday boundary logic
+    // Complete week: Mon 8am - Sat 11:59pm
+    // Safe export window: Sat 11:59pm - Mon 7:59am
+    // Rule: Export in safe window → this Sunday, otherwise → previous Sunday
     $today = date('Y-m-d');
+    $upload_datetime = date('Y-m-d H:i:s'); // Current date/time
+    $snapshot_date = calculateSnapshotDate($upload_datetime);
+
+    // Store original upload info for audit trail
+    $original_upload_date = $today;
+    $original_filename = $_FILES['allsubscriber']['name'] ?? 'unknown';
 
     // Process each row
     $row_num = $header_line;  // Start counting from header line
@@ -270,8 +318,8 @@ function processAllSubscriberReport($pdo, $filepath) {
                 continue;
             }
 
-            // Use today's date as snapshot date
-            $snapshot_date = $today;
+            // Use calculated snapshot_date (Sunday boundary logic applied above)
+            // Already set: $snapshot_date = calculateSnapshotDate($upload_datetime);
 
             // Filter: Only 2025-01-01 onwards
             if ($snapshot_date < '2025-01-01') {
@@ -432,7 +480,7 @@ function processAllSubscriberReport($pdo, $filepath) {
             }
         }
 
-        // NEW: Insert subscriber-level records in bulk
+        // NEW: Insert subscriber-level records in bulk with UPSERT logic
         if (!empty($subscriber_records)) {
             $sub_stmt = $pdo->prepare("
                 INSERT INTO subscriber_snapshots (
@@ -448,6 +496,29 @@ function processAllSubscriberReport($pdo, $filepath) {
                     :address, :city_state_postal, :abc, :issue_code, :last_payment_amount,
                     :phone, :email, :login_id, :last_login
                 )
+                ON DUPLICATE KEY UPDATE
+                    paper_name = VALUES(paper_name),
+                    business_unit = VALUES(business_unit),
+                    name = VALUES(name),
+                    route = VALUES(route),
+                    rate_name = VALUES(rate_name),
+                    subscription_length = VALUES(subscription_length),
+                    delivery_type = VALUES(delivery_type),
+                    payment_status = VALUES(payment_status),
+                    begin_date = VALUES(begin_date),
+                    paid_thru = VALUES(paid_thru),
+                    daily_rate = VALUES(daily_rate),
+                    on_vacation = VALUES(on_vacation),
+                    address = VALUES(address),
+                    city_state_postal = VALUES(city_state_postal),
+                    abc = VALUES(abc),
+                    issue_code = VALUES(issue_code),
+                    last_payment_amount = VALUES(last_payment_amount),
+                    phone = VALUES(phone),
+                    email = VALUES(email),
+                    login_id = VALUES(login_id),
+                    last_login = VALUES(last_login),
+                    import_timestamp = CURRENT_TIMESTAMP
             ");
 
             foreach ($subscriber_records as $sub) {

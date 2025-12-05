@@ -1,3 +1,10 @@
+<?php
+/**
+ * Circulation Dashboard - Main Interface
+ * Requires Newzware authentication to access
+ */
+require_once 'auth_check.php';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,8 +12,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Circulation Dashboard v2</title>
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS - Optimized Production Build -->
+    <link rel="stylesheet" href="assets/output.css?v=20251205">
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -188,32 +195,247 @@
             cursor: pointer;
         }
 
-        /* Detail Panel Styles */
+        /* Detail Panel Styles - Enhanced UX with State Navigation */
         #detailPanel {
             position: fixed;
             top: 0;
-            right: -70%;
-            width: 70%;
+            right: -82%;
+            width: 82%;
             height: 100vh;
             background: white;
-            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
-            transition: right 0.3s ease-in-out;
+            box-shadow: -8px 0 32px rgba(0,0,0,0.12);
+            transition: right 400ms cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 60;
-            overflow-y: auto;
+            overflow: hidden;
+            will-change: right;
+            display: flex;
         }
 
         #detailPanel.open {
             right: 0;
         }
 
+        /* State Navigation Sidebar */
+        #stateNavSidebar {
+            width: 8%;
+            min-width: 80px;
+            background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 0.5rem;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+
+        .state-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 0.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .state-nav-item:hover {
+            background: rgba(3, 105, 161, 0.1);
+            transform: scale(1.05);
+        }
+
+        .state-nav-item.active {
+            background: var(--color-cta);
+            color: white;
+            box-shadow: 0 4px 12px rgba(3, 105, 161, 0.3);
+        }
+
+        .state-nav-item.active .state-abbr {
+            color: white;
+        }
+
+        .state-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .state-icon {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            transition: filter 200ms;
+        }
+
+        .state-nav-item.active .state-icon {
+            filter: brightness(0) invert(1) drop-shadow(0 4px 8px rgba(255,255,255,0.3));
+        }
+
+        .state-abbr {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--color-secondary);
+            text-align: center;
+        }
+
+        .state-count {
+            font-size: 0.625rem;
+            color: var(--color-slate-600);
+            font-weight: 500;
+        }
+
+        .state-nav-item.active .state-count {
+            color: rgba(255,255,255,0.9);
+        }
+
+        /* Detail Content Area */
+        #detailContent {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        /* Backdrop overlay for focus */
+        #detailPanelBackdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1),
+                        visibility 250ms cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 59;
+            backdrop-filter: blur(2px);
+        }
+
+        #detailPanelBackdrop.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
         #mainContent {
-            transition: all 0.3s ease-in-out;
+            transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         #mainContent.docked {
-            width: 30%;
+            width: 18%;
             overflow-y: auto;
             height: calc(100vh - 64px);
+        }
+
+        /* Drag and Drop Chart Styles */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .chart-grid.single-column {
+            grid-template-columns: 1fr;
+        }
+
+        .chart-draggable {
+            cursor: move;
+            transition: all 200ms;
+            border: 2px dashed transparent;
+            border-radius: 12px;
+            padding: 1rem;
+            background: white;
+        }
+
+        .chart-draggable:hover {
+            border-color: var(--color-cta);
+            background: var(--color-slate-50);
+        }
+
+        .chart-draggable.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+
+        .chart-draggable.drag-over {
+            border-color: var(--color-success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .drag-handle {
+            cursor: move;
+            color: var(--color-slate-600);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: all 200ms;
+        }
+
+        .drag-handle:hover {
+            background: var(--color-slate-100);
+            color: var(--color-primary);
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            #detailPanel,
+            #detailPanelBackdrop,
+            #mainContent,
+            .chart-draggable,
+            .state-nav-item {
+                transition: none;
+            }
+        }
+
+        /* Mobile optimization */
+        @media (max-width: 768px) {
+            #detailPanel {
+                width: 100%;
+                right: -100%;
+                flex-direction: column;
+            }
+
+            #stateNavSidebar {
+                width: 100%;
+                flex-direction: row;
+                padding: 1rem;
+                border-right: none;
+                border-bottom: 1px solid var(--color-border);
+                min-width: unset;
+            }
+
+            .state-nav-item {
+                flex: 1;
+                padding: 0.75rem 0.5rem;
+            }
+
+            .state-icon-wrapper {
+                width: 40px;
+                height: 40px;
+            }
+
+            #detailContent {
+                padding: 1rem;
+            }
+
+            .chart-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            #mainContent.docked {
+                display: none;
+            }
         }
 
         .detail-chart-container {
@@ -247,8 +469,21 @@
                 <div class="flex items-center space-x-4">
                     <div class="text-right">
                         <div class="text-sm font-medium text-gray-900" id="currentDateTime">Loading...</div>
-                        <div class="text-xs text-gray-500">Data: <span id="dataRangeDisplay">--</span></div>
+                        <div class="text-xs text-gray-500">
+                            <span>Logged in as <strong><?php echo htmlspecialchars($_SESSION['user']); ?></strong></span> •
+                            Data: <span id="dataRangeDisplay">--</span>
+                        </div>
                     </div>
+
+                    <!-- Logout Button -->
+                    <a href="logout.php"
+                       class="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition flex items-center space-x-2"
+                       title="Sign out">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                        <span>Logout</span>
+                    </a>
 
                     <!-- PHASE 2: Export Button -->
                     <div class="relative">
@@ -502,17 +737,29 @@
         </div>
     </footer>
 
+    <!-- Detail Panel Backdrop -->
+    <div id="detailPanelBackdrop" onclick="closeDetailPanel()" aria-hidden="true"></div>
+
     <!-- Detail Panel -->
-    <div id="detailPanel" class="hidden">
-        <div class="p-6">
+    <div id="detailPanel" class="hidden" role="dialog" aria-modal="true" aria-labelledby="detailPanelTitle">
+        <!-- State Navigation Sidebar -->
+        <div id="stateNavSidebar" role="navigation" aria-label="State navigation">
+            <!-- State nav items will be populated by JavaScript -->
+        </div>
+
+        <!-- Detail Content Area -->
+        <div id="detailContent">
             <!-- Header -->
             <div class="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900" id="detailPanelTitle">Business Unit Details</h2>
                     <p class="text-sm text-gray-500 mt-1" id="detailPanelSubtitle">Loading...</p>
                 </div>
-                <button onclick="closeDetailPanel()" class="p-2 hover:bg-gray-100 rounded-lg transition">
-                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button onclick="closeDetailPanel()"
+                        class="p-2 hover:bg-gray-100 rounded-lg transition focus:ring-2 focus:ring-blue-500"
+                        aria-label="Close detail panel"
+                        title="Close (ESC)">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
@@ -631,17 +878,29 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+        </div> <!-- /detailPanelContent -->
+        </div> <!-- /detailContent -->
+    </div> <!-- /detailPanel -->
 
-    <!-- JavaScript -->
-    <script src="assets/app.js"></script>
+    <!-- JavaScript - Cache-busting version parameter forces browser to fetch latest files -->
+    <script src="assets/app.js?v=20251205"></script>
     <!-- PHASE 2: Enhancements -->
-    <script src="assets/app_phase2_enhancements.js"></script>
+    <script src="assets/app_phase2_enhancements.js?v=20251205"></script>
+    <!-- State Icons & Chart Layout -->
+    <script src="assets/state-icons.js?v=20251205"></script>
+    <script src="assets/chart-layout-manager.js?v=20251205"></script>
+    <script src="assets/donut-to-state-animation.js?v=20251205"></script>
     <!-- Detail Panel -->
-    <script src="assets/detail_panel.js"></script>
+    <script src="assets/detail_panel.js?v=20251205"></script>
     <!-- UI/UX Quick Wins -->
-    <script src="assets/ui-enhancements.js"></script>
+    <script src="assets/ui-enhancements.js?v=20251205"></script>
+
+    <!-- PHASE 3: Contextual Chart Menus -->
+    <script src="assets/context-menu.js?v=20251205"></script>
+    <script src="assets/export-utils.js?v=20251205"></script>
+    <script src="assets/subscriber-table-panel.js?v=20251205"></script>
+    <script src="assets/chart-transition-manager.js?v=20251205"></script>
+    <script src="assets/chart-context-integration.js?v=20251205"></script>
     <script>
         // Initialize UI enhancements after page loads
         document.addEventListener('DOMContentLoaded', function() {

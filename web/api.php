@@ -6,6 +6,9 @@
  * Date: 2025-12-01
  */
 
+// Require authentication
+require_once 'auth_check.php';
+
 // Error reporting (disable in production)
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
@@ -874,20 +877,21 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
     }
 
     // 2. 4-week expiration chart data (exclude "Later" to avoid skewing)
+    // IMPORTANT: Use snapshot_date (not CURDATE) for historical accuracy
     $expiration_stmt = $pdo->prepare("
         SELECT
             CASE
-                WHEN paid_thru < CURDATE() THEN 'Past Due'
-                WHEN paid_thru BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 'This Week'
-                WHEN paid_thru BETWEEN DATE_ADD(CURDATE(), INTERVAL 8 DAY) AND DATE_ADD(CURDATE(), INTERVAL 14 DAY) THEN 'Next Week'
-                WHEN paid_thru BETWEEN DATE_ADD(CURDATE(), INTERVAL 15 DAY) AND DATE_ADD(CURDATE(), INTERVAL 21 DAY) THEN 'Week +2'
+                WHEN paid_thru < ? THEN 'Past Due'
+                WHEN paid_thru BETWEEN ? AND DATE_ADD(?, INTERVAL 7 DAY) THEN 'This Week'
+                WHEN paid_thru BETWEEN DATE_ADD(?, INTERVAL 8 DAY) AND DATE_ADD(?, INTERVAL 14 DAY) THEN 'Next Week'
+                WHEN paid_thru BETWEEN DATE_ADD(?, INTERVAL 15 DAY) AND DATE_ADD(?, INTERVAL 21 DAY) THEN 'Week +2'
             END as week_bucket,
             COUNT(*) as count
         FROM subscriber_snapshots
         WHERE snapshot_date = ?
             AND paper_code IN ($placeholders)
             AND paid_thru IS NOT NULL
-            AND paid_thru <= DATE_ADD(CURDATE(), INTERVAL 21 DAY)
+            AND paid_thru <= DATE_ADD(?, INTERVAL 21 DAY)
         GROUP BY week_bucket
         ORDER BY
             CASE week_bucket
@@ -897,7 +901,12 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
                 WHEN 'Week +2' THEN 4
             END
     ");
-    $expiration_stmt->execute(array_merge([$snapshotDate], $paper_codes));
+    // Pass snapshot_date for each ? placeholder: 9 total (7 in CASE + 1 in WHERE + 1 in final condition)
+    $expiration_stmt->execute(array_merge(
+        [$snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate],
+        $paper_codes,
+        [$snapshotDate]
+    ));
     $expiration_data = $expiration_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $response['expiration_chart'] = array_map(function($row) {
@@ -957,6 +966,480 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
     }, $length_data);
 
     return $response;
+}
+
+/**
+ * Get subscriber list for a specific metric
+ * For context menu drill-down functionality
+ *
+ * @param PDO $pdo Database connection
+ * @param array $params Query parameters
+ * @return array Subscriber data
+ */
+function getSubscribers($pdo, $params) {
+    $businessUnit = $params['business_unit'] ?? '';
+    $snapshotDate = $params['snapshot_date'] ?? date('Y-m-d');
+    $metricType = $params['metric_type'] ?? '';
+    $metricValue = $params['metric_value'] ?? '';
+
+    // Validate required parameters
+    if (empty($businessUnit) || empty($metricType) || empty($metricValue)) {
+        throw new Exception('Missing required parameters: business_unit, metric_type, metric_value');
+    }
+
+    // Get Saturday for requested date
+    $saturday = getSaturdayForWeek($snapshotDate);
+
+    // Find nearest available snapshot
+    $stmt = $pdo->prepare("
+        SELECT snapshot_date
+        FROM daily_snapshots
+        WHERE business_unit = :business_unit
+        AND snapshot_date <= :saturday
+        ORDER BY snapshot_date DESC
+        LIMIT 1
+    ");
+    $stmt->execute([
+        ':business_unit' => $businessUnit,
+        ':saturday' => $saturday
+    ]);
+    $actualDate = $stmt->fetchColumn();
+
+    if (!$actualDate) {
+        throw new Exception('No data available for this business unit and date');
+    }
+
+    // Query real subscriber data from subscriber_snapshots table
+    $subscribers = [];
+
+    switch ($metricType) {
+        case 'expiration':
+            $subscribers = getExpirationSubscribers($pdo, $businessUnit, $actualDate, $metricValue);
+            break;
+
+        case 'rate':
+            $subscribers = getRateSubscribers($pdo, $businessUnit, $actualDate, $metricValue);
+            break;
+
+        case 'subscription_length':
+            $subscribers = getSubscriptionLengthSubscribers($pdo, $businessUnit, $actualDate, $metricValue);
+            break;
+
+        default:
+            throw new Exception('Invalid metric_type: ' . $metricType);
+    }
+
+    return [
+        'metric_type' => $metricType,
+        'metric' => $metricValue,
+        'count' => count($subscribers),
+        'snapshot_date' => $actualDate,
+        'requested_date' => $snapshotDate,
+        'business_unit' => $businessUnit,
+        'subscribers' => $subscribers
+    ];
+}
+
+/**
+ * Get subscribers by expiration bucket
+ */
+function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket) {
+    // Calculate date range for bucket
+    $today = new DateTime($snapshotDate);
+    $weekStart = clone $today;
+    $weekEnd = clone $today;
+
+    switch ($bucket) {
+        case 'Past Due':
+            // paid_thru < snapshot_date
+            $stmt = $pdo->prepare("
+                SELECT
+                    sub_num as account_id,
+                    name as subscriber_name,
+                    phone,
+                    email,
+                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+                    paper_code,
+                    paper_name,
+                    rate_name as current_rate,
+                    last_payment_amount as rate_amount,
+                    last_payment_amount,
+                    payment_status as payment_method,
+                    paid_thru as expiration_date,
+                    delivery_type
+                FROM subscriber_snapshots
+                WHERE business_unit = :business_unit
+                AND snapshot_date = :snapshot_date
+                AND paid_thru < :snapshot_date
+                ORDER BY paid_thru ASC
+                LIMIT 1000
+            ");
+            $stmt->execute([
+                ':business_unit' => $businessUnit,
+                ':snapshot_date' => $snapshotDate,
+            ]);
+            break;
+
+        case 'This Week':
+            // paid_thru between snapshot_date and snapshot_date + 6 days
+            $weekEnd->modify('+6 days');
+            $stmt = $pdo->prepare("
+                SELECT
+                    sub_num as account_id,
+                    name as subscriber_name,
+                    phone,
+                    email,
+                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+                    paper_code,
+                    paper_name,
+                    rate_name as current_rate,
+                    last_payment_amount as rate_amount,
+                    last_payment_amount,
+                    payment_status as payment_method,
+                    paid_thru as expiration_date,
+                    delivery_type
+                FROM subscriber_snapshots
+                WHERE business_unit = :business_unit
+                AND snapshot_date = :snapshot_date
+                AND paid_thru >= :start_date
+                AND paid_thru <= :end_date
+                ORDER BY paid_thru ASC
+                LIMIT 1000
+            ");
+            $stmt->execute([
+                ':business_unit' => $businessUnit,
+                ':snapshot_date' => $snapshotDate,
+                ':start_date' => $snapshotDate,
+                ':end_date' => $weekEnd->format('Y-m-d')
+            ]);
+            break;
+
+        case 'Next Week':
+            // paid_thru between snapshot_date + 7 and snapshot_date + 13 days
+            $weekStart->modify('+7 days');
+            $weekEnd->modify('+13 days');
+            $stmt = $pdo->prepare("
+                SELECT
+                    sub_num as account_id,
+                    name as subscriber_name,
+                    phone,
+                    email,
+                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+                    paper_code,
+                    paper_name,
+                    rate_name as current_rate,
+                    last_payment_amount as rate_amount,
+                    last_payment_amount,
+                    payment_status as payment_method,
+                    paid_thru as expiration_date,
+                    delivery_type
+                FROM subscriber_snapshots
+                WHERE business_unit = :business_unit
+                AND snapshot_date = :snapshot_date
+                AND paid_thru >= :start_date
+                AND paid_thru <= :end_date
+                ORDER BY paid_thru ASC
+                LIMIT 1000
+            ");
+            $stmt->execute([
+                ':business_unit' => $businessUnit,
+                ':snapshot_date' => $snapshotDate,
+                ':start_date' => $weekStart->format('Y-m-d'),
+                ':end_date' => $weekEnd->format('Y-m-d')
+            ]);
+            break;
+
+        case 'Week +2':
+            // paid_thru between snapshot_date + 14 and snapshot_date + 20 days
+            $weekStart->modify('+14 days');
+            $weekEnd->modify('+20 days');
+            $stmt = $pdo->prepare("
+                SELECT
+                    sub_num as account_id,
+                    name as subscriber_name,
+                    phone,
+                    email,
+                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+                    paper_code,
+                    paper_name,
+                    rate_name as current_rate,
+                    last_payment_amount as rate_amount,
+                    last_payment_amount,
+                    payment_status as payment_method,
+                    paid_thru as expiration_date,
+                    delivery_type
+                FROM subscriber_snapshots
+                WHERE business_unit = :business_unit
+                AND snapshot_date = :snapshot_date
+                AND paid_thru >= :start_date
+                AND paid_thru <= :end_date
+                ORDER BY paid_thru ASC
+                LIMIT 1000
+            ");
+            $stmt->execute([
+                ':business_unit' => $businessUnit,
+                ':snapshot_date' => $snapshotDate,
+                ':start_date' => $weekStart->format('Y-m-d'),
+                ':end_date' => $weekEnd->format('Y-m-d')
+            ]);
+            break;
+
+        default:
+            return [];
+    }
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Get subscribers by rate
+ */
+function getRateSubscribers($pdo, $businessUnit, $snapshotDate, $rateName) {
+    $stmt = $pdo->prepare("
+        SELECT
+            sub_num as account_id,
+            name as subscriber_name,
+            phone,
+            email,
+            CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+            paper_code,
+            paper_name,
+            rate_name as current_rate,
+            last_payment_amount as rate_amount,
+            last_payment_amount,
+            payment_status as payment_method,
+            paid_thru as expiration_date,
+            delivery_type
+        FROM subscriber_snapshots
+        WHERE business_unit = :business_unit
+        AND snapshot_date = :snapshot_date
+        AND rate_name = :rate_name
+        ORDER BY sub_num ASC
+        LIMIT 1000
+    ");
+
+    $stmt->execute([
+        ':business_unit' => $businessUnit,
+        ':snapshot_date' => $snapshotDate,
+        ':rate_name' => $rateName
+    ]);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Get subscribers by subscription length
+ */
+function getSubscriptionLengthSubscribers($pdo, $businessUnit, $snapshotDate, $length) {
+    $stmt = $pdo->prepare("
+        SELECT
+            sub_num as account_id,
+            name as subscriber_name,
+            phone,
+            email,
+            CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+            paper_code,
+            paper_name,
+            rate_name as current_rate,
+            last_payment_amount as rate_amount,
+            last_payment_amount,
+            payment_status as payment_method,
+            paid_thru as expiration_date,
+            delivery_type
+        FROM subscriber_snapshots
+        WHERE business_unit = :business_unit
+        AND snapshot_date = :snapshot_date
+        AND subscription_length = :length
+        ORDER BY sub_num ASC
+        LIMIT 1000
+    ");
+
+    $stmt->execute([
+        ':business_unit' => $businessUnit,
+        ':snapshot_date' => $snapshotDate,
+        ':length' => $length
+    ]);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * OLD FUNCTION - No longer used (kept for reference)
+ * Use getExpirationSubscribers(), getRateSubscribers(), getSubscriptionLengthSubscribers() instead
+ */
+function generateMockSubscribers_DEPRECATED($businessUnit, $count, $metricType, $metricValue) {
+    $subscribers = [];
+
+    // State-specific data
+    $stateData = [
+        'South Carolina' => [
+            'state' => 'SC',
+            'cities' => ['Camden', 'Lugoff', 'Elgin', 'Westville'],
+            'papers' => ['TJ' => 'The Journal'],
+            'zip_prefix' => '290'
+        ],
+        'Michigan' => [
+            'state' => 'MI',
+            'cities' => ['Onaway', 'Millersburg', 'Tower', 'Rogers City'],
+            'papers' => ['TA' => 'The Advertiser'],
+            'zip_prefix' => '497'
+        ],
+        'Wyoming' => [
+            'state' => 'WY',
+            'cities' => ['Lander', 'Riverton', 'Thermopolis', 'Dubois'],
+            'papers' => ['TJ' => 'The Journal', 'TR' => 'The Ranger', 'LJ' => 'The Lander Journal', 'WRN' => 'Wind River News'],
+            'zip_prefix' => '825'
+        ]
+    ];
+
+    $state = $stateData[$businessUnit] ?? $stateData['Wyoming'];
+    $papers = array_keys($state['papers']);
+
+    $firstNames = ['John', 'Mary', 'Robert', 'Patricia', 'Michael', 'Linda', 'William', 'Barbara', 'David', 'Elizabeth',
+                   'James', 'Jennifer', 'Richard', 'Maria', 'Joseph', 'Susan', 'Thomas', 'Margaret', 'Charles', 'Dorothy'];
+    $lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+                  'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
+
+    $rates = ['Senior 6mo', 'Standard 12mo', 'Senior 12mo', 'Military 6mo', 'Student 3mo', 'Digital Only', 'Premium 12mo'];
+    $paymentMethods = ['Check', 'Credit Card', 'Cash', 'Money Order', 'Auto-Pay'];
+    $deliveryTypes = ['MAIL', 'CARR', 'INTE'];
+
+    // Limit to 1000 for performance
+    $limit = min($count, 1000);
+
+    for ($i = 0; $i < $limit; $i++) {
+        $firstName = $firstNames[$i % count($firstNames)];
+        $lastName = $lastNames[($i + 7) % count($lastNames)];
+        $city = $state['cities'][$i % count($state['cities'])];
+        $paperCode = $papers[$i % count($papers)];
+        $paperName = $state['papers'][$paperCode];
+
+        // Generate expiration date based on metric type
+        $expirationDate = date('Y-m-d', strtotime('+' . (($i % 30) - 10) . ' days'));
+        if ($metricType === 'expiration') {
+            switch ($metricValue) {
+                case 'Past Due':
+                    $expirationDate = date('Y-m-d', strtotime('-' . ($i % 14 + 1) . ' days'));
+                    break;
+                case 'This Week':
+                    $expirationDate = date('Y-m-d', strtotime('+' . ($i % 7) . ' days'));
+                    break;
+                case 'Next Week':
+                    $expirationDate = date('Y-m-d', strtotime('+' . (7 + $i % 7) . ' days'));
+                    break;
+                case 'Week +2':
+                    $expirationDate = date('Y-m-d', strtotime('+' . (14 + $i % 7) . ' days'));
+                    break;
+            }
+        }
+
+        $accountId = strtoupper(substr($state['state'], 0, 2)) . '-' . str_pad(10000 + $i, 5, '0', STR_PAD_LEFT);
+        $rate = $rates[$i % count($rates)];
+        $rateAmount = 25.00 + (($i % 10) * 5.00);
+
+        $subscribers[] = [
+            'account_id' => $accountId,
+            'subscriber_name' => $firstName . ' ' . $lastName,
+            'phone' => '(' . $state['zip_prefix'] . ') 555-' . str_pad($i % 10000, 4, '0', STR_PAD_LEFT),
+            'email' => strtolower($firstName . '.' . $lastName . '@example.com'),
+            'mailing_address' => ($i * 100 + 100) . ' Main St, ' . $city . ', ' . $state['state'] . ' ' . $state['zip_prefix'] . str_pad($i % 100, 2, '0', STR_PAD_LEFT),
+            'paper_code' => $paperCode,
+            'paper_name' => $paperName,
+            'current_rate' => $rate,
+            'rate_amount' => number_format($rateAmount, 2, '.', ''),
+            'last_payment_amount' => number_format($rateAmount, 2, '.', ''),
+            'payment_method' => $paymentMethods[$i % count($paymentMethods)],
+            'expiration_date' => $expirationDate,
+            'delivery_type' => $deliveryTypes[$i % count($deliveryTypes)]
+        ];
+    }
+
+    return $subscribers;
+}
+
+/**
+ * Get historical trend data for a specific metric
+ * For trend chart visualization
+ *
+ * @param PDO $pdo Database connection
+ * @param array $params Query parameters
+ * @return array Trend data points
+ */
+function getHistoricalTrend($pdo, $params) {
+    $businessUnit = $params['business_unit'] ?? '';
+    $metricType = $params['metric_type'] ?? '';
+    $metricValue = $params['metric_value'] ?? '';
+    $timeRange = $params['time_range'] ?? '12weeks';
+    $endDate = $params['end_date'] ?? date('Y-m-d');
+
+    // Validate required parameters
+    if (empty($businessUnit) || empty($metricType) || empty($metricValue)) {
+        throw new Exception('Missing required parameters: business_unit, metric_type, metric_value');
+    }
+
+    // Parse time range
+    $weeksMap = [
+        '4weeks' => 4,
+        '12weeks' => 12,
+        '26weeks' => 26,
+        '52weeks' => 52
+    ];
+    $numWeeks = $weeksMap[$timeRange] ?? 12;
+
+    // Get Saturday for end date
+    $endSaturday = getSaturdayForWeek($endDate);
+
+    // Calculate start date
+    $startDate = date('Y-m-d', strtotime($endSaturday . ' -' . ($numWeeks * 7) . ' days'));
+
+    // Get all Saturdays in range
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT snapshot_date
+        FROM daily_snapshots
+        WHERE business_unit = :business_unit
+        AND snapshot_date BETWEEN :start_date AND :end_date
+        AND DAYOFWEEK(snapshot_date) = 7
+        ORDER BY snapshot_date ASC
+    ");
+    $stmt->execute([
+        ':business_unit' => $businessUnit,
+        ':start_date' => $startDate,
+        ':end_date' => $endSaturday
+    ]);
+    $saturdays = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    // For Phase 1, generate mock trend data
+    // Phase 2 will query actual historical data
+    $dataPoints = [];
+    $baseValue = 100;
+
+    foreach ($saturdays as $index => $saturday) {
+        // Generate realistic trend with some variation
+        $variance = sin($index / 3) * 10 + (rand(-5, 5));
+        $trend = $baseValue + ($index * 0.5); // Slight upward trend
+        $value = (int)($trend + $variance);
+
+        $prevValue = $index > 0 ? $dataPoints[$index - 1]['count'] : $value;
+        $change = $value - $prevValue;
+        $changePercent = $prevValue > 0 ? round(($change / $prevValue) * 100, 1) : 0;
+
+        $dataPoints[] = [
+            'snapshot_date' => $saturday,
+            'count' => max(0, $value),
+            'change_from_previous' => $change,
+            'change_percent' => $changePercent
+        ];
+    }
+
+    return [
+        'metric_type' => $metricType,
+        'metric' => $metricValue,
+        'time_range' => $timeRange,
+        'business_unit' => $businessUnit,
+        'start_date' => $startDate,
+        'end_date' => $endSaturday,
+        'data_points' => $dataPoints
+    ];
 }
 
 function sendResponse($data) {
@@ -1024,6 +1507,29 @@ try {
                 break;
             }
             $data = getDetailPanelData($pdo, $businessUnit, $snapshotDate);
+            sendResponse($data);
+            break;
+
+        case 'get_subscribers':
+            $params = [
+                'business_unit' => $_GET['business_unit'] ?? '',
+                'snapshot_date' => $_GET['snapshot_date'] ?? date('Y-m-d'),
+                'metric_type' => $_GET['metric_type'] ?? '',
+                'metric_value' => $_GET['metric_value'] ?? ''
+            ];
+            $data = getSubscribers($pdo, $params);
+            sendResponse($data);
+            break;
+
+        case 'get_trend':
+            $params = [
+                'business_unit' => $_GET['business_unit'] ?? '',
+                'metric_type' => $_GET['metric_type'] ?? '',
+                'metric_value' => $_GET['metric_value'] ?? '',
+                'time_range' => $_GET['time_range'] ?? '12weeks',
+                'end_date' => $_GET['end_date'] ?? date('Y-m-d')
+            ];
+            $data = getHistoricalTrend($pdo, $params);
             sendResponse($data);
             break;
 

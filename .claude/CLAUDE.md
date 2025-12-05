@@ -3,6 +3,31 @@
 ## Project Overview
 Newspaper circulation dashboard for tracking subscriber metrics across multiple business units and publications.
 
+## ⚠️ PRODUCTION OPERATIONS PROTOCOL (MANDATORY)
+
+**Before ANY production database, deployment, or infrastructure operation, Claude MUST:**
+
+1. **Read PRODUCTION-CHECKLIST.md** - Contains all connection details, credentials, and common operations
+2. **Use the production-operations skill** - Enforces documentation-first approach
+3. **Follow the 3-attempt rule** - If it takes more than 3 attempts, you didn't read the docs
+
+**Key files to check BEFORE executing:**
+- `PRODUCTION-CHECKLIST.md` - Quick reference with copy/paste commands
+- `.claude/CLAUDE.md` - This file (project configuration)
+- `docker-compose.yml` - Current Docker configuration
+
+**Critical production details:**
+- Database hostname from web container: `database` (Docker Compose service name, NOT IP address)
+- Database credentials: `root` / `RootPassword456!`
+- All Docker commands require sudo via SSH
+- File transfer uses SSH cat method (SCP disabled)
+
+**If you see Claude:**
+- Trying multiple connection attempts (3+)
+- Guessing at hostnames or credentials
+- Getting "connection refused" or "access denied" repeatedly
+- **Call it out immediately:** "Stop. Did you read the documentation first?"
+
 ## Environment Naming Convention
 
 **PRODUCTION**: Synology NAS deployment
@@ -35,15 +60,16 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 ## Key Technical Notes
 
 ### Synology-Specific Considerations:
-- Docker DNS resolution doesn't work with hostnames (use IP addresses)
 - `.env` files may not be read properly by Docker Compose (hardcode values in `docker-compose.yml`)
-- Database container IP: `172.26.0.2` (may change on restart)
 - Use `sudo` for all Docker commands via SSH
 - SSH credentials stored in approved Bash commands
+- SCP/SFTP disabled - use SSH cat method for file transfers
 
 ### Database Connection:
 - **Development**: Uses hostname `db` (Docker DNS works on OrbStack)
-- **Production**: Uses IP `172.26.0.2` (hardcoded due to Synology DNS issues)
+- **Production**: Uses Docker Compose service name `database` (Docker network DNS works correctly)
+  - From web container: `mysql -h database -p` or `PDO("mysql:host=database;...")`
+  - Credentials: root / RootPassword456!
 
 ## Docker Management Commands
 

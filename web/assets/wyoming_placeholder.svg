@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="288" height="288" viewBox="0 0 288 288">
+  <!-- Wyoming is nearly rectangular -->
+  <rect x="20" y="80" width="248" height="128" 
+        fill="#3B82F6" 
+        rx="4" ry="4"/>
+</svg>

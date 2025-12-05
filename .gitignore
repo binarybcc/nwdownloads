@@ -3,6 +3,7 @@
 *.credentials
 .passwords
 .env
+.env.dockerhub
 
 # Environment files with secrets
 .env.local

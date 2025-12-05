@@ -16,26 +16,105 @@ let subscriptionLengthChart = null;
 let currentBusinessUnit = null;
 let currentSnapshotDate = null;
 let detailPanelData = null;
+let availableBusinessUnits = ['South Carolina', 'Michigan', 'Wyoming'];  // Will be populated from dashboard data
+
+// Keyboard shortcut handler
+let keyboardShortcutHandler = null;
 
 /**
- * Open detail panel for a business unit
+ * Populate state navigation sidebar
+ * Creates clickable state icons for each business unit
  */
-async function openDetailPanel(businessUnit, snapshotDate) {
+function populateStateNavigation(businessUnits) {
+    const sidebar = document.getElementById('stateNavSidebar');
+    if (!sidebar) return;
+
+    // Store available units
+    availableBusinessUnits = businessUnits || availableBusinessUnits;
+
+    // Build HTML for each state
+    const navHTML = availableBusinessUnits.map(unit => {
+        const abbr = getStateAbbr(unit);
+        const iconImg = getStateIconImg(unit);
+        const isActive = unit === currentBusinessUnit;
+        const activeClass = isActive ? 'active' : '';
+
+        return `
+            <div class="state-nav-item ${activeClass}"
+                 data-business-unit="${unit}"
+                 onclick="switchBusinessUnit('${unit}')"
+                 role="button"
+                 tabindex="0"
+                 aria-label="Switch to ${unit}"
+                 title="${unit}">
+                <div class="state-icon-wrapper">
+                    ${iconImg}
+                </div>
+                <div class="state-abbr">${abbr}</div>
+                <div class="state-count" id="stateCount${abbr}">...</div>
+            </div>
+        `;
+    }).join('');
+
+    sidebar.innerHTML = navHTML;
+
+    // Add keyboard support for state nav items
+    document.querySelectorAll('.state-nav-item').forEach(item => {
+        item.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const unit = this.dataset.businessUnit;
+                switchBusinessUnit(unit);
+            }
+        });
+    });
+}
+
+/**
+ * Update state navigation active state
+ */
+function updateStateNavActive(businessUnit) {
+    document.querySelectorAll('.state-nav-item').forEach(item => {
+        if (item.dataset.businessUnit === businessUnit) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+/**
+ * Switch to different business unit
+ * Triggers crossfade animation and loads new data
+ */
+async function switchBusinessUnit(businessUnit) {
+    if (businessUnit === currentBusinessUnit) return;  // Already showing this state
+
+    // Update navigation
+    updateStateNavActive(businessUnit);
+
+    // Fade out current content
+    const content = document.getElementById('detailPanelContent');
+    content.style.opacity = '0';
+    content.style.transition = 'opacity 200ms ease-out';
+
+    // Wait for fade out
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Load new data
     currentBusinessUnit = businessUnit;
-    currentSnapshotDate = snapshotDate;
+    await loadBusinessUnitData(businessUnit, currentSnapshotDate);
 
-    // Show panel
-    const panel = document.getElementById('detailPanel');
-    const mainContent = document.getElementById('mainContent');
+    // Fade in new content
+    content.style.opacity = '1';
+    content.style.transition = 'opacity 200ms ease-in';
+}
 
-    panel.classList.remove('hidden');
-
-    // Trigger animation after a brief delay
-    setTimeout(() => {
-        panel.classList.add('open');
-        mainContent.classList.add('docked');
-    }, 10);
-
+/**
+ * Load business unit data
+ * Separated from openDetailPanel to allow state switching
+ */
+async function loadBusinessUnitData(businessUnit, snapshotDate) {
     // Update title
     document.getElementById('detailPanelTitle').textContent = `${businessUnit} - Details`;
     document.getElementById('detailPanelSubtitle').textContent = `Requested: ${snapshotDate}`;
@@ -55,6 +134,13 @@ async function openDetailPanel(businessUnit, snapshotDate) {
 
         detailPanelData = result.data;
 
+        // CRITICAL: Update currentSnapshotDate to use ACTUAL snapshot date from API
+        // The API resolves the requested date to the actual available snapshot
+        // (e.g., requested 2025-11-29 Monday → actual 2025-11-30 Sunday)
+        if (result.data.snapshot_date) {
+            currentSnapshotDate = result.data.snapshot_date;
+        }
+
         // Render content
         renderDetailPanelContent();
 
@@ -64,7 +150,7 @@ async function openDetailPanel(businessUnit, snapshotDate) {
             <div class="text-center py-12">
                 <div class="text-red-600 mb-2">Failed to load details</div>
                 <div class="text-sm text-gray-500">${error.message}</div>
-                <button onclick="openDetailPanel('${businessUnit}', '${snapshotDate}')"
+                <button onclick="loadBusinessUnitData('${businessUnit}', '${snapshotDate}')"
                         class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                     Retry
                 </button>
@@ -74,24 +160,163 @@ async function openDetailPanel(businessUnit, snapshotDate) {
 }
 
 /**
+ * Enable keyboard shortcuts for detail panel
+ * - ESC key to close panel
+ * - Focus trap to keep keyboard navigation within panel
+ */
+function enableKeyboardShortcuts() {
+    keyboardShortcutHandler = function(e) {
+        // ESC key closes the panel
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            closeDetailPanel();
+            return;
+        }
+
+        // Tab key focus trap
+        if (e.key === 'Tab') {
+            const panel = document.getElementById('detailPanel');
+            if (!panel.classList.contains('open')) return;
+
+            const focusableElements = panel.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+
+            if (focusableElements.length === 0) return;
+
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+
+            // Shift+Tab on first element -> focus last element
+            if (e.shiftKey && document.activeElement === firstElement) {
+                e.preventDefault();
+                lastElement.focus();
+            }
+            // Tab on last element -> focus first element
+            else if (!e.shiftKey && document.activeElement === lastElement) {
+                e.preventDefault();
+                firstElement.focus();
+            }
+        }
+    };
+
+    document.addEventListener('keydown', keyboardShortcutHandler);
+}
+
+/**
+ * Disable keyboard shortcuts when panel closes
+ */
+function disableKeyboardShortcuts() {
+    if (keyboardShortcutHandler) {
+        document.removeEventListener('keydown', keyboardShortcutHandler);
+        keyboardShortcutHandler = null;
+    }
+}
+
+/**
+ * Open detail panel for a business unit
+ * Enhanced with state navigation, backdrop, keyboard support, and smooth animations
+ * Includes donut-to-state icon animation
+ */
+async function openDetailPanel(businessUnit, snapshotDate) {
+    currentBusinessUnit = businessUnit;
+    currentSnapshotDate = snapshotDate;
+
+    // Find the donut chart for this business unit (for animation)
+    const donutElement = findDonutChartElement(businessUnit);
+    console.log('🎯 Found donut element for', businessUnit, ':', donutElement);
+
+    // Show panel and backdrop
+    const panel = document.getElementById('detailPanel');
+    const mainContent = document.getElementById('mainContent');
+    const backdrop = document.getElementById('detailPanelBackdrop');
+
+    panel.classList.remove('hidden');
+    panel.setAttribute('aria-hidden', 'false');
+
+    // Populate state navigation (only needs to happen once, but safe to call multiple times)
+    populateStateNavigation(availableBusinessUnits);
+
+    // Start donut-to-state animation (runs in parallel with panel slide)
+    if (donutElement && window.donutAnimator) {
+        window.donutAnimator.animateDonutToState(businessUnit, donutElement, () => {
+            // Animation complete - restore donut opacity
+            if (donutElement) {
+                donutElement.style.opacity = '1';
+            }
+        });
+    }
+
+    // Trigger panel slide animation after a brief delay (allows CSS transition)
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            panel.classList.add('open');
+            mainContent.classList.add('docked');
+            backdrop.classList.add('visible');
+        });
+    });
+
+    // Focus trap and keyboard support
+    panel.focus();
+    enableKeyboardShortcuts();
+
+    // Load business unit data
+    await loadBusinessUnitData(businessUnit, snapshotDate);
+}
+
+/**
+ * Find the donut chart element for a business unit
+ */
+function findDonutChartElement(businessUnit) {
+    // Find the paper card for this business unit
+    const cards = document.querySelectorAll('.paper-card');
+    for (const card of cards) {
+        const title = card.querySelector('h3');
+        if (title && title.textContent.includes(businessUnit)) {
+            // Find the canvas element (donut chart)
+            const canvas = card.querySelector('canvas');
+            if (canvas) {
+                return canvas.parentElement; // Return the container, not just canvas
+            }
+        }
+    }
+    return null;
+}
+
+/**
  * Close detail panel
  */
 function closeDetailPanel() {
     const panel = document.getElementById('detailPanel');
     const mainContent = document.getElementById('mainContent');
+    const backdrop = document.getElementById('detailPanelBackdrop');
 
+    // Remove open states
     panel.classList.remove('open');
     mainContent.classList.remove('docked');
+    backdrop.classList.remove('visible');
 
-    // Hide panel after animation
+    // Disable keyboard shortcuts
+    disableKeyboardShortcuts();
+
+    // Hide panel after animation completes (250ms transition)
     setTimeout(() => {
         panel.classList.add('hidden');
-    }, 300);
+        panel.setAttribute('aria-hidden', 'true');
+    }, 250);
 
-    // Destroy charts
-    if (expirationChart) expirationChart.destroy();
-    if (rateDistributionChart) rateDistributionChart.destroy();
-    if (subscriptionLengthChart) subscriptionLengthChart.destroy();
+    // Destroy charts to free memory
+    if (expirationChart) {
+        expirationChart.destroy();
+        expirationChart = null;
+    }
+    if (rateDistributionChart) {
+        rateDistributionChart.destroy();
+        rateDistributionChart = null;
+    }
+    if (subscriptionLengthChart) {
+        subscriptionLengthChart.destroy();
+        subscriptionLengthChart = null;
+    }
 }
 
 /**
@@ -136,6 +361,14 @@ function renderDetailPanelContent() {
     renderExpirationChart(data.expiration_chart);
     renderRateDistributionChart(data.rate_distribution);
     renderSubscriptionLengthChart(data.subscription_length);
+
+    // Initialize context menus for charts (Phase 3)
+    if (typeof initializeChartContextMenus === 'function') {
+        // Delay slightly to ensure charts are fully rendered
+        setTimeout(() => {
+            initializeChartContextMenus();
+        }, 100);
+    }
 }
 
 /**
@@ -194,14 +427,8 @@ function renderExpirationChart(chartData) {
                         }
                     }
                 }
-            },
-            onClick: (event, activeElements) => {
-                if (activeElements.length > 0) {
-                    const index = activeElements[0].index;
-                    const label = labels[index];
-                    alert(`Trend over time for "${label}" expiration bucket - Coming soon!`);
-                }
             }
+            // onClick removed - now handled by right-click context menu
         }
     });
 }
@@ -285,15 +512,8 @@ function renderRateDistributionChart(chartData) {
                         autoSkip: false // Show all rate names
                     }
                 }
-            },
-            onClick: (event, activeElements) => {
-                if (activeElements.length > 0) {
-                    const index = activeElements[0].index;
-                    const rateName = labels[index];
-                    const actualCount = counts[index];
-                    alert(`Trend over time for rate "${rateName}" (${formatNumber(actualCount)} subscribers) - Coming soon!`);
-                }
             }
+            // onClick removed - now handled by right-click context menu
         }
     });
 }
@@ -347,14 +567,8 @@ function renderSubscriptionLengthChart(chartData) {
                         }
                     }
                 }
-            },
-            onClick: (event, activeElements) => {
-                if (activeElements.length > 0) {
-                    const index = activeElements[0].index;
-                    const length = labels[index];
-                    alert(`Trend over time for "${length}" subscription length - Coming soon!`);
-                }
             }
+            // onClick removed - now handled by right-click context menu
         }
     });
 }
@@ -439,5 +653,8 @@ function formatNumber(num) {
 // Make functions globally available
 window.openDetailPanel = openDetailPanel;
 window.closeDetailPanel = closeDetailPanel;
+window.switchBusinessUnit = switchBusinessUnit;
+window.loadBusinessUnitData = loadBusinessUnitData;
+window.populateStateNavigation = populateStateNavigation;
 
-console.log('Detail panel module loaded');
+console.log('Detail panel module loaded with state navigation');

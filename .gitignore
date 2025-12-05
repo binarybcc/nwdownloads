@@ -57,3 +57,10 @@ Screenshot*.png
 # Test/development artifacts
 context.txt
 hotfolder/
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Build artifacts
+web/assets/output.css

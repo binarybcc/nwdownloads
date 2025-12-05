@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circulation Dashboard v2</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <!-- PHASE 2: Export Libraries -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Custom Styles -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        .metric-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .paper-card {
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .paper-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .trend-up {
+            color: #10b981;
+        }
+
+        .trend-down {
+            color: #ef4444;
+        }
+
+        .progress-bar {
+            transition: width 1s ease-out;
+        }
+
+        /* Date Navigation Styles */
+        .date-navigation {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .date-navigation button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .date-navigation button:hover:not(:disabled) {
+            background: #f3f4f6;
+            border-color: #3b82f6;
+        }
+
+        .date-navigation button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .date-navigation input[type="text"] {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            width: 150px;
+        }
+
+        .comparison-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .comparison-badge.positive {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .comparison-badge.negative {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .comparison-badge.neutral {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+
+        select {
+            padding: 0.375rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        /* Detail Panel Styles */
+        #detailPanel {
+            position: fixed;
+            top: 0;
+            right: -70%;
+            width: 70%;
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            transition: right 0.3s ease-in-out;
+            z-index: 60;
+            overflow-y: auto;
+        }
+
+        #detailPanel.open {
+            right: 0;
+        }
+
+        #mainContent {
+            transition: all 0.3s ease-in-out;
+        }
+
+        #mainContent.docked {
+            width: 30%;
+            overflow-y: auto;
+            height: calc(100vh - 64px);
+        }
+
+        .detail-chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 1rem;
+        }
+
+        .chart-clickable {
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .chart-clickable:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">📊 Circulation Dashboard</h1>
+                    <p class="text-sm text-gray-500 mt-1">Historical data navigation • Week-based analysis • Year-over-year comparison</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm font-medium text-gray-900" id="currentDateTime">Loading...</div>
+                        <div class="text-xs text-gray-500">Data: <span id="dataRangeDisplay">--</span></div>
+                    </div>
+
+                    <!-- PHASE 2: Export Button -->
+                    <div class="relative">
+                        <button id="exportBtn" onclick="toggleExportMenu()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>Export</span>
+                        </button>
+
+                        <div id="exportMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                            <button onclick="exportToCSV()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 rounded-t-lg">
+                                <span>📊</span><span>Export to CSV</span>
+                            </button>
+                            <button onclick="exportToPDF()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2">
+                                <span>📄</span><span>Export to PDF</span>
+                            </button>
+                            <button onclick="exportToExcel()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 rounded-b-lg">
+                                <span>📗</span><span>Export to Excel</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button onclick="refreshData()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Date Navigation Bar -->
+    <div class="bg-white border-b border-gray-200 sticky top-16 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                
+                <!-- Navigation Controls -->
+                <div class="date-navigation">
+                    <button id="prevWeek" class="flex items-center space-x-1">
+                        <span>⟨</span>
+                        <span>Previous Week</span>
+                    </button>
+                    
+                    <input type="text" id="datePicker" placeholder="Select date..." readonly>
+                    
+                    <button id="nextWeek" class="flex items-center space-x-1">
+                        <span>Next Week</span>
+                        <span>⟩</span>
+                    </button>
+                    
+                    <button id="thisWeek" class="bg-blue-50 text-blue-700 border-blue-300">
+                        This Week
+                    </button>
+                </div>
+
+                <!-- Comparison Selector -->
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-600 font-medium">Compare to:</span>
+                    <select id="compareMode" class="text-sm">
+                        <option value="yoy">Same Week Last Year</option>
+                        <option value="previous">Previous Week</option>
+                        <option value="none">No Comparison</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Period Display -->
+            <div class="mt-3 flex items-center justify-between">
+                <div>
+                    <div class="text-lg font-semibold text-gray-900">
+                        <span id="periodLabel">Loading...</span>
+                    </div>
+                    <div class="text-sm text-gray-500" id="dateRange">--</div>
+                </div>
+                <div id="comparisonDisplay" class="text-sm text-gray-600">
+                    <!-- Comparison info will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="mainContent" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Key Metrics -->
+        <section class="mb-8">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">📈 Key Metrics</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <!-- Total Active -->
+                <div class="metric-card bg-white rounded-xl shadow p-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-sm font-medium text-gray-600">Total Active</div>
+                        <div class="text-2xl">📊</div>
+                    </div>
+                    <div class="text-3xl font-bold text-gray-900" id="totalActive">--</div>
+                    <div class="text-sm mt-2" id="totalActiveComparison">
+                        <span class="text-gray-500">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- On Vacation -->
+                <div class="metric-card bg-white rounded-xl shadow p-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-sm font-medium text-gray-600">On Vacation</div>
+                        <div class="text-2xl">🏖️</div>
+                    </div>
+                    <div class="text-3xl font-bold text-gray-900" id="onVacation">--</div>
+                    <div class="text-sm text-gray-500 mt-2">
+                        <span id="vacationPercent">--</span> of total
+                    </div>
+                </div>
+
+                <!-- Deliverable -->
+                <div class="metric-card bg-white rounded-xl shadow p-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-sm font-medium text-gray-600">Deliverable</div>
+                        <div class="text-2xl">📦</div>
+                    </div>
+                    <div class="text-3xl font-bold text-gray-900" id="deliverable">--</div>
+                    <div class="text-sm mt-2" id="deliverableComparison">
+                        <span class="text-gray-500">Ready for delivery</span>
+                    </div>
+                </div>
+
+                <!-- Week Change -->
+                <div class="metric-card bg-white rounded-xl shadow p-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-sm font-medium text-gray-600">vs Comparison</div>
+                        <div class="text-2xl">📈</div>
+                    </div>
+                    <div class="text-3xl font-bold" id="comparisonChange">--</div>
+                    <div class="text-sm text-gray-500 mt-2">
+                        <span id="comparisonPercent">--</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- PHASE 2: Analytics Insights -->
+        <section class="mb-8">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">🔍 Analytics Insights</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="analyticsInsights">
+                <div class="text-center py-8 text-gray-500 col-span-full">Loading analytics...</div>
+            </div>
+        </section>
+
+        <!-- Business Units -->
+        <section class="mb-8">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">📍 By Business Unit</h2>
+            <div class="space-y-4" id="businessUnits">
+                <div class="text-center py-12">
+                    <div class="loading mx-auto mb-4"></div>
+                    <div class="text-gray-500">Loading business units...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts -->
+        <section class="mb-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- 12-Week Trend -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">📊 12-Week Trend</h3>
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Delivery Type Breakdown -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">📦 Delivery Type Distribution</h3>
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="deliveryChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Paper Breakdown -->
+        <section class="mb-8">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">📰 By Publication</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="paperCards">
+                <div class="text-center py-12 col-span-full">
+                    <div class="loading mx-auto mb-4"></div>
+                    <div class="text-gray-500">Loading publications...</div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex justify-between items-center text-sm text-gray-500">
+                <div>
+                    <span class="font-medium text-gray-900">Circulation Dashboard</span> v2.0 - Phase 2
+                </div>
+                <div>
+                    16 years of historical data • 864 weekly snapshots
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Detail Panel -->
+    <div id="detailPanel" class="hidden">
+        <div class="p-6">
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900" id="detailPanelTitle">Business Unit Details</h2>
+                    <p class="text-sm text-gray-500 mt-1" id="detailPanelSubtitle">Loading...</p>
+                </div>
+                <button onclick="closeDetailPanel()" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Content Loading State -->
+            <div id="detailPanelLoading" class="text-center py-12">
+                <div class="loading mx-auto mb-4"></div>
+                <div class="text-gray-500">Loading details...</div>
+            </div>
+
+            <!-- Content Container -->
+            <div id="detailPanelContent" class="hidden space-y-6">
+                <!-- Current Stats Summary -->
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">📊 Current Stats</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <div class="text-sm text-gray-600">Total Active</div>
+                            <div class="text-2xl font-bold text-gray-900" id="detailTotalActive">--</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <div class="text-sm text-gray-600">Deliverable</div>
+                            <div class="text-2xl font-bold text-green-600" id="detailDeliverable">--</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <div class="text-sm text-gray-600">On Vacation</div>
+                            <div class="text-2xl font-bold text-amber-600" id="detailVacation">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Data -->
+                    <div id="comparisonSection" class="mt-4 pt-4 border-t border-gray-200 hidden">
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- Year over Year -->
+                            <div id="yoyComparison" class="bg-white rounded-lg p-3 shadow-sm hidden">
+                                <div class="text-xs text-gray-500 mb-1">📈 Year-over-Year</div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-semibold" id="yoyChange">--</span>
+                                    <span class="text-xs" id="yoyPercent">--</span>
+                                </div>
+                            </div>
+
+                            <!-- Previous Week -->
+                            <div id="prevWeekComparison" class="bg-white rounded-lg p-3 shadow-sm hidden">
+                                <div class="text-xs text-gray-500 mb-1">📅 Previous Week</div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-semibold" id="prevWeekChange">--</span>
+                                    <span class="text-xs" id="prevWeekPercent">--</span>
+                                </div>
+                            </div>
+
+                            <!-- Trend Direction -->
+                            <div id="trendDirection" class="bg-white rounded-lg p-3 shadow-sm col-span-2 hidden">
+                                <div class="text-xs text-gray-500 mb-1">📊 Trend Direction</div>
+                                <div class="flex items-center justify-center">
+                                    <span class="text-lg font-semibold" id="trendText">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4-Week Expiration Chart -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">📅 Subscription Expirations (4-Week View)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
+                    <div class="detail-chart-container">
+                        <canvas id="expirationChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Rate Distribution Chart -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">💰 Rate Distribution (All Rates)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
+                    <div class="detail-chart-container">
+                        <canvas id="rateDistributionChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Subscription Length Chart -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">📆 Subscription Length Distribution</h3>
+                    <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
+                    <div class="detail-chart-container">
+                        <canvas id="subscriptionLengthChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Delivery Type Breakdown -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">📦 Delivery Type Breakdown</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-3 h-3 rounded-full bg-blue-500"></span>
+                                <span class="text-gray-600">Mail Delivery</span>
+                            </div>
+                            <span class="font-medium text-gray-900" id="detailMail">--</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-3 h-3 rounded-full bg-green-500"></span>
+                                <span class="text-gray-600">Digital Only</span>
+                            </div>
+                            <span class="font-medium text-gray-900" id="detailDigital">--</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-3 h-3 rounded-full bg-amber-500"></span>
+                                <span class="text-gray-600">Carrier Delivery</span>
+                            </div>
+                            <span class="font-medium text-gray-900" id="detailCarrier">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="assets/app.js"></script>
+    <!-- PHASE 2: Enhancements -->
+    <script src="assets/app_phase2_enhancements.js"></script>
+    <!-- Detail Panel -->
+    <script src="assets/detail_panel.js"></script>
+
+</body>
+</html>

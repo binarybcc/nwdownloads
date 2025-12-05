@@ -1,0 +1,24 @@
+# Ignore files not needed in Docker image
+.git
+.gitignore
+*.md
+README.md
+CLAUDE.md
+.DS_Store
+
+# Ignore debug and test files
+test_*.php
+debug_*.php
+check_*.php
+*_debug.php
+
+# Ignore backup files
+*.backup*
+*.bak
+
+# Ignore hotfolder (mounted as volume instead)
+hotfolder/
+
+# Ignore local development files
+.env.local
+*.log

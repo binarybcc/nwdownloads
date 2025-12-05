@@ -1,0 +1,58 @@
+# Credentials files - NEVER commit these
+.env.*.credentials
+*.credentials
+.passwords
+.env
+
+# Environment files with secrets
+.env.local
+.env.production
+.env.development
+
+# Backup files
+*.backup
+*.bak
+
+# macOS
+.DS_Store
+._*
+
+# Docker volumes
+db_data/
+docker/
+
+# Deployment artifacts
+*.tar.gz
+*.b64
+deployment-bundle/
+nwdownloads-*.tar.gz
+
+# Temporary files
+*.tmp
+*.log
+deployment.log
+
+# CSV data files (can be large)
+AllSubscriberReport*.csv
+
+# Analysis scripts and temporary work files
+analyze_*.py
+test_*.php
+debug_*.php
+*_analysis.py
+*.json
+
+# Screenshots and documentation images
+Screenshot*.png
+*.jpg
+*.png
+
+# PDF documentation (keep in separate docs repo if needed)
+*.pdf
+
+# Archive files
+*.zip
+
+# Test/development artifacts
+context.txt
+hotfolder/

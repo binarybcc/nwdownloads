@@ -3,6 +3,49 @@
 ## Project Overview
 Newspaper circulation dashboard for tracking subscriber metrics across multiple business units and publications.
 
+## 📍 Multi-Workstation Setup
+
+**This project is developed across multiple computers with different file paths.**
+
+**Primary Workstation (johncorbin):**
+- Path: `/Users/johncorbin/Desktop/projs/nwdownloads/`
+
+**Secondary Workstation (user):**
+- Path: `/Users/user/Development/work/_active/nwdownloads/`
+
+**In all documentation below, `$PROJECT_ROOT` refers to your local project directory.**
+
+### Automatic Environment Setup (direnv)
+
+**This project uses direnv to automatically set `$PROJECT_ROOT` when you enter the directory.**
+
+**One-time setup per workstation:**
+
+```bash
+# 1. Verify direnv is installed
+direnv version
+
+# 2. Enable direnv in your shell (add to ~/.zshrc or ~/.bashrc)
+eval "$(direnv hook zsh)"    # For zsh
+# OR
+eval "$(direnv hook bash)"   # For bash
+
+# 3. Reload your shell
+source ~/.zshrc   # or source ~/.bashrc
+
+# 4. Navigate to project and allow direnv
+cd /path/to/nwdownloads
+direnv allow
+
+# Done! PROJECT_ROOT is now auto-set when you cd into this directory
+```
+
+**How it works:**
+- When you `cd` into the project, direnv automatically runs `.envrc`
+- `.envrc` sets `PROJECT_ROOT=$(pwd)` - automatically adapts to each computer
+- When you leave the directory, variables are unset automatically
+- No conflicts with other projects!
+
 ## ⚠️ PRODUCTION OPERATIONS PROTOCOL (MANDATORY)
 
 **Before ANY production database, deployment, or infrastructure operation, Claude MUST:**
@@ -39,7 +82,7 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 - **Deployment Method**: Docker Compose via SSH
 
 **DEVELOPMENT**: OrbStack/Local deployment
-- **Location**: `/Users/johncorbin/Desktop/projs/nwdownloads/`
+- **Location**: `$PROJECT_ROOT` (see Multi-Workstation Setup above for your specific path)
 - **Access URL**: `http://localhost:8081/`
 - **Purpose**: Testing, development, and experimentation
 - **Database**: Local MariaDB container
@@ -48,14 +91,36 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 
 ## Deployment Workflow
 
-**Development → Production Flow:**
-1. Make changes in Development environment
-2. Test thoroughly locally
-3. Create archive of changes
-4. Deploy to Production via SSH/SCP
-5. Verify Production deployment
+### Docker Hub Hybrid Approach
 
-**Never make changes directly in Production** - always test in Development first.
+**Repository**: `binarybcc/nwdownloads-circ`
+**URL**: https://hub.docker.com/repository/docker/binarybcc/nwdownloads-circ/
+
+**Development Environment** (`docker-compose.yml`):
+- Uses **volume mounts** for live code editing
+- Changes to `./web/` directory reflect immediately in browser
+- No rebuilding required - fast iteration
+- Files: `docker-compose.yml` (default config)
+
+**Production Environment** (`docker-compose.prod.yml`):
+- Uses **pre-built images** from Docker Hub
+- Application code **baked into image** (no volume mounts)
+- Fully containerized and portable
+- Files: `docker-compose.prod.yml` (production config)
+
+**Development → Production Flow:**
+1. Make changes in Development environment (with volume mounts)
+2. Test thoroughly locally at http://localhost:8081/
+3. Build and push to Docker Hub: `./build-and-push.sh`
+4. Deploy to Production by pulling latest image
+5. Verify Production deployment at http://192.168.1.254:8081/
+
+**Critical Rules:**
+- **Never make changes directly in Production** - always test in Development first
+- **Never copy code files to Production** - deploy via Docker Hub only
+- **Configuration files only** via SSH (docker-compose.prod.yml, db_init scripts)
+
+**Documentation**: See `/docs/docker-hub-workflow.md` for complete workflow details
 
 ## Key Technical Notes
 
@@ -81,30 +146,34 @@ sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no -p 22 it@192.168.1.254
 # Navigate to project
 cd /volume1/docker/nwdownloads
 
+# IMPORTANT: Always use docker-compose.prod.yml in production
 # View running containers
-sudo /usr/local/bin/docker compose ps
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps
+
+# Pull latest image from Docker Hub
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull
+
+# Deploy with latest image
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d
 
 # View logs
 sudo /usr/local/bin/docker logs circulation_web
 sudo /usr/local/bin/docker logs circulation_db
 
-# Restart containers
-sudo /usr/local/bin/docker compose restart
+# Restart containers (without rebuilding)
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml restart
 
 # Stop containers
-sudo /usr/local/bin/docker compose down
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml down
 
-# Start containers
-sudo /usr/local/bin/docker compose up -d
-
-# Rebuild and restart
-sudo /usr/local/bin/docker compose up -d --build --force-recreate
+# Force recreate (useful after image update)
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate
 ```
 
 ### Development (local):
 ```bash
 # Navigate to project
-cd /Users/johncorbin/Desktop/projs/nwdownloads
+cd $PROJECT_ROOT
 
 # All standard docker compose commands work
 docker compose ps
@@ -146,13 +215,17 @@ docker compose up -d
 ## File Organization
 
 ```
-/web/              - PHP application and API
-/sql/              - Database initialization scripts
-/db_init/          - Database setup files
-/docs/             - Documentation
-/docker-compose.yml - Container orchestration
-/Dockerfile        - Web container build
-/.env.example      - Environment template
+/web/                       - PHP application and API
+/sql/                       - Database initialization scripts
+/db_init/                   - Database setup files
+/docs/                      - Documentation
+  /docker-hub-workflow.md   - Complete Docker Hub deployment guide
+/docker-compose.yml         - Development config (volume mounts)
+/docker-compose.prod.yml    - Production config (Docker Hub images)
+/Dockerfile                 - Web container build definition
+/build-and-push.sh          - Script to build and push to Docker Hub
+/.envrc                     - direnv config (auto-sets PROJECT_ROOT)
+/.env.example               - Environment template
 ```
 
 ## Weekly Data Upload Process
@@ -284,18 +357,38 @@ PRIMARY KEY (snapshot_date, paper_code)  -- Enables UPSERT
 
 ## Common Tasks
 
-### Update Code on Production:
-1. Test changes in Development
-2. Create clean archive (exclude temp files)
-3. SCP to NAS
-4. Extract and restart containers
+### Deploy Code Updates to Production (Image-Based Deployment):
+```bash
+# Step 1: Build and push to Docker Hub (from either workstation)
+cd $PROJECT_ROOT
+./build-and-push.sh
+
+# Step 2: Deploy to Production (SSH into NAS)
+sshpass -p 'Mojave48ice' ssh it@192.168.1.254
+cd /volume1/docker/nwdownloads
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d
+
+# Step 3: Verify deployment
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps
+# Open: http://192.168.1.254:8081/
+```
+
+**Note:** Code files are deployed via Docker Hub images ONLY. Never copy .php or .html files directly to production.
+
+### Deploy Configuration Files to Production:
+```bash
+# For docker-compose.prod.yml, db_init scripts, or other config files
+# (NOT application code - that goes via Docker Hub)
+sshpass -p 'Mojave48ice' ssh it@192.168.1.254 "cat > /volume1/docker/nwdownloads/docker-compose.prod.yml" < docker-compose.prod.yml
+```
 
 ### Check Database:
 ```bash
-# Production
-sudo /usr/local/bin/docker exec circulation_db mariadb -ucircuser -pChangeThisPassword123! -D circulation_dashboard -e "SHOW TABLES;"
+# Production (using root credentials)
+sudo /usr/local/bin/docker exec circulation_db mariadb -uroot -pRootPassword456! -D circulation_dashboard -e "SHOW TABLES;"
 
-# Development
+# Development (using application user credentials)
 docker exec circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' -D circulation_dashboard -e "SHOW TABLES;"
 ```
 

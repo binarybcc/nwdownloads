@@ -1,8 +1,7 @@
-# DEVELOPMENT CONFIGURATION
-# This configuration uses VOLUME MOUNTS for live code editing
-# Changes to ./web directory are immediately reflected in the container
-# Use this for local development and testing
-# For production deployment, use: docker-compose.prod.yml
+# PRODUCTION CONFIGURATION
+# This configuration pulls the pre-built image from Docker Hub
+# Application files are BAKED INTO the image (no volume mounts)
+# Use this on the Synology NAS production server
 
 services:
   # MariaDB Database (Containerized)
@@ -11,7 +10,7 @@ services:
     container_name: circulation_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-Mojave48ice}
+      MYSQL_ROOT_PASSWORD: RootPassword456!
       MYSQL_DATABASE: circulation_dashboard
       MYSQL_USER: circ_dash
       MYSQL_PASSWORD: Barnaby358@Jones!
@@ -26,7 +25,7 @@ services:
       timeout: 5s
       retries: 3
 
-  # PHP Web Application
+  # PHP Web Application (Pre-built from Docker Hub)
   web:
     image: binarybcc/nwdownloads-circ:latest
     container_name: circulation_web
@@ -41,11 +40,9 @@ services:
       DB_USER: circ_dash
       DB_PASSWORD: Barnaby358@Jones!
       DB_SOCKET: ""
-    # DEVELOPMENT: Volume mounts for live code editing
-    # Changes to ./web are immediately reflected without rebuilding
-    # Production removes these mounts and uses files baked into the image
+    # NO VOLUME MOUNTS - Files are baked into the image
+    # Only mount hotfolder if needed
     volumes:
-      - ./web:/var/www/html
       - ./hotfolder:/var/www/hotfolder:ro
     networks:
       - circulation_network

@@ -6,6 +6,14 @@
  * used for authenticating users against the centralized Newzware system.
  */
 
+// ============================================================
+// Timezone Configuration (Best Practice)
+// ============================================================
+// Containers run in UTC (portable, no DST issues)
+// Application operates in Eastern time (business timezone)
+// Database stores UTC, PHP converts for display
+date_default_timezone_set('America/New_York');
+
 // Newzware Authentication API endpoint
 define('NW_AUTH_URL', 'https://seneca.newzware.com/authentication/auth70_xml.jsp');
 

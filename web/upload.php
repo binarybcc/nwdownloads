@@ -89,39 +89,33 @@ try {
 }
 
 /**
- * Calculate snapshot_date based on Sunday boundary logic
+ * Extract snapshot_date from filename
  *
- * Complete week: Monday 8am - Saturday 11:59pm
- * Safe export window: Saturday 11:59pm - Monday 7:59am (includes Sunday)
+ * Filename format: AllSubscriberReportYYYYMMDDHHMMSS.csv
+ * Example: AllSubscriberReport20251206164201.csv → 2025-12-06
  *
- * @param string $uploadDateTime Format: 'Y-m-d H:i:s'
- * @return string snapshot_date in 'Y-m-d' format (always a Sunday)
+ * The filename timestamp is the source of truth for the snapshot date.
+ *
+ * @param string $filename Original uploaded filename
+ * @return string snapshot_date in 'Y-m-d' format, or current date if parsing fails
  */
-function calculateSnapshotDate($uploadDateTime) {
-    $timestamp = strtotime($uploadDateTime);
-    $dayOfWeek = (int)date('N', $timestamp); // 1=Monday, 7=Sunday
-    $hour = (int)date('G', $timestamp); // 0-23
-
-    // Sunday → use today (already the week ending)
-    if ($dayOfWeek == 7) {
-        return date('Y-m-d', $timestamp);
+function extractSnapshotDateFromFilename($filename) {
+    // Pattern: AllSubscriberReport + YYYYMMDDHHMMSS + .csv
+    // Extract the 14-digit timestamp: YYYYMMDDHHMMSS
+    if (preg_match('/AllSubscriberReport(\d{14})\.csv$/i', $filename, $matches)) {
+        $timestamp = $matches[1];
+        // Extract YYYYMMDD (first 8 digits)
+        $dateStr = substr($timestamp, 0, 8);
+        // Format: YYYYMMDD → YYYY-MM-DD
+        $year = substr($dateStr, 0, 4);
+        $month = substr($dateStr, 4, 2);
+        $day = substr($dateStr, 6, 2);
+        return "$year-$month-$day";
     }
 
-    // Saturday → use tomorrow (this week's Sunday)
-    if ($dayOfWeek == 6) {
-        return date('Y-m-d', strtotime('+1 day', $timestamp));
-    }
-
-    // Monday before 8am → use yesterday (still in safe window, last week's Sunday)
-    if ($dayOfWeek == 1 && $hour < 8) {
-        return date('Y-m-d', strtotime('-1 day', $timestamp));
-    }
-
-    // Monday 8am+ or Tue-Fri → current week incomplete, go back to PREVIOUS week's Sunday
-    // Logic: Current week started Mon 8am, so any upload after that needs previous week
-    // Days back = dayOfWeek (to get to this week's Sunday) + 7 (to go back one more week)
-    $daysBack = $dayOfWeek + 7;
-    return date('Y-m-d', strtotime("-$daysBack days", $timestamp));
+    // Fallback: If filename doesn't match expected pattern, use current date
+    error_log("Warning: Could not extract date from filename '$filename', using current date");
+    return date('Y-m-d');
 }
 
 /**
@@ -225,17 +219,14 @@ function processAllSubscriberReport($pdo, $filepath) {
         'by_business_unit' => []
     ];
 
-    // Calculate snapshot_date based on Sunday boundary logic
-    // Complete week: Mon 8am - Sat 11:59pm
-    // Safe export window: Sat 11:59pm - Mon 7:59am
-    // Rule: Export in safe window → this Sunday, otherwise → previous Sunday
-    $today = date('Y-m-d');
-    $upload_datetime = date('Y-m-d H:i:s'); // Current date/time
-    $snapshot_date = calculateSnapshotDate($upload_datetime);
+    // Extract snapshot_date from filename (source of truth)
+    // Filename format: AllSubscriberReport20251206164201.csv → 2025-12-06
+    $original_filename = $_FILES['allsubscriber']['name'] ?? 'unknown';
+    $snapshot_date = extractSnapshotDateFromFilename($original_filename);
 
     // Store original upload info for audit trail
+    $today = date('Y-m-d');
     $original_upload_date = $today;
-    $original_filename = $_FILES['allsubscriber']['name'] ?? 'unknown';
 
     // Process each row
     $row_num = $header_line;  // Start counting from header line
@@ -318,8 +309,8 @@ function processAllSubscriberReport($pdo, $filepath) {
                 continue;
             }
 
-            // Use calculated snapshot_date (Sunday boundary logic applied above)
-            // Already set: $snapshot_date = calculateSnapshotDate($upload_datetime);
+            // Use snapshot_date extracted from filename
+            // Already set: $snapshot_date = extractSnapshotDateFromFilename($original_filename);
 
             // Filter: Only 2025-01-01 onwards
             if ($snapshot_date < '2025-01-01') {

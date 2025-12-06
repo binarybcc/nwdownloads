@@ -6,9 +6,12 @@
  * Only users with usertype="NW" are granted access.
  */
 
-session_start();
+// Include config FIRST (sets session security settings)
 require_once 'config.php';
 require_once 'brute_force_protection.php';
+
+// Start session AFTER config loaded (session settings must be set before session_start)
+session_start();
 
 // Generate CSRF token if not exists
 if (empty($_SESSION['csrf_token'])) {

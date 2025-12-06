@@ -1,9 +1,11 @@
 # 🚀 Automated SFTP Imports - Architecture & Implementation
 
 **Created:** 2025-12-06
+**Updated:** 2025-12-06 (Added Newzware Configuration Reference)
 **Status:** Design Complete, Ready for Implementation
 **Complexity:** Intermediate
 **Estimated Implementation Time:** 2-3 hours
+**Newzware Support:** SSH Keys ✅ | Password ✅ | SFTP ✅
 
 ---
 
@@ -12,11 +14,12 @@
 1. [Executive Summary](#executive-summary)
 2. [Architecture Design](#architecture-design)
 3. [Security Model](#security-model)
-4. [Implementation Guide](#implementation-guide)
-5. [Monitoring & Maintenance](#monitoring--maintenance)
-6. [Troubleshooting](#troubleshooting)
-7. [Future Enhancements](#future-enhancements)
-8. [Senior Developer Notes](#senior-developer-notes)
+4. [Newzware Configuration Reference](#newzware-configuration-reference)
+5. [Implementation Guide](#implementation-guide)
+6. [Monitoring & Maintenance](#monitoring--maintenance)
+7. [Troubleshooting](#troubleshooting)
+8. [Future Enhancements](#future-enhancements)
+9. [Senior Developer Notes](#senior-developer-notes)
 
 ---
 
@@ -72,21 +75,28 @@
 - Can rebuild container in minutes if needed
 - Principle: Minimize blast radius
 
-**2. Password Authentication (Not SSH Keys)**
+**2. SSH Key Authentication (Recommended) or Password Fallback**
 
-**Why:** Newzware may not support SSH key auth
+**Why:** Newzware DOES support SSH key authentication via `privatekey` parameter
 
-**Mitigations:**
+**Primary Option - SSH Keys (Most Secure):**
+- Newzware `privatekey` parameter points to local SSH private key
+- No password transmitted over network
+- Key rotation possible without Newzware config changes
+- Industry best practice for automated systems
+
+**Fallback Option - Password Authentication:**
+- Use if SSH key setup encounters issues
 - Strong password (20+ chars, complex)
+- Still secure with proper layered defenses
+
+**Layered Security (Applied to Both Methods):**
 - Port forwarding on non-standard port (2222, not 22)
 - Optional: IP whitelisting if Newzware has static IP
 - Optional: Fail2ban for brute force protection
 - Logging all access attempts
 
-**Trade-off Analysis:**
-- SSH keys = more secure but might not work with Newzware
-- Strong password + layered security = acceptable risk
-- Can upgrade to keys later if Newzware adds support
+**Recommendation:** Start with SSH keys, fall back to password only if needed
 
 **3. Cron-Based Processing (Not Real-Time File Watcher)**
 
@@ -395,6 +405,225 @@ Response:
 ```
 
 **Conclusion:** Docker isolation reduces critical incident to minor inconvenience.
+
+---
+
+## Newzware Configuration Reference
+
+**Source:** Newzware Release Notes - Report Scheduler Output Format Options and Scripting
+
+### Overview
+
+Newzware's Report Scheduler supports automated SFTP uploads using the `DefaultSchedulerScript`. This built-in script handles FTP/SFTP transfers, file naming with timestamps, compression, and more.
+
+### Configuration Format
+
+**Script Structure:**
+```
+com.icanon.report.DefaultSchedulerScript,parameter1=value1;parameter2=value2;parameter3=value3;
+```
+
+**Key Points:**
+- Script name and parameters separated by **comma**
+- Parameters are **semicolon-delimited** name=value pairs
+- No spaces around equals signs or semicolons
+- Case-sensitive parameter names
+
+### Required Parameters
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `protocol` | `sftp` | Use SFTP instead of FTP |
+| `server` | IP or hostname | Target SFTP server (e.g., `192.168.1.254` or `cdash.upstatetoday.com`) |
+| `user` | Username | SFTP username (e.g., `newzware`) |
+| `password` | Password | User password (if not using SSH key) |
+
+### SSH Key Authentication (Recommended)
+
+**Parameter:** `privatekey`
+
+**Example:**
+```
+privatekey=C:/Newzware/config/sftp/newzware_sftp_key
+```
+
+**Notes:**
+- Path to **private key file** on Newzware server
+- Use forward slashes (`/`) even on Windows
+- Must be accessible to Newzware application
+- Public key must be in `~/.ssh/authorized_keys` on SFTP server
+
+### Optional Parameters (Commonly Used)
+
+| Parameter | Values | Description |
+|-----------|--------|-------------|
+| `port` | Integer | TCP port (default: 22, we use: 2222) |
+| `folder` | Path | Target directory on SFTP server (e.g., `/incoming`) |
+| `outputfile` | Filename | Rename file on server (supports `<datestamp>` keyword) |
+| `skipempty` | `true`/`false` | Don't transfer zero-byte files |
+| `gzip` | `true`/`false` | Compress with GZIP (.gz suffix) |
+| `zip` | `true`/`false` | Compress with ZIP (.zip suffix) |
+
+### Datestamp Keywords
+
+**Available Keywords:**
+
+| Keyword | Format | Example Output |
+|---------|--------|----------------|
+| `<datestamp>` | YYYYMMDD | `20251206` |
+| `<timestamp>` | YYYYMMDDhhmmss | `20251206143022` |
+| `<datestamp!EEE!>` | Day of week | `Fri` |
+| `<datestamp!yyyy-MM-dd!>` | Custom format | `2025-12-06` |
+
+**Date Math (Add/Subtract Days):**
+- `<datestamp!YYYYMMDD(-7d)!>` = 7 days ago
+- `<datestamp!YYYYMMDD(+1d)!>` = Tomorrow
+
+**Example Filename:**
+```
+outputfile=AllSubscriberReport_<datestamp>.csv
+# Result: AllSubscriberReport_20251206.csv
+```
+
+### Example Configurations
+
+#### Option 1: SSH Key Authentication (Recommended)
+
+**For Production (Public IP/Domain):**
+```
+com.icanon.report.DefaultSchedulerScript,protocol=sftp;server=cdash.upstatetoday.com;port=2222;user=newzware;privatekey=C:/Newzware/config/sftp/newzware_sftp_key;folder=/incoming;outputfile=AllSubscriberReport_<datestamp>.csv;skipempty=true;
+```
+
+**For Local Testing (Direct IP):**
+```
+com.icanon.report.DefaultSchedulerScript,protocol=sftp;server=192.168.1.254;port=2222;user=newzware;privatekey=C:/Newzware/config/sftp/newzware_sftp_key;folder=/incoming;outputfile=AllSubscriberReport_<datestamp>.csv;skipempty=true;
+```
+
+#### Option 2: Password Authentication (Fallback)
+
+**For Production:**
+```
+com.icanon.report.DefaultSchedulerScript,protocol=sftp;server=cdash.upstatetoday.com;port=2222;user=newzware;password=YourSecurePassword123!;folder=/incoming;outputfile=AllSubscriberReport_<datestamp>.csv;skipempty=true;
+```
+
+#### Option 3: With Compression (For Large Files)
+
+**GZIP Compression:**
+```
+com.icanon.report.DefaultSchedulerScript,protocol=sftp;server=cdash.upstatetoday.com;port=2222;user=newzware;privatekey=C:/Newzware/config/sftp/newzware_sftp_key;folder=/incoming;outputfile=AllSubscriberReport_<datestamp>.csv;skipempty=true;gzip=true;
+```
+
+**Result:** File uploaded as `AllSubscriberReport_20251206.csv.gz`
+
+#### Option 4: Multiple Reports (Different Folders)
+
+**AllSubscriberReport to /incoming:**
+```
+com.icanon.report.DefaultSchedulerScript,protocol=sftp;server=cdash.upstatetoday.com;port=2222;user=newzware;privatekey=C:/Newzware/config/sftp/newzware_sftp_key;folder=/incoming;outputfile=AllSubscriberReport_<datestamp>.csv;skipempty=true;
+```
+
+**VacationReport to /incoming (same folder, different name):**
+```
+com.icanon.report.DefaultSchedulerScript,protocol=sftp;server=cdash.upstatetoday.com;port=2222;user=newzware;privatekey=C:/Newzware/config/sftp/newzware_sftp_key;folder=/incoming;outputfile=VacationReport_<datestamp>.csv;skipempty=true;
+```
+
+### Newzware Report Scheduler Setup
+
+**Step-by-Step Configuration:**
+
+1. **Open Newzware Report Scheduler**
+   - Navigate to: Reports → Report Macro Automatic Scheduler
+
+2. **Create/Edit Scheduled Report**
+   - Report: Select "All Subscriber Report" from query list
+   - Output Format: Choose `CSV` or `PLAIN TEXT`
+   - Schedule: Set frequency (Daily, Weekly, etc.)
+
+3. **Configure Output Script**
+   - **Field:** "Output Script"
+   - **Value:** Paste one of the example configurations above
+   - **Timing:** Can configure "before" and "after" scripts
+
+4. **Test Configuration**
+   - Click "Test Report Schedule" button
+   - Verify file appears in SFTP server `/incoming` folder
+   - Check Newzware logs for any errors
+
+5. **Activate Schedule**
+   - Enable checkbox "Schedule Active"
+   - Save configuration
+
+### Testing Newzware SFTP Connection
+
+**Before scheduling, test the connection:**
+
+**Method 1: Manual SFTP Test from Newzware Server**
+```bash
+# On Windows Newzware server
+sftp -P 2222 newzware@cdash.upstatetoday.com
+
+# Try uploading a test file
+put C:\temp\test.csv /incoming/test.csv
+
+# Verify it appears
+ls /incoming/
+
+# Clean up
+rm /incoming/test.csv
+exit
+```
+
+**Method 2: Use Newzware Test Feature**
+- Create a simple test report (e.g., 10 rows)
+- Configure with SFTP script
+- Click "Run Now" button
+- Check SFTP server for file arrival
+
+### Common Newzware Configuration Issues
+
+**Issue: "Connection refused"**
+- **Cause:** Port forwarding not configured or firewall blocking
+- **Fix:** Verify router port forward rule (External 2222 → NAS 2222)
+
+**Issue: "Authentication failed"**
+- **Cause:** Wrong username, password, or SSH key path
+- **Fix:** Double-check credentials, verify SSH key file exists at specified path
+
+**Issue: "Permission denied" when uploading**
+- **Cause:** SFTP user doesn't have write access to folder
+- **Fix:** Verify SFTP container configuration allows writes to `/incoming`
+
+**Issue: File appears but processing doesn't run**
+- **Cause:** Cron job not configured or process_hotfolder.php has errors
+- **Fix:** Check cron logs, test process_hotfolder.php manually
+
+**Issue: `<datestamp>` appears literally in filename**
+- **Cause:** Wrong syntax or unsupported keyword
+- **Fix:** Use exact syntax `<datestamp>` (case-sensitive), verify Newzware version supports keywords
+
+### Security Best Practices
+
+**SSH Key Security:**
+1. **Generate dedicated key pair** (not shared with other systems)
+2. **Use passphrase-protected keys** (adds extra security layer)
+3. **Restrict key permissions** on Newzware server:
+   ```bash
+   # On Newzware server
+   chmod 600 /path/to/newzware_sftp_key
+   ```
+4. **Regular key rotation** (every 6-12 months)
+
+**Password Security (If Used):**
+1. **20+ character password** with mixed case, numbers, symbols
+2. **Unique password** (not reused from other systems)
+3. **Store in Newzware config** (not in documentation)
+4. **Change every 90 days** (security best practice)
+
+**Network Security:**
+1. **Non-standard port** (2222 instead of 22)
+2. **IP whitelisting** if Newzware has static IP
+3. **Monitor logs** for unauthorized access attempts
+4. **Fail2ban** to block brute force attacks
 
 ---
 
@@ -1300,67 +1529,132 @@ sftp -P 2222 newzware@YOUR_PUBLIC_IP
 
 **Objective:** Configure Newzware to automatically export reports via SFTP.
 
-#### Step 5.1: Locate SFTP Export Settings
+#### Step 5.1: Generate SSH Key Pair (Recommended Method)
+
+**On Newzware Server (Windows):**
+
+```bash
+# Open Command Prompt or PowerShell
+# Navigate to Newzware config directory
+cd C:\Newzware\config\sftp
+
+# Generate SSH key pair (no passphrase for automation)
+ssh-keygen -t rsa -b 4096 -f newzware_sftp_key -C "newzware-sftp-automation" -N ""
+
+# Result:
+# newzware_sftp_key      (private key - keep secure)
+# newzware_sftp_key.pub  (public key - upload to SFTP server)
+```
+
+**Important:**
+- **Private key** stays on Newzware server (never share!)
+- **Public key** gets added to SFTP server's authorized_keys
+- No passphrase needed (automation requirement)
+
+#### Step 5.2: Add Public Key to SFTP Server
+
+**On Development Machine:**
+
+```bash
+# Read public key content
+cat C:\Newzware\config\sftp\newzware_sftp_key.pub
+
+# Output will be like:
+# ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... newzware-sftp-automation
+```
+
+**Add to SFTP Container:**
+
+**Method 1: Via docker exec (Easiest)**
+```bash
+# SSH to NAS
+ssh it@192.168.1.254
+
+# Add public key to authorized_keys
+sudo docker exec circulation_sftp sh -c "mkdir -p /home/newzware/.ssh && echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC...' >> /home/newzware/.ssh/authorized_keys"
+
+# Set correct permissions
+sudo docker exec circulation_sftp sh -c "chmod 700 /home/newzware/.ssh && chmod 600 /home/newzware/.ssh/authorized_keys"
+```
+
+**Method 2: Via volume mount (Persistent)**
+- Add volume mount in docker-compose.yml:
+  ```yaml
+  volumes:
+    - ./sftp/authorized_keys:/home/newzware/.ssh/authorized_keys:ro
+  ```
+- Create `./sftp/authorized_keys` file with public key
+- Restart container
+
+#### Step 5.3: Configure Newzware Report Scheduler
 
 **In Newzware:**
-1. Navigate to **Reports** section
-2. Find **All Subscriber Report**
-3. Click **Schedule** or **Auto-Export**
-4. Select **SFTP** as delivery method
 
-*(Exact path varies by Newzware version - consult documentation)*
+1. **Navigate to Report Scheduler**
+   - Reports → Report Macro Automatic Scheduler
+   - Or: Tools → Scheduled Tasks → Reports
 
-#### Step 5.2: Configure SFTP Destination
+2. **Create New Schedule or Edit Existing**
+   - Report: **All Subscriber Report**
+   - Output Format: **CSV** or **PLAIN TEXT**
 
-**Settings:**
-```
-Connection Type: SFTP (Secure FTP)
-Server Address: cdash.upstatetoday.com
-Port: 2222
-Username: newzware
-Password: [from .env file - Xk9$mP2#vL8@qR4!nF7%wB3^jH6&sD1]
+3. **Set Schedule**
+   - Frequency: **Daily**
+   - Time: **5:00 AM** (before business hours)
+   - Days: **Monday - Sunday** (runs every day)
 
-Remote Path: /incoming
-  (or just "/" - depends on Newzware)
+4. **Configure Output Script**
 
-Filename Pattern: AllSubscriberReport_%Y%m%d_%H%M%S.csv
-  %Y = Year (2025)
-  %m = Month (12)
-  %d = Day (06)
-  %H%M%S = Time (140530)
+   **Field:** "Output Script"
 
-  Result: AllSubscriberReport_20251206_140530.csv
+   **Value (SSH Key - Recommended):**
+   ```
+   com.icanon.report.DefaultSchedulerScript,protocol=sftp;server=cdash.upstatetoday.com;port=2222;user=newzware;privatekey=C:/Newzware/config/sftp/newzware_sftp_key;folder=/incoming;outputfile=AllSubscriberReport_<datestamp>.csv;skipempty=true;
+   ```
 
-Schedule:
-  Frequency: Daily
-  Time: 5:00 AM
-  Time Zone: [Your timezone]
+   **Alternative Value (Password Fallback):**
+   ```
+   com.icanon.report.DefaultSchedulerScript,protocol=sftp;server=cdash.upstatetoday.com;port=2222;user=newzware;password=Xk9$mP2#vL8@qR4!nF7%wB3^jH6&sD1;folder=/incoming;outputfile=AllSubscriberReport_<datestamp>.csv;skipempty=true;
+   ```
 
-  (Runs before business hours, data ready by 6 AM)
+   **Important Notes:**
+   - **No line breaks** - entire script on one line
+   - **No spaces** around semicolons or equals signs
+   - `<datestamp>` automatically replaced with YYYYMMDD (e.g., 20251206)
+   - Result filename: `AllSubscriberReport_20251206.csv`
 
-Notifications:
-  On Success: ✓ Send email to admin@upstatetoday.com
-  On Failure: ✓ Send email to admin@upstatetoday.com
-```
+5. **Enable Email Notifications (Optional)**
+   - Configure `jftpemail.properties` file on Newzware server
+   - Emails sent on success/failure
+   - See Newzware documentation for email setup
 
 **Why 5:00 AM:**
 - Before business hours (6 AM - 5 PM)
 - Allows time for processing before users arrive
-- Off-peak hours (faster)
+- Off-peak network hours (faster transfers)
 - Consistent with other automated tasks
+- Data ready by 6 AM when cron processes it
 
-**Filename pattern best practices:**
-- Include timestamp (prevents collisions)
-- Include report type (easy to identify)
-- Use consistent format (easier to parse)
-- No spaces (prevents path issues)
+**Configuration Breakdown:**
 
-#### Step 5.3: Test Manual Export
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `protocol` | `sftp` | Use secure SFTP (not FTP) |
+| `server` | `cdash.upstatetoday.com` | Production domain (or IP for testing) |
+| `port` | `2222` | Non-standard port (security) |
+| `user` | `newzware` | SFTP username |
+| `privatekey` | `C:/Newzware/config/sftp/newzware_sftp_key` | SSH private key path |
+| `folder` | `/incoming` | Target directory |
+| `outputfile` | `AllSubscriberReport_<datestamp>.csv` | Filename with auto-date |
+| `skipempty` | `true` | Don't upload zero-byte files |
+
+#### Step 5.4: Test Manual Export
 
 **In Newzware:**
-1. Find **All Subscriber Report**
-2. Click **Run Now** or **Manual Export**
-3. Watch for completion
+1. Find **All Subscriber Report** in Report Scheduler
+2. Click **Test Report Schedule** or **Run Now**
+3. Watch for completion (should take 30-60 seconds)
+4. Check for success/error messages in Newzware logs
 
 **Verify on server:**
 ```bash
@@ -1382,7 +1676,7 @@ ls -lh /volume1/docker/nwdownloads/hotfolder/processed/
 #             (original filename + processing timestamp)
 ```
 
-#### Step 5.4: Verify Database Updated
+#### Step 5.5: Verify Database Updated
 
 **Check dashboard:**
 ```

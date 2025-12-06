@@ -8,6 +8,12 @@
 
 session_start();
 require_once 'config.php';
+require_once 'brute_force_protection.php';
+
+// Generate CSRF token if not exists
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 // If already logged in, redirect to dashboard
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
@@ -22,7 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $login_id = trim($_POST['login_id'] ?? '');
     $password = trim($_POST['password'] ?? '');
 
-    if (empty($login_id) || empty($password)) {
+    // SECURITY: Validate CSRF token
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $error = 'Invalid request. Please try again.';
+        error_log('SECURITY: CSRF validation failed from IP: ' . $_SERVER['REMOTE_ADDR']);
+    }
+    // SECURITY: Check brute force protection
+    elseif (!empty($login_id) && !checkBruteForce($login_id)) {
+        $error = $_SESSION['lockout_message'] ?? 'Too many failed attempts. Please try again later.';
+    }
+    elseif (empty($login_id) || empty($password)) {
         $error = 'Please enter both username and password.';
     } else {
         // Prepare API Request
@@ -65,22 +80,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['login_time'] = time();
                     $_SESSION['last_activity'] = time();
 
+                    // SECURITY: Regenerate session ID to prevent fixation attacks
+                    session_regenerate_id(true);
+
+                    // SECURITY: Reset brute force counter after successful login
+                    resetAttempts($login_id);
+
                     // Redirect to dashboard
                     header('Location: index.php');
                     exit;
                 } else {
                     // Auth failed or User Type not allowed
                     $error = 'Access Denied. Invalid credentials or unauthorized user type.';
+
+                    // SECURITY: Record failed attempt for brute force protection
+                    recordFailedAttempt($login_id);
                 }
             } catch (Exception $e) {
                 $error = 'System Error: Unable to process authentication response.';
                 error_log('Auth XML Parse Error: ' . $e->getMessage());
+                // SECURITY: Record attempt even on system error (could be attack probe)
+                recordFailedAttempt($login_id);
             }
         } else {
             $error = 'System Error: Unable to connect to authentication server.';
             if ($curlError) {
                 error_log('Auth cURL Error: ' . $curlError);
             }
+            // SECURITY: Record attempt even on connection error
+            recordFailedAttempt($login_id);
         }
     }
 }
@@ -277,6 +305,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <form method="POST" action="login.php">
+            <!-- SECURITY: CSRF Protection Token -->
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+
             <div class="form-group">
                 <label for="login_id">Login ID</label>
                 <input type="text" id="login_id" name="login_id" required autofocus autocomplete="username" placeholder="Enter your login ID">

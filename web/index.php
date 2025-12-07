@@ -907,14 +907,13 @@ require_once 'auth_check.php';
     <script src="assets/trend-slider.js?v=20251207"></script>
     <script src="assets/chart-context-integration.js?v=20251207"></script>
     <script>
-        // Initialize UI enhancements after page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Run enhancements after a short delay to ensure data is loaded
-            setTimeout(function() {
-                if (typeof initializeUIEnhancements === 'function') {
-                    initializeUIEnhancements();
-                }
-            }, 500);
+        // Initialize UI enhancements after dashboard is fully rendered
+        // This listens for the 'DashboardRendered' event dispatched by renderDashboard()
+        // Replaces the old setTimeout(500) race condition with explicit event coordination
+        document.addEventListener('DashboardRendered', function() {
+            if (typeof initializeUIEnhancements === 'function') {
+                initializeUIEnhancements();
+            }
         });
 
         // Override the existing toggleExportMenu function to update ARIA state

@@ -301,12 +301,16 @@ function updateNavigationState() {
  * Render empty state when week has no data
  */
 function renderEmptyState() {
-    const week = dashboardData.week;
+    const week = dashboardData.week || {};
 
     // Update period display
-    document.getElementById('periodLabel').textContent = week.label;
-    document.getElementById('dateRange').textContent = week.date_range;
-    document.getElementById('comparisonDisplay').textContent = '';
+    const periodLabel = document.getElementById('periodLabel');
+    const dateRange = document.getElementById('dateRange');
+    const comparisonDisplay = document.getElementById('comparisonDisplay');
+
+    if (periodLabel) periodLabel.textContent = week.label || 'Unknown Week';
+    if (dateRange) dateRange.textContent = week.date_range || '';
+    if (comparisonDisplay) comparisonDisplay.textContent = '';
 
     // Hide or clear all metric cards
     document.getElementById('totalActive').textContent = '--';
@@ -339,10 +343,10 @@ function renderEmptyState() {
     title.textContent = `No Data for ${week.label}`;
     emptyCard.appendChild(title);
 
-    const dateRange = document.createElement('p');
-    dateRange.className = 'text-amber-700 mb-4';
-    dateRange.textContent = week.date_range;
-    emptyCard.appendChild(dateRange);
+    const dateRangeDisplay = document.createElement('p');
+    dateRangeDisplay.className = 'text-amber-700 mb-4';
+    dateRangeDisplay.textContent = week.date_range;
+    emptyCard.appendChild(dateRangeDisplay);
 
     const message = document.createElement('p');
     message.className = 'text-amber-800 mb-4';
@@ -368,6 +372,9 @@ function renderEmptyState() {
     }
     if (trendChart) trendChart.destroy();
     if (deliveryChart) deliveryChart.destroy();
+
+    // Dispatch event even for empty state rendering
+    document.dispatchEvent(new Event('DashboardRendered'));
 }
 
 /**
@@ -399,6 +406,10 @@ function renderDashboard() {
     renderTrendChart();
     renderDeliveryChart();
     renderAnalytics();  // PHASE 2: Add analytics
+
+    // Dispatch custom event to signal dashboard is fully rendered
+    // This replaces the setTimeout(500) hack with explicit event coordination
+    document.dispatchEvent(new Event('DashboardRendered'));
 }
 
 
@@ -406,10 +417,13 @@ function renderDashboard() {
  * Render period display
  */
 function renderPeriodDisplay() {
-    const week = dashboardData.week;
+    const week = dashboardData.week || {};
 
-    document.getElementById('periodLabel').textContent = week.label;
-    document.getElementById('dateRange').textContent = week.date_range;
+    const periodLabel = document.getElementById('periodLabel');
+    const dateRangeEl = document.getElementById('dateRange');
+
+    if (periodLabel) periodLabel.textContent = week.label || 'Unknown Week';
+    if (dateRangeEl) dateRangeEl.textContent = week.date_range || '';
 
     // Comparison display
     const comparison = dashboardData.comparison;
@@ -884,7 +898,7 @@ function renderPaperCards() {
         .sort((a, b) => b[1].total - a[1].total);
 
     for (const [code, data] of sortedPapers) {
-        const info = PAPER_INFO[code];
+        const info = PAPER_INFO[code] || { name: code, location: 'Unknown' };
         const vacPercent = (data.on_vacation / data.total * 100).toFixed(2);
 
         html += `

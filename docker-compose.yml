@@ -11,10 +11,10 @@ services:
     container_name: circulation_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-Mojave48ice}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: circulation_dashboard
-      MYSQL_USER: circ_dash
-      MYSQL_PASSWORD: Barnaby358@Jones!
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
       - ./db_init:/docker-entrypoint-initdb.d:ro
@@ -37,9 +37,9 @@ services:
     environment:
       DB_HOST: database
       DB_PORT: 3306
-      DB_NAME: circulation_dashboard
-      DB_USER: circ_dash
-      DB_PASSWORD: Barnaby358@Jones!
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_SOCKET: ""
     # DEVELOPMENT: Volume mounts for live code editing
     # Changes to ./web are immediately reflected without rebuilding

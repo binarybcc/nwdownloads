@@ -31,62 +31,51 @@ else
 fi
 echo ""
 
-# Step 1: Build the image
-echo -e "${BLUE}Step 1: Building Docker image...${NC}"
-docker build -t ${FULL_IMAGE_NAME}:${VERSION_TAG} .
+# Step 1: Build and push multi-platform image (AMD64 + ARM64)
+echo -e "${BLUE}Step 1: Building multi-platform Docker image...${NC}"
+echo -e "${YELLOW}Platforms: linux/amd64 (NAS), linux/arm64 (Mac)${NC}"
+
+if [ "$VERSION_TAG" != "latest" ]; then
+    # Build with version tag AND latest tag
+    docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --tag ${FULL_IMAGE_NAME}:${VERSION_TAG} \
+        --tag ${FULL_IMAGE_NAME}:latest \
+        --push \
+        .
+else
+    # Build with just latest tag
+    docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --tag ${FULL_IMAGE_NAME}:latest \
+        --push \
+        .
+fi
 
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Build successful${NC}"
+    echo -e "${GREEN}✓ Multi-platform build and push successful${NC}"
+    echo -e "${GREEN}  • AMD64 image for Synology NAS${NC}"
+    echo -e "${GREEN}  • ARM64 image for Apple Silicon Mac${NC}"
 else
     echo -e "${RED}✗ Build failed${NC}"
     exit 1
 fi
 echo ""
 
-# Step 2: Tag as latest (if not already)
-if [ "$VERSION_TAG" != "latest" ]; then
-    echo -e "${BLUE}Step 2: Tagging as 'latest'...${NC}"
-    docker tag ${FULL_IMAGE_NAME}:${VERSION_TAG} ${FULL_IMAGE_NAME}:latest
-    echo -e "${GREEN}✓ Tagged as latest${NC}"
-    echo ""
-fi
-
-# Step 3: Push version tag
-echo -e "${BLUE}Step 3: Pushing ${VERSION_TAG} to Docker Hub...${NC}"
-docker push ${FULL_IMAGE_NAME}:${VERSION_TAG}
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Push successful: ${VERSION_TAG}${NC}"
-else
-    echo -e "${RED}✗ Push failed${NC}"
-    exit 1
-fi
-echo ""
-
-# Step 4: Push latest tag (if not already pushed)
-if [ "$VERSION_TAG" != "latest" ]; then
-    echo -e "${BLUE}Step 4: Pushing 'latest' to Docker Hub...${NC}"
-    docker push ${FULL_IMAGE_NAME}:latest
-
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ Push successful: latest${NC}"
-    else
-        echo -e "${RED}✗ Push failed${NC}"
-        exit 1
-    fi
-    echo ""
-fi
-
 # Summary
 echo -e "${GREEN}════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  Build and Push Complete!${NC}"
+echo -e "${GREEN}  Multi-Platform Build Complete!${NC}"
 echo -e "${GREEN}════════════════════════════════════════════════${NC}"
 echo ""
-echo -e "Images pushed:"
+echo -e "Images pushed to Docker Hub:"
 echo -e "  • ${FULL_IMAGE_NAME}:${VERSION_TAG}"
 if [ "$VERSION_TAG" != "latest" ]; then
     echo -e "  • ${FULL_IMAGE_NAME}:latest"
 fi
+echo ""
+echo -e "Platforms:"
+echo -e "  • linux/amd64 (Synology NAS)"
+echo -e "  • linux/arm64 (Apple Silicon Mac)"
 echo ""
 echo -e "${BLUE}Next Steps:${NC}"
 echo -e "  1. Deploy to Production:"

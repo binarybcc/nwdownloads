@@ -13,6 +13,7 @@
 # Backup files
 *.backup
 *.bak
+*.original
 
 # macOS
 .DS_Store

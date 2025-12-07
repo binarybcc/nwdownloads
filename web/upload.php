@@ -409,20 +409,80 @@ function processAllSubscriberReport($pdo, $filepath)
         throw new Exception('No valid data found in CSV file (or all data is before 2025-01-01)');
     }
 
-    // WEEK-BASED UPSERT: Delete old data for this week, then insert new
-    // This implements "latest upload wins" - only one snapshot per week
+    // WEEK-BASED UPSERT WITH DAY-OF-WEEK PRECEDENCE
+    // Rule: "Latest day-of-week wins"
+    // - Saturday data replaces Friday data
+    // - Friday data replaces Thursday data
+    // - Tuesday data is REJECTED if Friday data already exists
+
     $pdo->beginTransaction();
     try {
-    // Step 1: Delete existing data for this week/year
-        $delete_daily = $pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
-        $delete_daily->execute([$week_num, $year]);
-        $deleted_daily = $delete_daily->rowCount();
-        $delete_subscriber = $pdo->prepare("DELETE FROM subscriber_snapshots WHERE week_num = ? AND year = ?");
-        $delete_subscriber->execute([$week_num, $year]);
-        $deleted_subscriber = $delete_subscriber->rowCount();
-        if ($deleted_daily > 0 || $deleted_subscriber > 0) {
-            error_log("Replaced existing Week $week_num, $year data: $deleted_daily daily snapshots, $deleted_subscriber subscriber records");
+        // Step 1: Check if data already exists for this week
+        $check_stmt = $pdo->prepare("
+            SELECT snapshot_date, DAYOFWEEK(snapshot_date) as day_of_week
+            FROM daily_snapshots
+            WHERE week_num = ? AND year = ?
+            LIMIT 1
+        ");
+        $check_stmt->execute([$week_num, $year]);
+        $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
+
+        $upload_day_of_week = (int)date('N', strtotime($snapshot_date)); // 1=Mon, 7=Sun
+        $replaced_data = false;
+        $rejection_message = null;
+
+        if ($existing) {
+            // Data exists for this week - compare day-of-week
+            $existing_date = $existing['snapshot_date'];
+            // MySQL DAYOFWEEK: 1=Sun, 2=Mon, ..., 7=Sat
+            // Convert to ISO (1=Mon, 7=Sun) for easier comparison
+            $existing_day_mysql = (int)$existing['day_of_week'];
+            $existing_day_iso = $existing_day_mysql == 1 ? 7 : $existing_day_mysql - 1;
+
+            if ($upload_day_of_week > $existing_day_iso) {
+                // New data is LATER in week - accept and replace
+                $delete_daily = $pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
+                $delete_daily->execute([$week_num, $year]);
+                $deleted_daily = $delete_daily->rowCount();
+
+                $delete_subscriber = $pdo->prepare("DELETE FROM subscriber_snapshots WHERE week_num = ? AND year = ?");
+                $delete_subscriber->execute([$week_num, $year]);
+                $deleted_subscriber = $delete_subscriber->rowCount();
+
+                $day_names = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                $upload_day_name = $day_names[$upload_day_of_week];
+                $existing_day_name = $day_names[$existing_day_iso];
+
+                error_log("✅ Accepted: $upload_day_name data ($snapshot_date) replaced $existing_day_name data ($existing_date) for Week $week_num, $year");
+                $replaced_data = true;
+
+            } elseif ($upload_day_of_week == $existing_day_iso) {
+                // Same day - replace (re-upload scenario)
+                $delete_daily = $pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
+                $delete_daily->execute([$week_num, $year]);
+                $deleted_daily = $delete_daily->rowCount();
+
+                $delete_subscriber = $pdo->prepare("DELETE FROM subscriber_snapshots WHERE week_num = ? AND year = ?");
+                $delete_subscriber->execute([$week_num, $year]);
+                $deleted_subscriber = $delete_subscriber->rowCount();
+
+                error_log("✅ Re-upload: Same day data replaced for Week $week_num, $year");
+                $replaced_data = true;
+
+            } else {
+                // New data is EARLIER in week - reject
+                $day_names = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                $upload_day_name = $day_names[$upload_day_of_week];
+                $existing_day_name = $day_names[$existing_day_iso];
+
+                $pdo->rollBack();
+                throw new Exception(
+                    "❌ Upload rejected: $upload_day_name data ($snapshot_date) cannot replace existing $existing_day_name data ($existing_date). " .
+                    "Later-in-week data takes precedence. Upload $existing_day_name or later data to replace."
+                );
+            }
         }
+        // If no existing data, proceed with insert (no deletion needed)
 
         // Step 2: Prepare INSERT statement for daily_snapshots
         $stmt = $pdo->prepare("
@@ -441,7 +501,7 @@ function processAllSubscriberReport($pdo, $filepath)
     // Execute insert
             $stmt->execute($snapshot);
     // Track stats
-            if ($deleted_daily > 0) {
+            if ($replaced_data) {
                 $stats['updated_records']++;
             } else {
                 $stats['new_records']++;

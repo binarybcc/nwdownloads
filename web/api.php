@@ -148,14 +148,24 @@ function calculateTrendDirection($trend)
 
 /**
  * Get business unit comparison data (YoY and Previous Week)
+ * Updated to use week-based queries with fallback for missing weeks
  */
 function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData)
 {
+    $boundaries = getWeekBoundaries($currentDate);
+    $week_num = $boundaries['week_num'];
+    $year = $boundaries['year'];
 
-    $saturday = getSaturdayForWeek($currentDate);
-// Year-over-year comparison
-    $lastYearDate = date('Y-m-d', strtotime($saturday . ' -1 year'));
-    $lastYearSaturday = getSaturdayForWeek($lastYearDate);
+    $comparison = [
+        'yoy' => null,
+        'previous_week' => null,
+        'trend_direction' => 'stable'
+    ];
+
+    // Year-over-year comparison (same week number last year)
+    $lastYearDate = date('Y-m-d', strtotime($currentDate . ' -1 year'));
+    $lastYearWeek = getWeekBoundaries($lastYearDate);
+
     $stmt = $pdo->prepare("
         SELECT
             SUM(total_active) as total,
@@ -166,25 +176,60 @@ function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData)
         FROM daily_snapshots
         WHERE business_unit = ?
           AND paper_code != 'FN'
-          AND snapshot_date = ?
+          AND week_num = ?
+          AND year = ?
     ");
-    $stmt->execute([$unitName, $lastYearSaturday]);
+    $stmt->execute([$unitName, $lastYearWeek['week_num'], $lastYearWeek['year']]);
     $yoyData = $stmt->fetch(PDO::FETCH_ASSOC);
-// Previous week comparison
-    $prevWeekDate = date('Y-m-d', strtotime($saturday . ' -7 days'));
-    $stmt->execute([$unitName, $prevWeekDate]);
-    $prevWeekData = $stmt->fetch(PDO::FETCH_ASSOC);
-    $comparison = [
-        'yoy' => null,
-        'previous_week' => null,
-        'trend_direction' => 'stable'
-    ];
+
     if ($yoyData && $yoyData['total'] > 0) {
         $comparison['yoy'] = [
             'total' => (int)$yoyData['total'],
             'change' => $currentData['total'] - (int)$yoyData['total'],
             'change_percent' => round((($currentData['total'] - (int)$yoyData['total']) / (int)$yoyData['total']) * 100, 1)
         ];
+    }
+
+    // Previous week comparison with fallback for missing weeks
+    $targetWeekNum = $week_num - 1;
+    $targetYear = $year;
+
+    // Handle year boundary
+    if ($targetWeekNum < 1) {
+        $targetWeekNum = 52;
+        $targetYear--;
+    }
+
+    // Try to get data for previous week
+    $stmt = $pdo->prepare("
+        SELECT
+            SUM(total_active) as total,
+            SUM(deliverable) as deliverable
+        FROM daily_snapshots
+        WHERE business_unit = ?
+          AND paper_code != 'FN'
+          AND week_num = ?
+          AND year = ?
+    ");
+    $stmt->execute([$unitName, $targetWeekNum, $targetYear]);
+    $prevWeekData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // If no data for previous week, fall back to most recent week with data
+    if (!$prevWeekData || $prevWeekData['total'] == 0) {
+        $stmt = $pdo->prepare("
+            SELECT
+                SUM(total_active) as total,
+                SUM(deliverable) as deliverable
+            FROM daily_snapshots
+            WHERE business_unit = ?
+              AND paper_code != 'FN'
+              AND (year < ? OR (year = ? AND week_num < ?))
+            GROUP BY week_num, year
+            ORDER BY year DESC, week_num DESC
+            LIMIT 1
+        ");
+        $stmt->execute([$unitName, $year, $year, $week_num]);
+        $prevWeekData = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     if ($prevWeekData && $prevWeekData['total'] > 0) {
@@ -196,7 +241,7 @@ function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData)
     }
 
     // Get 12-week trend for trend direction
-    $trendStart = date('Y-m-d', strtotime($saturday . ' -84 days'));
+    $trendStart = date('Y-m-d', strtotime($currentDate . ' -84 days'));
     $stmt = $pdo->prepare("
         SELECT
             snapshot_date,

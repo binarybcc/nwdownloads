@@ -51,6 +51,9 @@ const PAPER_INFO = {
  * Initialize dashboard on page load
  */
 document.addEventListener('DOMContentLoaded', function() {
+    // Set dropdown to match default compareMode
+    document.getElementById('compareMode').value = compareMode;
+
     updateDateTime();
     loadDashboardData();
 

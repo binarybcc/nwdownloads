@@ -647,14 +647,6 @@ window.renderBusinessUnits = function() {
                                 </div>
                                 <span class="font-medium text-gray-900">${formatNumber(data.carrier)} <span class="text-xs text-gray-500">(${(data.carrier/data.total*100).toFixed(1)}%)</span></span>
                             </div>
-
-                            <!-- PHASE 2: Comparison Section -->
-                            ${comparison && (comparison.yoy || comparison.previous_week) ? `
-                                <div class="mt-3 pt-3 border-t border-gray-200">
-                                    <div class="text-xs font-medium text-gray-500 mb-2">📊 Comparison</div>
-                                    ${comparison.yoy ? renderComparisonWithTrend(comparison.yoy, comparison.trend_direction) : ''}
-                                </div>
-                            ` : ''}
                         </div>
                     </div>
                 </div>

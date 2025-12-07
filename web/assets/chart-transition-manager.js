@@ -5,6 +5,16 @@
  * Date: 2025-12-05
  */
 
+/**
+ * LOAD ORDER: 10 of 11
+ *
+ * DEPENDENCIES:
+ * - app.js: Chart.js instances
+ *
+ * PROVIDES:
+ * - ChartTransitionManager
+ */
+
 class ChartTransitionManager {
     constructor(containerElementId) {
         this.containerElement = document.getElementById(containerElementId);

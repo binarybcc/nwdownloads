@@ -3,6 +3,18 @@
  * Quick Win improvements from UI/UX Pro Max skill
  */
 
+/**
+ * LOAD ORDER: 6 of 11
+ *
+ * DEPENDENCIES:
+ * - app.js: Core functions
+ * - detail_panel.js: Panel functions for shortcuts
+ *
+ * PROVIDES:
+ * - initializeUIEnhancements()
+ * - updateExportMenuAria()
+ */
+
 // SVG Icon Templates
 const icons = {
     arrowUp: `<svg fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">

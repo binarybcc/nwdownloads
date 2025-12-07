@@ -4,6 +4,16 @@
  * Date: 2025-12-05
  */
 
+/**
+ * LOAD ORDER: 7 of 11
+ *
+ * DEPENDENCIES:
+ * - app.js: Chart instances
+ *
+ * PROVIDES:
+ * - Context menu creation and handling
+ */
+
 class ContextMenu {
     constructor(options = {}) {
         this.items = options.items || [];

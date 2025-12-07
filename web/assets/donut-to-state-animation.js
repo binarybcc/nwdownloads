@@ -8,6 +8,14 @@
  * - Stay visible at 100% for 45% of journey
  * - Quick fade-out in last 15%
  *
+ * LOAD ORDER: 4 of 11
+ *
+ * DEPENDENCIES:
+ * - app.js: Chart.js instances
+ *
+ * PROVIDES:
+ * - Donut animation utilities
+ *
  * CRITICAL: Target position calculated AFTER layout stabilization (450ms delay)
  *
  * Documentation: /docs/animation-system-reference.md

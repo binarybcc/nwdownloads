@@ -4,6 +4,16 @@
  * Date: 2025-12-05
  */
 
+/**
+ * LOAD ORDER: 3 of 11
+ *
+ * DEPENDENCIES:
+ * - app.js: Chart.js must be initialized
+ *
+ * PROVIDES:
+ * - ChartLayoutManager utilities
+ */
+
 class ChartLayoutManager {
     constructor() {
         this.defaultLayout = [

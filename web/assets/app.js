@@ -14,7 +14,7 @@ let trendChart = null;
 let deliveryChart = null;
 let businessUnitCharts = {}; // Store business unit mini charts
 let currentDate = null; // null = latest, or YYYY-MM-DD
-let compareMode = 'yoy'; // yoy, previous, none
+let compareMode = 'previous'; // yoy, previous, none - default to previous week
 let dataRange = null;
 let flatpickrInstance = null;
 
@@ -411,8 +411,10 @@ function renderKeyMetrics() {
         document.getElementById('comparisonPercent').textContent =
             `${totalPercent > 0 ? '+' : ''}${totalPercent.toFixed(2)}%`;
     } else {
+        // Show helpful message if available (e.g., "Year-over-year unavailable (no 2024 data)")
+        const message = dashboardData.comparison_message || 'No comparison data';
         document.getElementById('totalActiveComparison').innerHTML =
-            '<span class="text-gray-500">No comparison data</span>';
+            `<span class="text-gray-500">${message}</span>`;
         document.getElementById('deliverableComparison').innerHTML =
             '<span class="text-gray-500">Ready for delivery</span>';
         document.getElementById('comparisonChange').textContent = '--';
@@ -645,6 +647,7 @@ function renderDeliveryChart() {
 function renderBusinessUnits() {
     const container = document.getElementById('businessUnits');
     const byUnit = dashboardData.by_business_unit;
+    const comparisons = dashboardData.business_unit_comparisons || {};
 
     if (!byUnit) {
         container.innerHTML = '<div class="text-center text-gray-500 py-8">No business unit data available</div>';
@@ -665,6 +668,19 @@ function renderBusinessUnits() {
         const vacPercent = (data.on_vacation / data.total * 100).toFixed(2);
         const chartId = `chart-${unitName.replace(/\s+/g, '-').toLowerCase()}`;
 
+        // Get comparison data for this business unit
+        const comparison = comparisons[unitName];
+        let comparisonBadge = '';
+        if (comparison) {
+            // Use the appropriate comparison based on current mode
+            const compData = compareMode === 'yoy' ? comparison.yoy : comparison.previous_week;
+            if (compData && compData.change !== undefined) {
+                const change = compData.change;
+                const changePercent = compData.change_percent;
+                comparisonBadge = renderComparisonBadge(change, changePercent, 'vs comparison');
+            }
+        }
+
         html += `
             <div class="paper-card bg-white rounded-xl shadow-sm p-6 border-l-4" style="border-left-color: ${config.color}" onclick="openDetailPanel('${unitName}', '${dashboardData.current.snapshot_date}')">
                 <div class="flex items-start justify-between mb-4">
@@ -678,6 +694,7 @@ function renderBusinessUnits() {
                     <div class="text-right">
                         <div class="text-3xl font-bold text-gray-900">${formatNumber(data.total)}</div>
                         <div class="text-sm text-gray-500">${percentage}% of total</div>
+                        ${comparisonBadge ? `<div class="mt-1">${comparisonBadge}</div>` : ''}
                     </div>
                 </div>
 

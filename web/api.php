@@ -500,6 +500,7 @@ function getOverviewEnhanced($pdo, $params)
 
     // Get comparison data
     $comparison = null;
+    $comparison_message = null;
     if ($compareMode === 'yoy') {
     // Year-over-year comparison (same week number last year)
         $lastYearDate = date('Y-m-d', strtotime($current['snapshot_date'] . ' -1 year'));
@@ -580,6 +581,9 @@ function getOverviewEnhanced($pdo, $params)
                                     ]
                     ];
             }
+        } else {
+            // No historical data available for YoY comparison
+            $comparison_message = "Year-over-year comparison unavailable (no {$lastYearWeek['year']} data)";
         }
     } elseif ($compareMode === 'previous') {
     // Previous week comparison with fallback to most recent week with data
@@ -815,6 +819,7 @@ function getOverviewEnhanced($pdo, $params)
             'digital' => (int)$current['digital'],
         ],
         'comparison' => $comparison,
+        'comparison_message' => $comparison_message,
         'trend' => array_map(function ($row) {
 
             // Preserve null values for missing weeks

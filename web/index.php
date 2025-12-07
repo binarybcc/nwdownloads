@@ -890,7 +890,7 @@ require_once 'auth_check.php';
     </div> <!-- /detailPanel -->
 
     <!-- JavaScript - Cache-busting version parameter forces browser to fetch latest files -->
-    <script src="assets/app.js?v=20251206d"></script>
+    <script src="assets/app.js?v=20251206e"></script>
     <!-- PHASE 2: Enhancements -->
     <script src="assets/app_phase2_enhancements.js?v=20251205"></script>
     <!-- State Icons & Chart Layout -->

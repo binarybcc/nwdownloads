@@ -82,6 +82,7 @@ function updateDateTime() {
  * Load dashboard data from API
  */
 async function loadDashboardData() {
+    console.log('===== LOAD DASHBOARD DATA CALLED =====');
     try {
         const params = new URLSearchParams({
             action: 'overview',
@@ -92,12 +93,16 @@ async function loadDashboardData() {
             params.append('date', currentDate);
         }
 
+        console.log('===== FETCHING DATA FROM API =====', `${API_BASE}?${params}`);
         const response = await fetch(`${API_BASE}?${params}`);
+        console.log('===== API RESPONSE RECEIVED =====', response.status);
         const result = await response.json();
+        console.log('===== API RESULT =====', result.success ? 'SUCCESS' : 'FAILED');
 
         if (result.success) {
             dashboardData = result.data;
             dataRange = result.data.data_range;
+            console.log('===== DASHBOARD DATA SET, CALLING RENDER =====');
 
             try {
                 renderDashboard();
@@ -321,7 +326,11 @@ function renderEmptyState() {
  * Render complete dashboard
  */
 function renderDashboard() {
-    if (!dashboardData) return;
+    console.log('===== RENDER DASHBOARD CALLED =====');
+    if (!dashboardData) {
+        console.log('===== NO DASHBOARD DATA, RETURNING =====');
+        return;
+    }
 
     // Debug: Log has_data value
     console.log('renderDashboard called, has_data:', dashboardData.has_data, 'type:', typeof dashboardData.has_data);

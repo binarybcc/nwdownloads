@@ -5,19 +5,28 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 
 ## 📚 Documentation Reference
 
-**AI-Optimized Knowledge Base** (Primary reference as of December 7, 2025):
-- `/docs/knowledge-base.json` - Core project info, tech stack, business context, deployment workflows
-- `/docs/architecture.json` - System architecture, database schemas, frontend structure, API endpoints
-- `/docs/deployment-procedures.json` - Complete deployment workflows and operational procedures
-- `/docs/troubleshooting-rules.json` - Decision tree troubleshooting guides
+**Primary Documentation** (Updated December 7, 2025):
+- `/docs/KNOWLEDGE-BASE.md` - Comprehensive reference covering:
+  - System architecture & database schemas
+  - Frontend structure & API endpoints  
+  - Tech stack & business context
+  - Docker deployment strategies
+  - Common operations & performance notes
+- `/docs/TROUBLESHOOTING.md` - Complete troubleshooting guide with:
+  - Decision tree diagnostics for 9 common issue categories
+  - Step-by-step solutions with copy-paste commands
+  - Quick diagnostic commands reference
+- `/docs/cost_analysis.md` - Real-world development cost analysis & ROI
 
 **Recent Deployment Documentation:**
 - `/docs/DEPLOYMENT-2025-12-07.md` - Multi-platform builds + setTimeout fix deployment
 
 **Archived Documentation:**
-- `/docs/ARCHIVE/` - Historical markdown documentation (33 files) superseded by JSON knowledge base
+- `/docs/ARCHIVE/` - Historical files including:
+  - Superseded JSON knowledge base files (architecture.json, knowledge-base.json, etc.)
+  - Legacy markdown documentation (33+ files)
 
-**Note:** This CLAUDE.md file provides quick-reference commands and critical production protocols. For comprehensive technical details, refer to the JSON knowledge base files above.
+**Note:** This CLAUDE.md file provides quick-reference commands and critical production protocols. For comprehensive technical details, refer to KNOWLEDGE-BASE.md and TROUBLESHOOTING.md above.
 
 ## 📍 Multi-Workstation Setup
 
@@ -66,14 +75,13 @@ direnv allow
 
 **Before ANY production database, deployment, or infrastructure operation, Claude MUST:**
 
-1. **Read the JSON knowledge base** - Contains all connection details, credentials, and workflows
-2. **Check deployment-procedures.json** - Complete deployment workflows with commands
+1. **Read the documentation** - Contains all connection details, credentials, and workflows
+2. **Check KNOWLEDGE-BASE.md** - Complete deployment workflows with commands
 3. **Follow the 3-attempt rule** - If it takes more than 3 attempts, you didn't read the docs
 
 **Key files to check BEFORE executing:**
-- `/docs/deployment-procedures.json` - Complete deployment workflows and commands
-- `/docs/troubleshooting-rules.json` - Decision trees for common issues
-- `/docs/knowledge-base.json` - Database credentials and configuration
+- `/docs/KNOWLEDGE-BASE.md` - Complete system reference (deployment, credentials, configuration)
+- `/docs/TROUBLESHOOTING.md` - Decision trees for common issues
 - `.claude/CLAUDE.md` - This file (quick reference and protocols)
 
 **Critical production details:**
@@ -137,7 +145,7 @@ direnv allow
 - **Never copy code files to Production** - deploy via Docker Hub only
 - **Configuration files only** via SSH (docker-compose.prod.yml, db_init scripts)
 
-**Documentation**: See `/docs/deployment-procedures.json` for complete workflow details
+**Documentation**: See `/docs/KNOWLEDGE-BASE.md` (Docker & Deployment section) for complete workflow details
 
 ## Key Technical Notes
 
@@ -223,7 +231,7 @@ docker compose up -d
 - Old subscription rates retired, making 2024 data incomplete/inaccurate
 - Current data range: Jan 4, 2025 onwards (250 records)
 - 2026 will be first year with valid year-over-year comparisons
-- See: `/docs/knowledge-base.json` (data_state section) for details
+- See: `/docs/KNOWLEDGE-BASE.md` (Data State section) for details
 
 ### Database Schema
 - `daily_snapshots` - Daily circulation metrics by paper/business unit
@@ -235,13 +243,12 @@ docker compose up -d
 /web/                         - PHP application and API
 /sql/                         - Database initialization scripts
 /db_init/                     - Database setup files
-/docs/                        - Documentation (AI-optimized JSON + recent deployment docs)
-  /knowledge-base.json        - Core project knowledge
-  /architecture.json          - System architecture and schemas
-  /deployment-procedures.json - Deployment workflows
-  /troubleshooting-rules.json - Troubleshooting decision trees
+/docs/                        - Documentation
+  /KNOWLEDGE-BASE.md          - Comprehensive system reference
+  /TROUBLESHOOTING.md         - Decision tree troubleshooting guide
+  /cost_analysis.md           - Development cost analysis
   /DEPLOYMENT-2025-12-07.md   - Recent deployment guide
-  /ARCHIVE/                   - Historical markdown docs (33 files)
+  /ARCHIVE/                   - Historical docs (JSON KB files + 33 markdown files)
 /docker-compose.yml           - Development config (volume mounts)
 /docker-compose.prod.yml      - Production config (Docker Hub images)
 /Dockerfile                   - Web container build definition

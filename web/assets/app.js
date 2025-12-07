@@ -5,10 +5,12 @@
  * Date: 2025-12-01
  */
 
-alert('APP.JS LOADED - Testing if JavaScript executes');
+console.log('===== APP.JS FILE LOADED =====');
 
 // Configuration
 const API_BASE = './api.php';
+
+console.log('===== CONSTANTS DEFINED =====');
 
 // Global state
 let dashboardData = null;
@@ -49,12 +51,16 @@ const PAPER_INFO = {
     'FN': { name: 'Former News', location: 'Sold' }
 };
 
+console.log('===== SETTING UP DOM CONTENT LOADED LISTENER =====');
+
 /**
  * Initialize dashboard on page load
  */
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('===== DOM CONTENT LOADED EVENT FIRED =====');
     // Set dropdown to match default compareMode
     document.getElementById('compareMode').value = compareMode;
+    console.log('===== DROPDOWN SET TO:', compareMode, '=====');
 
     updateDateTime();
     loadDashboardData();

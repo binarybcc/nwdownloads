@@ -595,6 +595,7 @@ window.renderBusinessUnits = function() {
                     <div class="text-right">
                         <div class="text-3xl font-bold text-gray-900">${formatNumber(data.total)}</div>
                         <div class="text-sm text-gray-500">${percentage}% of total</div>
+                        ${comparison && (compareMode === 'yoy' ? comparison.yoy : comparison.previous_week) && (compareMode === 'yoy' ? comparison.yoy : comparison.previous_week).change !== undefined ? `<div class="mt-1">${renderComparisonBadge((compareMode === 'yoy' ? comparison.yoy : comparison.previous_week).change, (compareMode === 'yoy' ? comparison.yoy : comparison.previous_week).change_percent, 'vs comparison')}</div>` : ''}
                     </div>
                 </div>
 

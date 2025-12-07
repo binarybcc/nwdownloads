@@ -650,6 +650,7 @@ function renderDeliveryChart() {
  * Render business unit cards
  */
 function renderBusinessUnits() {
+    console.log('=== renderBusinessUnits CALLED ===');
     const container = document.getElementById('businessUnits');
     const byUnit = dashboardData.by_business_unit;
     const comparisons = dashboardData.business_unit_comparisons || {};

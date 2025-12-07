@@ -224,6 +224,21 @@ function processAllSubscriberReport($pdo, $filepath) {
     $original_filename = $_FILES['allsubscriber']['name'] ?? 'unknown';
     $snapshot_date = extractSnapshotDateFromFilename($original_filename);
 
+    // Calculate week number and year from snapshot_date
+    // IMPORTANT: Monday snapshots represent PREVIOUS week's data
+    $dt = new DateTime($snapshot_date);
+    $dayOfWeek = (int)$dt->format('w'); // 0=Sunday, 6=Saturday
+
+    // If Monday (1), subtract 1 day to get previous week's Saturday
+    // This assigns Monday snapshots to the week that just ended
+    if ($dayOfWeek === 1) {
+        $dt->modify('-1 day'); // Move to previous Saturday
+    }
+
+    // Calculate week number using ISO 8601 (Monday start), then adjust to Sunday start
+    $week_num = (int)$dt->format('W');
+    $year = (int)$dt->format('Y');
+
     // Store original upload info for audit trail
     $today = date('Y-m-d');
     $original_upload_date = $today;
@@ -322,11 +337,13 @@ function processAllSubscriberReport($pdo, $filepath) {
             $business_unit = $paper_info['business_unit'];
             $paper_name = $paper_info['name'];
 
-            // Initialize snapshot for this date/paper if not exists
-            $key = $snapshot_date . '|' . $paper_code;
+            // Initialize snapshot for this week/paper if not exists
+            $key = $week_num . '|' . $year . '|' . $paper_code;
             if (!isset($snapshots[$key])) {
                 $snapshots[$key] = [
                     'snapshot_date' => $snapshot_date,
+                    'week_num' => $week_num,
+                    'year' => $year,
                     'paper_code' => $paper_code,
                     'paper_name' => $paper_name,
                     'business_unit' => $business_unit,
@@ -353,6 +370,8 @@ function processAllSubscriberReport($pdo, $filepath) {
                 case 'INTE':
                 case 'INTERNET':
                 case 'DIGITAL':
+                case 'EMAI':
+                case 'EMAIL':
                     $snapshots[$key]['digital_only']++;
                     break;
             }
@@ -366,6 +385,8 @@ function processAllSubscriberReport($pdo, $filepath) {
             // NEW: Store individual subscriber record
             $subscriber_records[] = [
                 'snapshot_date' => $snapshot_date,
+                'week_num' => $week_num,
+                'year' => $year,
                 'sub_num' => $sub_num,
                 'paper_code' => $paper_code,
                 'paper_name' => $paper_name,
@@ -404,47 +425,45 @@ function processAllSubscriberReport($pdo, $filepath) {
         throw new Exception('No valid data found in CSV file (or all data is before 2025-01-01)');
     }
 
-    // Prepare UPSERT statement
-    $stmt = $pdo->prepare("
-        INSERT INTO daily_snapshots (
-            snapshot_date, paper_code, paper_name, business_unit,
-            total_active, deliverable, mail_delivery, carrier_delivery, digital_only, on_vacation
-        ) VALUES (
-            :snapshot_date, :paper_code, :paper_name, :business_unit,
-            :total_active, :deliverable, :mail_delivery, :carrier_delivery, :digital_only, :on_vacation
-        )
-        ON DUPLICATE KEY UPDATE
-            paper_name = VALUES(paper_name),
-            business_unit = VALUES(business_unit),
-            total_active = VALUES(total_active),
-            deliverable = VALUES(deliverable),
-            mail_delivery = VALUES(mail_delivery),
-            carrier_delivery = VALUES(carrier_delivery),
-            digital_only = VALUES(digital_only),
-            on_vacation = VALUES(on_vacation)
-    ");
-
-    // Insert/Update snapshots
+    // WEEK-BASED UPSERT: Delete old data for this week, then insert new
+    // This implements "latest upload wins" - only one snapshot per week
     $pdo->beginTransaction();
 
     try {
+        // Step 1: Delete existing data for this week/year
+        $delete_daily = $pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
+        $delete_daily->execute([$week_num, $year]);
+        $deleted_daily = $delete_daily->rowCount();
+
+        $delete_subscriber = $pdo->prepare("DELETE FROM subscriber_snapshots WHERE week_num = ? AND year = ?");
+        $delete_subscriber->execute([$week_num, $year]);
+        $deleted_subscriber = $delete_subscriber->rowCount();
+
+        if ($deleted_daily > 0 || $deleted_subscriber > 0) {
+            error_log("Replaced existing Week $week_num, $year data: $deleted_daily daily snapshots, $deleted_subscriber subscriber records");
+        }
+
+        // Step 2: Prepare INSERT statement for daily_snapshots
+        $stmt = $pdo->prepare("
+            INSERT INTO daily_snapshots (
+                snapshot_date, week_num, year, paper_code, paper_name, business_unit,
+                total_active, deliverable, mail_delivery, carrier_delivery, digital_only, on_vacation
+            ) VALUES (
+                :snapshot_date, :week_num, :year, :paper_code, :paper_name, :business_unit,
+                :total_active, :deliverable, :mail_delivery, :carrier_delivery, :digital_only, :on_vacation
+            )
+        ");
+
+        // Step 3: Insert snapshots
         foreach ($snapshots as $snapshot) {
             // Calculate deliverable (total_active - on_vacation)
             $snapshot['deliverable'] = $snapshot['total_active'] - $snapshot['on_vacation'];
 
-            // Check if record exists
-            $check_stmt = $pdo->prepare("
-                SELECT COUNT(*) FROM daily_snapshots
-                WHERE snapshot_date = ? AND paper_code = ?
-            ");
-            $check_stmt->execute([$snapshot['snapshot_date'], $snapshot['paper_code']]);
-            $exists = $check_stmt->fetchColumn() > 0;
-
-            // Execute upsert
+            // Execute insert
             $stmt->execute($snapshot);
 
             // Track stats
-            if ($exists) {
+            if ($deleted_daily > 0) {
                 $stats['updated_records']++;
             } else {
                 $stats['new_records']++;
@@ -471,45 +490,22 @@ function processAllSubscriberReport($pdo, $filepath) {
             }
         }
 
-        // NEW: Insert subscriber-level records in bulk with UPSERT logic
+        // Step 4: Insert subscriber-level records (week data already deleted above)
         if (!empty($subscriber_records)) {
             $sub_stmt = $pdo->prepare("
                 INSERT INTO subscriber_snapshots (
-                    snapshot_date, sub_num, paper_code, paper_name, business_unit,
+                    snapshot_date, week_num, year, sub_num, paper_code, paper_name, business_unit,
                     name, route, rate_name, subscription_length, delivery_type,
                     payment_status, begin_date, paid_thru, daily_rate, on_vacation,
                     address, city_state_postal, abc, issue_code, last_payment_amount,
                     phone, email, login_id, last_login
                 ) VALUES (
-                    :snapshot_date, :sub_num, :paper_code, :paper_name, :business_unit,
+                    :snapshot_date, :week_num, :year, :sub_num, :paper_code, :paper_name, :business_unit,
                     :name, :route, :rate_name, :subscription_length, :delivery_type,
                     :payment_status, :begin_date, :paid_thru, :daily_rate, :on_vacation,
                     :address, :city_state_postal, :abc, :issue_code, :last_payment_amount,
                     :phone, :email, :login_id, :last_login
                 )
-                ON DUPLICATE KEY UPDATE
-                    paper_name = VALUES(paper_name),
-                    business_unit = VALUES(business_unit),
-                    name = VALUES(name),
-                    route = VALUES(route),
-                    rate_name = VALUES(rate_name),
-                    subscription_length = VALUES(subscription_length),
-                    delivery_type = VALUES(delivery_type),
-                    payment_status = VALUES(payment_status),
-                    begin_date = VALUES(begin_date),
-                    paid_thru = VALUES(paid_thru),
-                    daily_rate = VALUES(daily_rate),
-                    on_vacation = VALUES(on_vacation),
-                    address = VALUES(address),
-                    city_state_postal = VALUES(city_state_postal),
-                    abc = VALUES(abc),
-                    issue_code = VALUES(issue_code),
-                    last_payment_amount = VALUES(last_payment_amount),
-                    phone = VALUES(phone),
-                    email = VALUES(email),
-                    login_id = VALUES(login_id),
-                    last_login = VALUES(last_login),
-                    import_timestamp = CURRENT_TIMESTAMP
             ");
 
             foreach ($subscriber_records as $sub) {

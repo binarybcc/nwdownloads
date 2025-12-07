@@ -7,15 +7,29 @@
  * Date: 2025-12-02
  */
 
+// Extend CircDashboard namespace for detail panel
+// (CircDashboard already declared in app.js)
+CircDashboard.detailPanel = CircDashboard.detailPanel || {
+    charts: {
+        expiration: null,
+        rateDistribution: null,
+        subscriptionLength: null,
+    },
+    currentBusinessUnit: null,
+    currentSnapshotDate: null,
+    data: null,
+    availableBusinessUnits: ['South Carolina', 'Michigan', 'Wyoming'],
+};
+
 // Chart instances
-let expirationChart = null;
-let rateDistributionChart = null;
-let subscriptionLengthChart = null;
+let expirationChart = CircDashboard.detailPanel.charts.expiration = null;
+let rateDistributionChart = CircDashboard.detailPanel.charts.rateDistribution = null;
+let subscriptionLengthChart = CircDashboard.detailPanel.charts.subscriptionLength = null;
 
 // Current state
-let currentBusinessUnit = null;
-let currentSnapshotDate = null;
-let detailPanelData = null;
+let currentBusinessUnit = CircDashboard.detailPanel.currentBusinessUnit = null;
+let currentSnapshotDate = CircDashboard.detailPanel.currentSnapshotDate = null;
+let detailPanelData = CircDashboard.detailPanel.data = null;
 let availableBusinessUnits = ['South Carolina', 'Michigan', 'Wyoming'];  // Will be populated from dashboard data
 
 // Keyboard shortcut handler
@@ -102,7 +116,7 @@ async function switchBusinessUnit(businessUnit) {
     await new Promise(resolve => setTimeout(resolve, 200));
 
     // Load new data
-    currentBusinessUnit = businessUnit;
+    currentBusinessUnit = CircDashboard.detailPanel.currentBusinessUnit = businessUnit;
     await loadBusinessUnitData(businessUnit, currentSnapshotDate);
 
     // Fade in new content
@@ -132,13 +146,13 @@ async function loadBusinessUnitData(businessUnit, snapshotDate) {
             throw new Error(result.error || 'Failed to load detail data');
         }
 
-        detailPanelData = result.data;
+        detailPanelData = CircDashboard.detailPanel.data = result.data;
 
         // CRITICAL: Update currentSnapshotDate to use ACTUAL snapshot date from API
         // The API resolves the requested date to the actual available snapshot
         // (e.g., requested 2025-11-29 Monday → actual 2025-11-30 Sunday)
         if (result.data.snapshot_date) {
-            currentSnapshotDate = result.data.snapshot_date;
+            currentSnapshotDate = CircDashboard.detailPanel.currentSnapshotDate = result.data.snapshot_date;
         }
 
         // Render content
@@ -218,8 +232,8 @@ function disableKeyboardShortcuts() {
  * Includes donut-to-state icon animation
  */
 async function openDetailPanel(businessUnit, snapshotDate) {
-    currentBusinessUnit = businessUnit;
-    currentSnapshotDate = snapshotDate;
+    currentBusinessUnit = CircDashboard.detailPanel.currentBusinessUnit = businessUnit;
+    currentSnapshotDate = CircDashboard.detailPanel.currentSnapshotDate = snapshotDate;
 
     // Find the donut chart for this business unit (for animation)
     const donutElement = findDonutChartElement(businessUnit);
@@ -307,15 +321,15 @@ function closeDetailPanel() {
     // Destroy charts to free memory
     if (expirationChart) {
         expirationChart.destroy();
-        expirationChart = null;
+        expirationChart = CircDashboard.detailPanel.charts.expiration = null;
     }
     if (rateDistributionChart) {
         rateDistributionChart.destroy();
-        rateDistributionChart = null;
+        rateDistributionChart = CircDashboard.detailPanel.charts.rateDistribution = null;
     }
     if (subscriptionLengthChart) {
         subscriptionLengthChart.destroy();
-        subscriptionLengthChart = null;
+        subscriptionLengthChart = CircDashboard.detailPanel.charts.subscriptionLength = null;
     }
 }
 
@@ -392,7 +406,7 @@ function renderExpirationChart(chartData) {
         return 'rgba(156, 163, 175, 0.8)';
     });
 
-    expirationChart = new Chart(ctx, {
+    expirationChart = CircDashboard.detailPanel.charts.expiration = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
@@ -464,7 +478,7 @@ function renderRateDistributionChart(chartData) {
         return count;
     });
 
-    rateDistributionChart = new Chart(ctx, {
+    rateDistributionChart = CircDashboard.detailPanel.charts.rateDistribution = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
@@ -530,7 +544,7 @@ function renderSubscriptionLengthChart(chartData) {
     const labels = chartData.map(d => d.subscription_length);
     const counts = chartData.map(d => d.count);
 
-    subscriptionLengthChart = new Chart(ctx, {
+    subscriptionLengthChart = CircDashboard.detailPanel.charts.subscriptionLength = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,

@@ -10,6 +10,32 @@
 
 console.log('===== APP.JS FILE LOADED =====');
 
+/**
+ * CircDashboard Namespace
+ * Centralized state management for the dashboard
+ */
+const CircDashboard = window.CircDashboard || {};
+
+CircDashboard.state = {
+    // Data from API
+    dashboardData: null,
+    dataRange: null,
+
+    // Navigation state
+    currentDate: null,      // null = latest, or 'YYYY-MM-DD'
+    compareMode: 'previous', // 'yoy', 'previous', 'none'
+
+    // Chart instances
+    charts: {
+        trend: null,
+        delivery: null,
+        businessUnits: {},   // keyed by unit name
+    },
+
+    // UI instances
+    flatpickrInstance: null,
+};
+
 // Configuration
 const API_BASE = './api.php';
 
@@ -103,8 +129,8 @@ async function loadDashboardData() {
         console.log('===== API RESULT =====', result.success ? 'SUCCESS' : 'FAILED');
 
         if (result.success) {
-            dashboardData = result.data;
-            dataRange = result.data.data_range;
+            dashboardData = CircDashboard.state.dashboardData = result.data;
+            dataRange = CircDashboard.state.dataRange = result.data.data_range;
             console.log('===== DASHBOARD DATA SET, CALLING RENDER =====');
             console.log('===== ABOUT TO ENTER TRY BLOCK =====');
 
@@ -140,14 +166,14 @@ function initDateNavigation() {
 
     // Initialize Flatpickr (only once)
     if (!flatpickrInstance) {
-        flatpickrInstance = flatpickr('#datePicker', {
+        flatpickrInstance = CircDashboard.state.flatpickrInstance = flatpickr('#datePicker', {
             dateFormat: 'Y-m-d',
             maxDate: dataRange.max_date,
             minDate: dataRange.min_date,
             defaultDate: currentDate || dataRange.max_date,
             onChange: function(selectedDates, dateStr) {
                 if (dateStr && dateStr !== currentDate) {
-                    currentDate = dateStr;
+                    currentDate = CircDashboard.state.currentDate = dateStr;
                     loadDashboardData();
                 }
             }
@@ -164,7 +190,7 @@ function initDateNavigation() {
 
         // Comparison Mode selector
         document.getElementById('compareMode').addEventListener('change', function(e) {
-            compareMode = e.target.value;
+            compareMode = CircDashboard.state.compareMode = e.target.value;
             loadDashboardData();
         });
     } else {
@@ -193,7 +219,7 @@ function navigatePreviousWeek() {
         return;
     }
 
-    currentDate = date.toISOString().split('T')[0];
+    currentDate = CircDashboard.state.currentDate = date.toISOString().split('T')[0];
     if (flatpickrInstance) {
         flatpickrInstance.setDate(currentDate);
     }
@@ -212,7 +238,7 @@ function navigateNextWeek() {
         return;
     }
 
-    currentDate = date.toISOString().split('T')[0];
+    currentDate = CircDashboard.state.currentDate = date.toISOString().split('T')[0];
     if (flatpickrInstance) {
         flatpickrInstance.setDate(currentDate);
     }
@@ -223,7 +249,7 @@ function navigateNextWeek() {
  * Navigate to this week (latest data)
  */
 function navigateThisWeek() {
-    currentDate = null;
+    currentDate = CircDashboard.state.currentDate = null;
     if (flatpickrInstance) {
         flatpickrInstance.setDate(dataRange.max_date);
     }
@@ -535,7 +561,7 @@ function renderTrendChart() {
         calculateSmartScale(validTrend, 'total_active') :
         { min: 0, max: 100 };
 
-    trendChart = new Chart(ctx, {
+    trendChart = CircDashboard.state.charts.trend = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
@@ -637,7 +663,7 @@ function renderDeliveryChart() {
     const digital = current.digital;
     const carrier = current.carrier;
 
-    deliveryChart = new Chart(ctx, {
+    deliveryChart = CircDashboard.state.charts.delivery = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: ['Mail (USPS)', 'Digital Only', 'Carrier'],
@@ -790,7 +816,7 @@ function renderBusinessUnits() {
         const ctx = document.getElementById(chartId);
         if (!ctx) continue;
 
-        businessUnitCharts[unitName] = new Chart(ctx, {
+        businessUnitCharts[unitName] = CircDashboard.state.charts.businessUnits[unitName] = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: ['Mail', 'Digital', 'Carrier'],

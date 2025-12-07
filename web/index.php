@@ -890,22 +890,22 @@ require_once 'auth_check.php';
     </div> <!-- /detailPanel -->
 
     <!-- JavaScript - Cache-busting version parameter forces browser to fetch latest files -->
-    <script src="assets/app.js?v=20251206f"></script>
+    <script src="assets/app.js?v=20251207"></script>
     <!-- State Icons & Chart Layout -->
-    <script src="assets/state-icons.js?v=20251205"></script>
-    <script src="assets/chart-layout-manager.js?v=20251205"></script>
-    <script src="assets/donut-to-state-animation.js?v=20251205"></script>
+    <script src="assets/state-icons.js?v=20251207"></script>
+    <script src="assets/chart-layout-manager.js?v=20251207"></script>
+    <script src="assets/donut-to-state-animation.js?v=20251207"></script>
     <!-- Detail Panel -->
-    <script src="assets/detail_panel.js?v=20251205"></script>
+    <script src="assets/detail_panel.js?v=20251207"></script>
     <!-- UI/UX Quick Wins -->
-    <script src="assets/ui-enhancements.js?v=20251205"></script>
+    <script src="assets/ui-enhancements.js?v=20251207"></script>
 
     <!-- PHASE 3: Contextual Chart Menus -->
-    <script src="assets/context-menu.js?v=20251205"></script>
-    <script src="assets/export-utils.js?v=20251205"></script>
-    <script src="assets/subscriber-table-panel.js?v=20251205"></script>
-    <script src="assets/chart-transition-manager.js?v=20251205"></script>
-    <script src="assets/chart-context-integration.js?v=20251205"></script>
+    <script src="assets/context-menu.js?v=20251207"></script>
+    <script src="assets/export-utils.js?v=20251207"></script>
+    <script src="assets/subscriber-table-panel.js?v=20251207"></script>
+    <script src="assets/chart-transition-manager.js?v=20251207"></script>
+    <script src="assets/chart-context-integration.js?v=20251207"></script>
     <script>
         // Initialize UI enhancements after page loads
         document.addEventListener('DOMContentLoaded', function() {

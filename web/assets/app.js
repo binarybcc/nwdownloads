@@ -103,16 +103,21 @@ async function loadDashboardData() {
             dashboardData = result.data;
             dataRange = result.data.data_range;
             console.log('===== DASHBOARD DATA SET, CALLING RENDER =====');
+            console.log('===== ABOUT TO ENTER TRY BLOCK =====');
 
             try {
+                console.log('===== INSIDE TRY BLOCK, CALLING renderDashboard() =====');
                 renderDashboard();
+                console.log('===== renderDashboard() RETURNED =====');
             } catch (renderError) {
+                console.error('===== CAUGHT ERROR IN RENDER =====', renderError);
                 console.error('Error rendering dashboard:', renderError);
                 console.error('Dashboard data:', dashboardData);
                 showError('Failed to render dashboard: ' + renderError.message);
                 return;
             }
 
+            console.log('===== AFTER TRY/CATCH, UPDATING NAVIGATION =====');
             updateNavigationState();
             initDateNavigation(); // Initialize after first data load
         } else {

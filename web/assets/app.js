@@ -416,6 +416,8 @@ function renderKeyMetrics() {
     } else {
         // Show helpful message if available (e.g., "Year-over-year unavailable (no 2024 data)")
         const message = dashboardData.comparison_message || 'No comparison data';
+        console.log('Comparison message:', dashboardData.comparison_message);
+        console.log('Displaying message:', message);
         document.getElementById('totalActiveComparison').innerHTML =
             `<span class="text-gray-500">${message}</span>`;
         document.getElementById('deliverableComparison').innerHTML =
@@ -652,6 +654,10 @@ function renderBusinessUnits() {
     const byUnit = dashboardData.by_business_unit;
     const comparisons = dashboardData.business_unit_comparisons || {};
 
+    // DEBUG: Log comparison data
+    console.log('Business Unit Comparisons:', comparisons);
+    console.log('Current compareMode:', compareMode);
+
     if (!byUnit) {
         container.innerHTML = '<div class="text-center text-gray-500 py-8">No business unit data available</div>';
         return;
@@ -674,13 +680,16 @@ function renderBusinessUnits() {
         // Get comparison data for this business unit
         const comparison = comparisons[unitName];
         let comparisonBadge = '';
+        console.log(`${unitName} comparison:`, comparison);
         if (comparison) {
             // Use the appropriate comparison based on current mode
             const compData = compareMode === 'yoy' ? comparison.yoy : comparison.previous_week;
+            console.log(`${unitName} compData (mode: ${compareMode}):`, compData);
             if (compData && compData.change !== undefined) {
                 const change = compData.change;
                 const changePercent = compData.change_percent;
                 comparisonBadge = renderComparisonBadge(change, changePercent, 'vs comparison');
+                console.log(`${unitName} badge:`, comparisonBadge);
             }
         }
 

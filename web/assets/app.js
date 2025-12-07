@@ -7,6 +7,20 @@
  * Refactored: 2025-12-06 - Eliminated override pattern
  */
 
+/**
+ * LOAD ORDER: 1 of 11 - Must load first
+ *
+ * DEPENDENCIES:
+ * - Chart.js (CDN): Chart rendering
+ * - Flatpickr (CDN): Date picker
+ *
+ * PROVIDES:
+ * - CircDashboard.state: Central state object
+ * - BUSINESS_UNITS, PAPER_INFO: Configuration constants
+ * - loadDashboardData(), renderDashboard(): Core functions
+ * - formatNumber(), formatChange(): Utilities
+ * - All dashboard rendering and navigation functions
+ */
 
 console.log('===== APP.JS FILE LOADED =====');
 

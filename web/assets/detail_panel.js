@@ -7,6 +7,20 @@
  * Date: 2025-12-02
  */
 
+/**
+ * LOAD ORDER: 5 of 11
+ *
+ * DEPENDENCIES:
+ * - app.js: dashboardData, formatNumber, BUSINESS_UNITS, API_BASE
+ * - state-icons.js: getStateAbbr, getStateIconImg
+ *
+ * PROVIDES:
+ * - openDetailPanel(businessUnit, snapshotDate)
+ * - closeDetailPanel()
+ * - switchBusinessUnit(unit)
+ * - CircDashboard.detailPanel state
+ */
+
 // Extend CircDashboard namespace for detail panel
 // (CircDashboard already declared in app.js)
 CircDashboard.detailPanel = CircDashboard.detailPanel || {

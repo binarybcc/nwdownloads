@@ -5,6 +5,17 @@
  * Date: 2025-12-05
  */
 
+/**
+ * LOAD ORDER: 9 of 11
+ *
+ * DEPENDENCIES:
+ * - app.js: API_BASE, formatNumber
+ * - detail_panel.js: currentBusinessUnit, currentSnapshotDate
+ *
+ * PROVIDES:
+ * - Subscriber table rendering and pagination
+ */
+
 class SubscriberTablePanel {
     constructor(options = {}) {
         this.colorScheme = options.colorScheme || 'teal';

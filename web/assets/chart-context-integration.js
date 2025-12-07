@@ -5,6 +5,17 @@
  * Date: 2025-12-05
  */
 
+/**
+ * LOAD ORDER: 11 of 11 - Must load last
+ *
+ * DEPENDENCIES:
+ * - All previous files must be loaded
+ * - context-menu.js, subscriber-table-panel.js, chart-transition-manager.js
+ *
+ * PROVIDES:
+ * - Integrates all chart interaction features
+ */
+
 // Global instances
 let subscriberPanel = null;
 let expirationTransitionManager = null;

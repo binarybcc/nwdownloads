@@ -4,6 +4,16 @@
  * Date: 2025-12-06 (Updated to use SVG files)
  */
 
+/**
+ * LOAD ORDER: 2 of 11
+ *
+ * DEPENDENCIES: None
+ *
+ * PROVIDES:
+ * - getStateAbbr(businessUnit): Returns state abbreviation
+ * - getStateIconImg(businessUnit): Returns img tag for state icon
+ */
+
 const STATE_ICON_PATHS = {
     'South Carolina': 'assets/south_carolina_transparent.png',
     'Michigan': 'assets/michigan_transparent.png',

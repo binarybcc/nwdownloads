@@ -293,6 +293,7 @@ function renderEmptyState() {
     const uploadBtn = document.createElement('a');
     uploadBtn.href = 'upload.html';
     uploadBtn.className = 'inline-block bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200';
+    uploadBtn.style.color = '#ffffff'; // Force white text
     uploadBtn.textContent = 'Upload Data';
     emptyCard.appendChild(uploadBtn);
 

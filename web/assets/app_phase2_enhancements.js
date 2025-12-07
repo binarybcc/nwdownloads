@@ -14,8 +14,8 @@
 function exportToCSV() {
     const data = dashboardData;
 
-    let csv = 'Period,' + data.period.label + '\n';
-    csv += 'Date Range,' + data.period.date_range + '\n';
+    let csv = 'Period,' + data.week.label + '\n';
+    csv += 'Date Range,' + data.week.date_range + '\n';
     csv += '\n';
 
     csv += 'Business Unit,Paper,Total Active,On Vacation,Deliverable,Mail,Digital,Carrier\n';
@@ -32,7 +32,7 @@ function exportToCSV() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `circulation-${data.period.label.replace(/\s/g, '-')}.csv`;
+    a.download = `circulation-${data.week.label.replace(/\s/g, '-')}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
 }
@@ -52,8 +52,8 @@ function exportToExcel() {
     // Sheet 1: Summary
     const summaryData = [
         ['Circulation Dashboard Export'],
-        ['Period', data.period.label],
-        ['Date Range', data.period.date_range],
+        ['Period', data.week.label],
+        ['Date Range', data.week.date_range],
         [''],
         ['Overall Metrics', ''],
         ['Total Active', data.current.total_active],
@@ -111,7 +111,7 @@ function exportToExcel() {
     XLSX.utils.book_append_sheet(wb, trendSheet, '12-Week Trend');
 
     // Download
-    XLSX.writeFile(wb, `circulation-export-${data.period.label.replace(/\s/g, '-')}.xlsx`);
+    XLSX.writeFile(wb, `circulation-export-${data.week.label.replace(/\s/g, '-')}.xlsx`);
 }
 
 /**
@@ -163,7 +163,7 @@ async function exportToPDF() {
             heightLeft -= pageHeight;
         }
 
-        pdf.save(`circulation-dashboard-${dashboardData.period.label.replace(/\s/g, '-')}.pdf`);
+        pdf.save(`circulation-dashboard-${dashboardData.week.label.replace(/\s/g, '-')}.pdf`);
     } catch (error) {
         console.error('PDF generation failed:', error);
         alert('Failed to generate PDF. Please try again.');
@@ -712,6 +712,16 @@ const originalRenderDashboard = window.renderDashboard;
 window.renderDashboard = function() {
     if (!dashboardData) return;
 
+    // Check if this week has data (handle empty state)
+    if (!dashboardData.has_data || dashboardData.has_data === false) {
+        // Call original to handle empty state
+        if (typeof originalRenderDashboard === 'function') {
+            originalRenderDashboard();
+        }
+        return;
+    }
+
+    // Has data - render normally
     renderPeriodDisplay();
     renderKeyMetrics();
     renderBusinessUnits();

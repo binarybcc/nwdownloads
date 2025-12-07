@@ -61,11 +61,16 @@ function getWeekBoundaries($date) {
     $saturday = clone $sunday;
     $saturday->modify('+6 days');
 
+    // Calculate week number from the actual date (not Sunday) to match upload.php logic
+    // This ensures API and upload.php use the same week numbering
+    $week_num = (int)$dt->format('W');
+    $year = (int)$dt->format('Y');
+
     return [
         'start' => $sunday->format('Y-m-d'),
         'end' => $saturday->format('Y-m-d'),
-        'week_num' => (int)$sunday->format('W'),
-        'year' => (int)$sunday->format('Y')
+        'week_num' => $week_num,
+        'year' => $year
     ];
 }
 
@@ -93,16 +98,15 @@ function getDataRange($pdo) {
 }
 
 /**
- * Get the most recent complete Saturday
- * A Saturday is considered "complete" if it has data for all active business units
+ * Get the most recent snapshot date (any day of week)
+ * With week-based system, snapshots can be on any day (Monday, Saturday, etc.)
  */
 function getMostRecentCompleteSaturday($pdo) {
-    // Get the most recent Saturday with data
+    // Get the most recent snapshot date (any day of week)
     $stmt = $pdo->query("
         SELECT snapshot_date
         FROM daily_snapshots
         WHERE paper_code != 'FN'
-          AND DAYOFWEEK(snapshot_date) = 7
         GROUP BY snapshot_date
         ORDER BY snapshot_date DESC
         LIMIT 1
@@ -431,12 +435,15 @@ function getOverviewEnhanced($pdo, $params) {
 
     // Get week boundaries for requested date
     $week = getWeekBoundaries($requestedDate);
-    $saturday = $week['end'];
+    $week_num = $week['week_num'];
+    $year = $week['year'];
 
-    // Get data for the Saturday of this week
+    // Query by week_num and year (not snapshot_date) for week-based system
     $stmt = $pdo->prepare("
         SELECT
             snapshot_date,
+            week_num,
+            year,
             SUM(total_active) as total_active,
             SUM(on_vacation) as on_vacation,
             SUM(deliverable) as deliverable,
@@ -445,43 +452,42 @@ function getOverviewEnhanced($pdo, $params) {
             SUM(digital_only) as digital
         FROM daily_snapshots
         WHERE paper_code != 'FN'
-          AND snapshot_date = ?
-        GROUP BY snapshot_date
+          AND week_num = ?
+          AND year = ?
+        GROUP BY snapshot_date, week_num, year
     ");
-    $stmt->execute([$saturday]);
+    $stmt->execute([$week_num, $year]);
     $current = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // If no data for exact Saturday, find nearest date
-    if (!$current) {
-        $stmt = $pdo->prepare("
-            SELECT
-                snapshot_date,
-                SUM(total_active) as total_active,
-                SUM(on_vacation) as on_vacation,
-                SUM(deliverable) as deliverable,
-                SUM(mail_delivery) as mail,
-                SUM(carrier_delivery) as carrier,
-                SUM(digital_only) as digital
-            FROM daily_snapshots
-            WHERE paper_code != 'FN'
-              AND snapshot_date <= ?
-            GROUP BY snapshot_date
-            ORDER BY snapshot_date DESC
-            LIMIT 1
-        ");
-        $stmt->execute([$saturday]);
-        $current = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Check if this week has data
+    $has_data = ($current !== false);
 
-        if ($current) {
-            // Update week boundaries based on actual data date
-            $week = getWeekBoundaries($current['snapshot_date']);
-            $saturday = $week['end'];
-        }
-    }
-
-    if (!$current) {
-        sendError('No data available for requested date');
-        exit;
+    // If no data for this week, don't fall back - return structured empty response
+    if (!$has_data) {
+        // Return empty state with metadata
+        return [
+            'has_data' => false,
+            'week' => [
+                'week_num' => $week_num,
+                'year' => $year,
+                'label' => "Week {$week_num}, {$year}",
+                'date_range' => date('M j', strtotime($week['start'])) . ' - ' . date('M j, Y', strtotime($week['end']))
+            ],
+            'message' => "No snapshot uploaded for Week {$week_num}",
+            'explanation' => "Upload a CSV to add data for this week.",
+            'current' => null,
+            'comparison' => null,
+            'by_business_unit' => [],
+            'business_unit_comparisons' => [],
+            'by_edition' => [],
+            'data_range' => getDataRange($pdo),
+            'analytics' => [
+                'forecast' => null,
+                'seasonality' => [],
+                'growth_rate' => null,
+                'retention_health' => null
+            ]
+        ];
     }
 
     // Get comparison data
@@ -573,34 +579,71 @@ function getOverviewEnhanced($pdo, $params) {
             }
         }
     } elseif ($compareMode === 'previous') {
-        // Previous week comparison
-        $prevWeekDate = date('Y-m-d', strtotime($saturday . ' -7 days'));
+        // Previous week comparison with fallback to most recent week with data
+        $targetWeekNum = $week_num - 1;
+        $targetYear = $year;
 
+        // Handle year boundary
+        if ($targetWeekNum < 1) {
+            $targetWeekNum = 52; // Assume 52 weeks (adjust for 53-week years if needed)
+            $targetYear--;
+        }
+
+        // Try to get data for previous week
         $stmt = $pdo->prepare("
             SELECT
                 snapshot_date,
+                week_num,
+                year,
                 SUM(total_active) as total_active,
                 SUM(on_vacation) as on_vacation,
                 SUM(deliverable) as deliverable
             FROM daily_snapshots
             WHERE paper_code != 'FN'
-              AND snapshot_date = ?
-            GROUP BY snapshot_date
+              AND week_num = ?
+              AND year = ?
+            GROUP BY snapshot_date, week_num, year
         ");
-        $stmt->execute([$prevWeekDate]);
+        $stmt->execute([$targetWeekNum, $targetYear]);
         $compareData = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        // If no data for previous week, fall back to most recent week with data
+        if (!$compareData) {
+            $stmt = $pdo->prepare("
+                SELECT
+                    snapshot_date,
+                    week_num,
+                    year,
+                    SUM(total_active) as total_active,
+                    SUM(on_vacation) as on_vacation,
+                    SUM(deliverable) as deliverable
+                FROM daily_snapshots
+                WHERE paper_code != 'FN'
+                  AND (year < ? OR (year = ? AND week_num < ?))
+                GROUP BY snapshot_date, week_num, year
+                ORDER BY year DESC, week_num DESC
+                LIMIT 1
+            ");
+            $stmt->execute([$year, $year, $week_num]);
+            $compareData = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+
         if ($compareData) {
-            $prevWeek = getWeekBoundaries($prevWeekDate);
+            $prevWeekBoundaries = getWeekBoundaries($compareData['snapshot_date']);
+            $isFallback = ($compareData['week_num'] != $targetWeekNum);
+
             $comparison = [
                 'type' => 'previous',
-                'label' => 'Previous Week',
+                'label' => $isFallback ?
+                    "Week {$compareData['week_num']} (Week {$targetWeekNum} not available)" :
+                    'Previous Week',
+                'is_fallback' => $isFallback,
                 'period' => [
-                    'start' => $prevWeek['start'],
-                    'end' => $prevWeek['end'],
-                    'week_num' => $prevWeek['week_num'],
-                    'year' => $prevWeek['year'],
-                    'label' => "Week {$prevWeek['week_num']}, {$prevWeek['year']}"
+                    'start' => $prevWeekBoundaries['start'],
+                    'end' => $prevWeekBoundaries['end'],
+                    'week_num' => (int)$compareData['week_num'],
+                    'year' => (int)$compareData['year'],
+                    'label' => "Week {$compareData['week_num']}, {$compareData['year']}"
                 ],
                 'data' => [
                     'total_active' => (int)$compareData['total_active'],
@@ -618,26 +661,70 @@ function getOverviewEnhanced($pdo, $params) {
         }
     }
 
-    // Get 12-week trend (rolling 3 months)
-    $trendStart = date('Y-m-d', strtotime($saturday . ' -84 days')); // 12 weeks back
-    $stmt = $pdo->prepare("
-        SELECT
-            snapshot_date,
-            SUM(total_active) as total_active,
-            SUM(on_vacation) as on_vacation,
-            SUM(deliverable) as deliverable
-        FROM daily_snapshots
-        WHERE paper_code != 'FN'
-          AND snapshot_date >= ?
-          AND snapshot_date <= ?
-          AND DAYOFWEEK(snapshot_date) = 7
-        GROUP BY snapshot_date
-        ORDER BY snapshot_date ASC
-    ");
-    $stmt->execute([$trendStart, $saturday]);
-    $trend = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Get 12-week trend with null values for missing weeks
+    $trend = [];
+    $startWeekNum = $week_num - 11;
+    $startYear = $year;
 
-    // Get by business unit with comparisons
+    // Handle year boundary
+    if ($startWeekNum < 1) {
+        $weeksNeeded = abs($startWeekNum) + 1;
+        $startYear--;
+        $startWeekNum = 52 - $weeksNeeded + 1;
+    }
+
+    // Build array of all 12 weeks (with nulls for missing data)
+    for ($i = 0; $i < 12; $i++) {
+        $currentWeekNum = $startWeekNum + $i;
+        $currentYear = $startYear;
+
+        // Handle year boundary within loop
+        if ($currentWeekNum > 52) {
+            $currentWeekNum = $currentWeekNum - 52;
+            $currentYear++;
+        }
+
+        // Try to get data for this week
+        $stmt = $pdo->prepare("
+            SELECT
+                snapshot_date,
+                week_num,
+                year,
+                SUM(total_active) as total_active,
+                SUM(on_vacation) as on_vacation,
+                SUM(deliverable) as deliverable
+            FROM daily_snapshots
+            WHERE paper_code != 'FN'
+              AND week_num = ?
+              AND year = ?
+            GROUP BY snapshot_date, week_num, year
+        ");
+        $stmt->execute([$currentWeekNum, $currentYear]);
+        $weekData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($weekData) {
+            $trend[] = [
+                'snapshot_date' => $weekData['snapshot_date'],
+                'week_num' => (int)$weekData['week_num'],
+                'year' => (int)$weekData['year'],
+                'total_active' => (int)$weekData['total_active'],
+                'on_vacation' => (int)$weekData['on_vacation'],
+                'deliverable' => (int)$weekData['deliverable']
+            ];
+        } else {
+            // Insert null for missing week
+            $trend[] = [
+                'snapshot_date' => null,
+                'week_num' => $currentWeekNum,
+                'year' => $currentYear,
+                'total_active' => null,
+                'on_vacation' => null,
+                'deliverable' => null
+            ];
+        }
+    }
+
+    // Get by business unit with comparisons (using week_num)
     $stmt = $pdo->prepare("
         SELECT
             business_unit,
@@ -649,10 +736,11 @@ function getOverviewEnhanced($pdo, $params) {
             SUM(digital_only) as digital
         FROM daily_snapshots
         WHERE paper_code != 'FN'
-          AND snapshot_date = ?
+          AND week_num = ?
+          AND year = ?
         GROUP BY business_unit
     ");
-    $stmt->execute([$saturday]);
+    $stmt->execute([$week_num, $year]);
     $by_business_unit = [];
     $unit_comparisons = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -666,16 +754,16 @@ function getOverviewEnhanced($pdo, $params) {
         ];
         $by_business_unit[$row['business_unit']] = $unitData;
 
-        // Get comparison for this unit
+        // Get comparison for this unit (use current snapshot_date)
         $unit_comparisons[$row['business_unit']] = getBusinessUnitComparison(
             $pdo,
             $row['business_unit'],
-            $saturday,
+            $current['snapshot_date'],
             $unitData
         );
     }
 
-    // Get by edition
+    // Get by edition (using week_num)
     $stmt = $pdo->prepare("
         SELECT
             paper_code,
@@ -689,10 +777,11 @@ function getOverviewEnhanced($pdo, $params) {
             digital_only as digital
         FROM daily_snapshots
         WHERE paper_code != 'FN'
-          AND snapshot_date = ?
+          AND week_num = ?
+          AND year = ?
         ORDER BY total_active DESC
     ");
-    $stmt->execute([$saturday]);
+    $stmt->execute([$week_num, $year]);
     $by_edition = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $by_edition[$row['paper_code']] = [
@@ -716,7 +805,8 @@ function getOverviewEnhanced($pdo, $params) {
     $performers = findPerformers($by_business_unit, $unit_comparisons);
 
     return [
-        'period' => [
+        'has_data' => true,
+        'week' => [
             'type' => 'week',
             'start' => $week['start'],
             'end' => $week['end'],
@@ -736,11 +826,14 @@ function getOverviewEnhanced($pdo, $params) {
         ],
         'comparison' => $comparison,
         'trend' => array_map(function($row) {
+            // Preserve null values for missing weeks
             return [
                 'snapshot_date' => $row['snapshot_date'],
-                'total_active' => (int)$row['total_active'],
-                'on_vacation' => (int)$row['on_vacation'],
-                'deliverable' => (int)$row['deliverable'],
+                'week_num' => $row['week_num'],
+                'year' => $row['year'],
+                'total_active' => $row['total_active'], // null if missing
+                'on_vacation' => $row['on_vacation'],
+                'deliverable' => $row['deliverable'],
             ];
         }, $trend),
         'by_business_unit' => $by_business_unit,

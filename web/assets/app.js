@@ -87,7 +87,16 @@ async function loadDashboardData() {
         if (result.success) {
             dashboardData = result.data;
             dataRange = result.data.data_range;
-            renderDashboard();
+
+            try {
+                renderDashboard();
+            } catch (renderError) {
+                console.error('Error rendering dashboard:', renderError);
+                console.error('Dashboard data:', dashboardData);
+                showError('Failed to render dashboard: ' + renderError.message);
+                return;
+            }
+
             updateNavigationState();
             initDateNavigation(); // Initialize after first data load
         } else {
@@ -155,8 +164,8 @@ function navigatePreviousWeek() {
     const date = new Date(currentDate || dataRange.max_date);
     date.setDate(date.getDate() - 7);
 
-    // Don't go before min date
-    if (date < new Date(dataRange.min_date)) {
+    // Don't go before 2025 data cutoff
+    if (date < new Date('2025-01-01')) {
         return;
     }
 
@@ -207,19 +216,95 @@ function updateNavigationState() {
     const nextBtn = document.getElementById('nextWeek');
 
     const viewingDate = currentDate || dataRange.max_date;
-    const minDate = new Date(dataRange.min_date);
     const maxDate = new Date(dataRange.max_date);
     const currentViewDate = new Date(viewingDate);
 
-    // Disable prev if at or before min
+    // With week-based system, allow navigation to any week
+    // API will return empty state if no data exists
+    // Only prevent going before 2025-01-01 (data cutoff)
+    const dataCutoff = new Date('2025-01-01');
     const weekBeforeCurrent = new Date(currentViewDate);
     weekBeforeCurrent.setDate(weekBeforeCurrent.getDate() - 7);
-    prevBtn.disabled = weekBeforeCurrent < minDate;
+    prevBtn.disabled = weekBeforeCurrent < dataCutoff;
 
-    // Disable next if at or after max
+    // Disable next if at or after max (today)
     const weekAfterCurrent = new Date(currentViewDate);
     weekAfterCurrent.setDate(weekAfterCurrent.getDate() + 7);
     nextBtn.disabled = weekAfterCurrent > maxDate;
+}
+
+/**
+ * Render empty state when week has no data
+ */
+function renderEmptyState() {
+    const week = dashboardData.week;
+
+    // Update period display
+    document.getElementById('periodLabel').textContent = week.label;
+    document.getElementById('dateRange').textContent = week.date_range;
+    document.getElementById('comparisonDisplay').textContent = '';
+
+    // Hide or clear all metric cards
+    document.getElementById('totalActive').textContent = '--';
+    document.getElementById('onVacation').textContent = '--';
+    document.getElementById('vacationPercent').textContent = '--';
+    document.getElementById('deliverable').textContent = '--';
+    document.getElementById('totalActiveComparison').textContent = '';
+    document.getElementById('deliverableComparison').textContent = '';
+    document.getElementById('comparisonChange').textContent = '--';
+    document.getElementById('comparisonPercent').textContent = 'No data';
+
+    // Show empty state in business units section
+    const businessUnitsContainer = document.getElementById('businessUnits');
+    if (!businessUnitsContainer) {
+        console.error('businessUnits container not found');
+        return;
+    }
+    businessUnitsContainer.textContent = '';
+
+    const emptyCard = document.createElement('div');
+    emptyCard.className = 'col-span-full bg-amber-50 border-2 border-amber-200 rounded-xl p-8 text-center';
+
+    const icon = document.createElement('div');
+    icon.className = 'text-6xl mb-4';
+    icon.textContent = '📊';
+    emptyCard.appendChild(icon);
+
+    const title = document.createElement('h3');
+    title.className = 'text-xl font-semibold text-amber-900 mb-2';
+    title.textContent = `No Data for ${week.label}`;
+    emptyCard.appendChild(title);
+
+    const dateRange = document.createElement('p');
+    dateRange.className = 'text-amber-700 mb-4';
+    dateRange.textContent = week.date_range;
+    emptyCard.appendChild(dateRange);
+
+    const message = document.createElement('p');
+    message.className = 'text-amber-800 mb-4';
+    message.textContent = dashboardData.message || 'No snapshot uploaded for this week.';
+    emptyCard.appendChild(message);
+
+    const explanation = document.createElement('p');
+    explanation.className = 'text-sm text-amber-600 mb-6';
+    explanation.textContent = dashboardData.explanation || 'Upload a CSV to add data for this week.';
+    emptyCard.appendChild(explanation);
+
+    const uploadBtn = document.createElement('a');
+    uploadBtn.href = 'upload.html';
+    uploadBtn.className = 'inline-block bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200';
+    uploadBtn.textContent = 'Upload Data';
+    emptyCard.appendChild(uploadBtn);
+
+    businessUnitsContainer.appendChild(emptyCard);
+
+    // Clear other sections
+    const paperCardsContainer = document.getElementById('paperCards');
+    if (paperCardsContainer) {
+        paperCardsContainer.textContent = '';
+    }
+    if (trendChart) trendChart.destroy();
+    if (deliveryChart) deliveryChart.destroy();
 }
 
 /**
@@ -227,6 +312,16 @@ function updateNavigationState() {
  */
 function renderDashboard() {
     if (!dashboardData) return;
+
+    // Debug: Log has_data value
+    console.log('renderDashboard called, has_data:', dashboardData.has_data, 'type:', typeof dashboardData.has_data);
+
+    // Check if this week has data
+    if (!dashboardData.has_data || dashboardData.has_data === false) {
+        console.log('No data for this week, rendering empty state');
+        renderEmptyState();
+        return;
+    }
 
     renderPeriodDisplay();
     renderKeyMetrics();
@@ -240,22 +335,39 @@ function renderDashboard() {
  * Render period display
  */
 function renderPeriodDisplay() {
-    const period = dashboardData.period;
+    const week = dashboardData.week;
 
-    document.getElementById('periodLabel').textContent = period.label;
-    document.getElementById('dateRange').textContent = period.date_range;
+    document.getElementById('periodLabel').textContent = week.label;
+    document.getElementById('dateRange').textContent = week.date_range;
 
     // Comparison display
     const comparison = dashboardData.comparison;
     const comparisonDisplay = document.getElementById('comparisonDisplay');
 
     if (comparison) {
-        comparisonDisplay.innerHTML = `
-            <span class="text-gray-600">vs ${comparison.label}:</span>
-            <span class="font-medium">${comparison.period.label}</span>
-        `;
+        // Clear and rebuild safely
+        comparisonDisplay.textContent = '';
+
+        if (comparison.is_fallback) {
+            // Show fallback warning in amber
+            const span = document.createElement('span');
+            span.className = 'text-amber-600';
+            span.textContent = comparison.label;
+            comparisonDisplay.appendChild(span);
+        } else {
+            // Normal comparison display
+            const label = document.createElement('span');
+            label.className = 'text-gray-600';
+            label.textContent = `vs ${comparison.label}: `;
+            comparisonDisplay.appendChild(label);
+
+            const period = document.createElement('span');
+            period.className = 'font-medium';
+            period.textContent = comparison.period.label;
+            comparisonDisplay.appendChild(period);
+        }
     } else {
-        comparisonDisplay.innerHTML = '';
+        comparisonDisplay.textContent = '';
     }
 }
 
@@ -375,18 +487,18 @@ function renderTrendChart() {
         trendChart.destroy();
     }
 
-    // Prepare data
-    const labels = trend.map(d => {
-        const date = new Date(d.snapshot_date);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    });
+    // Prepare data - use week labels instead of dates (handles missing weeks)
+    const labels = trend.map(d => `W${d.week_num}`);
 
-    const activeData = trend.map(d => d.total_active);
+    const activeData = trend.map(d => d.total_active); // null for missing weeks
     const deliverableData = trend.map(d => d.deliverable);
     const vacationData = trend.map(d => d.on_vacation);
 
-    // Calculate smart scale
-    const scale = calculateSmartScale(trend, 'total_active');
+    // Calculate smart scale (filter out null values)
+    const validTrend = trend.filter(d => d.total_active !== null);
+    const scale = validTrend.length > 0 ?
+        calculateSmartScale(validTrend, 'total_active') :
+        { min: 0, max: 100 };
 
     trendChart = new Chart(ctx, {
         type: 'line',
@@ -401,7 +513,8 @@ function renderTrendChart() {
                     tension: 0.4,
                     fill: true,
                     pointRadius: 4,
-                    pointHoverRadius: 6
+                    pointHoverRadius: 6,
+                    spanGaps: true  // Connect across missing weeks
                 },
                 {
                     label: 'Deliverable',
@@ -411,7 +524,8 @@ function renderTrendChart() {
                     tension: 0.4,
                     fill: true,
                     pointRadius: 4,
-                    pointHoverRadius: 6
+                    pointHoverRadius: 6,
+                    spanGaps: true
                 },
                 {
                     label: 'On Vacation',
@@ -421,7 +535,8 @@ function renderTrendChart() {
                     tension: 0.4,
                     fill: true,
                     pointRadius: 4,
-                    pointHoverRadius: 6
+                    pointHoverRadius: 6,
+                    spanGaps: true
                 }
             ]
         },

@@ -456,8 +456,11 @@ require_once 'auth_check.php';
 </head>
 <body class="bg-gray-50">
 
+    <!-- Sticky Header Container -->
+    <div class="sticky top-0 z-50 bg-white shadow-sm">
+
     <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-50" role="banner">
+    <header class="bg-white" role="banner">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex justify-between items-center">
                 <div>
@@ -525,7 +528,7 @@ require_once 'auth_check.php';
     </header>
 
     <!-- Date Navigation Bar -->
-    <nav class="bg-white border-b border-gray-200 sticky top-16 z-40" role="navigation" aria-label="Date navigation">
+    <nav class="bg-white border-b border-gray-200" role="navigation" aria-label="Date navigation">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 
@@ -587,6 +590,8 @@ require_once 'auth_check.php';
             </div>
         </div>
     </nav>
+
+    </div><!-- End Sticky Header Container -->
 
     <!-- Main Content -->
     <main id="mainContent" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" role="main" aria-label="Dashboard content">

@@ -64,3 +64,15 @@ package-lock.json
 
 # Build artifacts
 web/assets/output.css
+
+# Testing and Code Quality
+/vendor/
+composer.lock
+.phpunit.cache/
+coverage/
+tests/Fixtures/temp/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

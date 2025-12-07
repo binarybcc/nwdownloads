@@ -1,4 +1,5 @@
 <?php
+
 /**
  * PURGE ALL DATA - Complete Database Reset
  *
@@ -12,7 +13,6 @@
  */
 
 $dryRun = in_array('--dry-run', $argv);
-
 // Database configuration
 $db_config = [
     'host' => getenv('DB_HOST') ?: 'localhost',
@@ -26,7 +26,9 @@ $db_config = [
 /**
  * Connect to database
  */
-function connectDB($config) {
+function connectDB($config)
+{
+
     try {
         if (empty($config['socket']) || !file_exists($config['socket'])) {
             $dsn = "mysql:host={$config['host']};port={$config['port']};dbname={$config['database']};charset=utf8mb4";
@@ -43,13 +45,11 @@ function connectDB($config) {
 
 try {
     $pdo = connectDB($db_config);
-
     echo "\n";
     echo "═══════════════════════════════════════════════════════════════\n";
     echo "  ⚠️  COMPLETE DATABASE PURGE\n";
     echo "═══════════════════════════════════════════════════════════════\n";
     echo "\n";
-
     if ($dryRun) {
         echo "🔍 DRY RUN MODE - No data will be deleted\n\n";
     } else {
@@ -59,20 +59,16 @@ try {
     // Get current data counts
     echo "Current Database Contents:\n";
     echo "─────────────────────────────────────────────────────────────\n\n";
-
-    // daily_snapshots count
+// daily_snapshots count
     $stmt = $pdo->query("SELECT COUNT(*) as count FROM daily_snapshots");
     $dailyCount = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
     echo "  daily_snapshots:       " . number_format($dailyCount) . " records\n";
-
-    // subscriber_snapshots count
+// subscriber_snapshots count
     $stmt = $pdo->query("SELECT COUNT(*) as count FROM subscriber_snapshots");
     $subscriberCount = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
     echo "  subscriber_snapshots:  " . number_format($subscriberCount) . " records\n";
-
     echo "\n";
-
-    // Date range
+// Date range
     $stmt = $pdo->query("
         SELECT
             MIN(snapshot_date) as earliest,
@@ -80,14 +76,12 @@ try {
         FROM daily_snapshots
     ");
     $dateRange = $stmt->fetch(PDO::FETCH_ASSOC);
-
     if ($dateRange['earliest']) {
         echo "  Date Range: {$dateRange['earliest']} to {$dateRange['latest']}\n";
     }
 
     echo "\n";
     echo "═══════════════════════════════════════════════════════════════\n\n";
-
     if ($dailyCount == 0 && $subscriberCount == 0) {
         echo "✓ Database is already empty. Nothing to purge.\n\n";
         exit(0);
@@ -111,11 +105,9 @@ try {
     echo "This action CANNOT be undone!\n";
     echo "\n";
     echo "Type 'PURGE ALL DATA' to confirm (exact text required): ";
-
     $handle = fopen("php://stdin", "r");
     $line = trim(fgets($handle));
     fclose($handle);
-
     if ($line !== 'PURGE ALL DATA') {
         echo "\nCancelled. No data was deleted.\n\n";
         exit(0);
@@ -124,22 +116,18 @@ try {
     echo "\n";
     echo "Purging all data...\n";
     echo "─────────────────────────────────────────────────────────────\n\n";
-
-    // Delete from subscriber_snapshots first (may have foreign key)
+// Delete from subscriber_snapshots first (may have foreign key)
     $stmt = $pdo->query("DELETE FROM subscriber_snapshots");
     $subscriberDeleted = $stmt->rowCount();
     echo "  ✓ Deleted " . number_format($subscriberDeleted) . " records from subscriber_snapshots\n";
-
-    // Delete from daily_snapshots
+// Delete from daily_snapshots
     $stmt = $pdo->query("DELETE FROM daily_snapshots");
     $dailyDeleted = $stmt->rowCount();
     echo "  ✓ Deleted " . number_format($dailyDeleted) . " records from daily_snapshots\n";
-
-    // Reset auto-increment counters
+// Reset auto-increment counters
     $pdo->query("ALTER TABLE subscriber_snapshots AUTO_INCREMENT = 1");
     $pdo->query("ALTER TABLE daily_snapshots AUTO_INCREMENT = 1");
     echo "  ✓ Reset auto-increment counters\n";
-
     echo "\n";
     echo "═══════════════════════════════════════════════════════════════\n";
     echo "  ✓ PURGE COMPLETE\n";
@@ -153,7 +141,6 @@ try {
     echo "3. Upload your second CSV (newer date)\n";
     echo "4. Verify the data looks correct\n";
     echo "\n";
-
 } catch (Exception $e) {
     echo "\n❌ ERROR: " . $e->getMessage() . "\n\n";
     exit(1);

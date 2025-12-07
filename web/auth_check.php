@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Authentication Check
  *
@@ -8,7 +9,6 @@
 
 // Include config FIRST (sets session security settings)
 require_once __DIR__ . '/config.php';
-
 // Start session AFTER config loaded (session settings must be set before session_start)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -16,7 +16,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Check if user is logged in
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    // Not logged in - redirect to login page
+// Not logged in - redirect to login page
     header('Location: login.php');
     exit;
 }
@@ -24,9 +24,8 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
 // Check session timeout (optional security feature)
 if (defined('SESSION_TIMEOUT')) {
     $inactive = time() - ($_SESSION['last_activity'] ?? 0);
-
     if ($inactive > SESSION_TIMEOUT) {
-        // Session expired - destroy and redirect
+    // Session expired - destroy and redirect
         session_unset();
         session_destroy();
         header('Location: login.php?timeout=1');
@@ -39,7 +38,7 @@ if (defined('SESSION_TIMEOUT')) {
 
 // Optional: Verify user type is still "NW"
 if (isset($_SESSION['user_type']) && $_SESSION['user_type'] !== 'NW') {
-    // Unauthorized user type
+// Unauthorized user type
     session_unset();
     session_destroy();
     header('Location: login.php?error=unauthorized');
@@ -47,4 +46,3 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] !== 'NW') {
 }
 
 // User is authenticated - continue with page load
-?>

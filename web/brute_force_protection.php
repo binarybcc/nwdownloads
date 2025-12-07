@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Brute Force Protection
  *
@@ -20,7 +21,8 @@
  * @param string $login_id User login ID
  * @return bool True if login attempt allowed, false if blocked
  */
-function checkBruteForce($login_id) {
+function checkBruteForce($login_id)
+{
     // Ensure session is started
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
@@ -70,7 +72,8 @@ function checkBruteForce($login_id) {
  * @param string $login_id User login ID
  * @return void
  */
-function recordFailedAttempt($login_id) {
+function recordFailedAttempt($login_id)
+{
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
@@ -105,7 +108,8 @@ function recordFailedAttempt($login_id) {
  * @param string $login_id User login ID
  * @return void
  */
-function resetAttempts($login_id) {
+function resetAttempts($login_id)
+{
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
@@ -123,7 +127,8 @@ function resetAttempts($login_id) {
  * @param string $login_id User login ID
  * @return int Seconds remaining in lockout (0 if not locked)
  */
-function getLockoutTimeRemaining($login_id) {
+function getLockoutTimeRemaining($login_id)
+{
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
@@ -144,4 +149,3 @@ function getLockoutTimeRemaining($login_id) {
 
     return max(0, $timeRemaining);
 }
-?>

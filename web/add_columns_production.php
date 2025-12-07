@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Add new columns to production database
  */
@@ -10,16 +11,13 @@ $db_config = [
     'username' => getenv('DB_USER') ?: 'circ_dash',
     'password' => getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!',
 ];
-
 try {
     $dsn = "mysql:host={$db_config['host']};port={$db_config['port']};dbname={$db_config['database']};charset=utf8mb4";
     $pdo = new PDO($dsn, $db_config['username'], $db_config['password'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     ]);
-
     echo "Connected to database successfully.\n\n";
-
-    // Add columns
+// Add columns
     $columns = [
         "ALTER TABLE subscriber_snapshots ADD COLUMN address VARCHAR(255)",
         "ALTER TABLE subscriber_snapshots ADD COLUMN city_state_postal VARCHAR(100)",
@@ -31,7 +29,6 @@ try {
         "ALTER TABLE subscriber_snapshots ADD COLUMN login_id VARCHAR(50)",
         "ALTER TABLE subscriber_snapshots ADD COLUMN last_login DATE"
     ];
-
     foreach ($columns as $sql) {
         try {
             $pdo->exec($sql);
@@ -52,7 +49,6 @@ try {
         "CREATE INDEX idx_phone ON subscriber_snapshots(phone)",
         "CREATE INDEX idx_login_id ON subscriber_snapshots(login_id)"
     ];
-
     foreach ($indexes as $sql) {
         try {
             $pdo->exec($sql);
@@ -67,7 +63,6 @@ try {
     }
 
     echo "\n✓ Database schema updated successfully!\n";
-
 } catch (Exception $e) {
     echo "ERROR: " . $e->getMessage() . "\n";
     exit(1);

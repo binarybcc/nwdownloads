@@ -1,8 +1,10 @@
 <?php
+
 /**
  * Circulation Dashboard - Main Interface
  * Requires Newzware authentication to access
  */
+
 require_once 'auth_check.php';
 ?>
 <!DOCTYPE html>

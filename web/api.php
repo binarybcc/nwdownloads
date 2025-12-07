@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Circulation Dashboard API - Phase 2
  * Advanced comparisons, drill-down, analytics, forecasting
@@ -8,15 +9,12 @@
 
 // Require authentication
 require_once 'auth_check.php';
-
 // Error reporting (disable in production)
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
-
 // CORS headers
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json');
-
 // Database configuration
 $db_config = [
     'host' => getenv('DB_HOST') ?: 'localhost',
@@ -30,7 +28,9 @@ $db_config = [
 /**
  * Connect to database
  */
-function connectDB($config) {
+function connectDB($config)
+{
+
     try {
         if (empty($config['socket']) || !file_exists($config['socket'])) {
             $dsn = "mysql:host={$config['host']};port={$config['port']};dbname={$config['database']};charset=utf8mb4";
@@ -49,23 +49,23 @@ function connectDB($config) {
 /**
  * Get week boundaries (Sunday-Saturday) for a given date
  */
-function getWeekBoundaries($date) {
+function getWeekBoundaries($date)
+{
+
     $dt = new DateTime($date);
-    $dayOfWeek = (int)$dt->format('w'); // 0=Sunday, 6=Saturday
+    $dayOfWeek = (int)$dt->format('w');
+// 0=Sunday, 6=Saturday
 
     // Find Sunday of this week
     $sunday = clone $dt;
     $sunday->modify('-' . $dayOfWeek . ' days');
-
-    // Find Saturday of this week
+// Find Saturday of this week
     $saturday = clone $sunday;
     $saturday->modify('+6 days');
-
-    // Calculate week number from the actual date (not Sunday) to match upload.php logic
+// Calculate week number from the actual date (not Sunday) to match upload.php logic
     // This ensures API and upload.php use the same week numbering
     $week_num = (int)$dt->format('W');
     $year = (int)$dt->format('Y');
-
     return [
         'start' => $sunday->format('Y-m-d'),
         'end' => $saturday->format('Y-m-d'),
@@ -77,7 +77,9 @@ function getWeekBoundaries($date) {
 /**
  * Get Saturday date for a week (our snapshot day)
  */
-function getSaturdayForWeek($date) {
+function getSaturdayForWeek($date)
+{
+
     $boundaries = getWeekBoundaries($date);
     return $boundaries['end'];
 }
@@ -85,7 +87,9 @@ function getSaturdayForWeek($date) {
 /**
  * Get data range available in database
  */
-function getDataRange($pdo) {
+function getDataRange($pdo)
+{
+
     $stmt = $pdo->query("
         SELECT
             MIN(snapshot_date) as min_date,
@@ -101,7 +105,9 @@ function getDataRange($pdo) {
  * Get the most recent snapshot date (any day of week)
  * With week-based system, snapshots can be on any day (Monday, Saturday, etc.)
  */
-function getMostRecentCompleteSaturday($pdo) {
+function getMostRecentCompleteSaturday($pdo)
+{
+
     // Get the most recent snapshot date (any day of week)
     $stmt = $pdo->query("
         SELECT snapshot_date
@@ -118,7 +124,9 @@ function getMostRecentCompleteSaturday($pdo) {
 /**
  * Calculate trend direction from 12-week data
  */
-function calculateTrendDirection($trend) {
+function calculateTrendDirection($trend)
+{
+
     if (count($trend) < 8) {
         return 'stable';
     }
@@ -126,27 +134,28 @@ function calculateTrendDirection($trend) {
     // Calculate 4-week moving averages
     $recentWeeks = array_slice($trend, -4);
     $olderWeeks = array_slice($trend, 0, 8);
-
     $recentAvg = array_sum(array_column($recentWeeks, 'total_active')) / count($recentWeeks);
     $olderAvg = array_sum(array_column($olderWeeks, 'total_active')) / count($olderWeeks);
-
     $changePercent = $olderAvg > 0 ? (($recentAvg - $olderAvg) / $olderAvg) * 100 : 0;
-
-    if ($changePercent > 2) return 'growing';
-    if ($changePercent < -2) return 'declining';
+    if ($changePercent > 2) {
+        return 'growing';
+    }
+    if ($changePercent < -2) {
+        return 'declining';
+    }
     return 'stable';
 }
 
 /**
  * Get business unit comparison data (YoY and Previous Week)
  */
-function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData) {
-    $saturday = getSaturdayForWeek($currentDate);
+function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData)
+{
 
-    // Year-over-year comparison
+    $saturday = getSaturdayForWeek($currentDate);
+// Year-over-year comparison
     $lastYearDate = date('Y-m-d', strtotime($saturday . ' -1 year'));
     $lastYearSaturday = getSaturdayForWeek($lastYearDate);
-
     $stmt = $pdo->prepare("
         SELECT
             SUM(total_active) as total,
@@ -161,18 +170,15 @@ function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData) 
     ");
     $stmt->execute([$unitName, $lastYearSaturday]);
     $yoyData = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    // Previous week comparison
+// Previous week comparison
     $prevWeekDate = date('Y-m-d', strtotime($saturday . ' -7 days'));
     $stmt->execute([$unitName, $prevWeekDate]);
     $prevWeekData = $stmt->fetch(PDO::FETCH_ASSOC);
-
     $comparison = [
         'yoy' => null,
         'previous_week' => null,
         'trend_direction' => 'stable'
     ];
-
     if ($yoyData && $yoyData['total'] > 0) {
         $comparison['yoy'] = [
             'total' => (int)$yoyData['total'],
@@ -206,19 +212,18 @@ function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData) 
     ");
     $stmt->execute([$unitName, $trendStart, $saturday]);
     $trend = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
     $comparison['trend_direction'] = calculateTrendDirection($trend);
-
     return $comparison;
 }
 
 /**
  * Get business unit detail with 12-week trend and paper breakdown
  */
-function getBusinessUnitDetail($pdo, $unitName, $date = null) {
-    $saturday = getSaturdayForWeek($date ?? date('Y-m-d'));
+function getBusinessUnitDetail($pdo, $unitName, $date = null)
+{
 
-    // Get papers for this unit
+    $saturday = getSaturdayForWeek($date ?? date('Y-m-d'));
+// Get papers for this unit
     $stmt = $pdo->prepare("
         SELECT DISTINCT paper_code, paper_name
         FROM daily_snapshots
@@ -228,8 +233,7 @@ function getBusinessUnitDetail($pdo, $unitName, $date = null) {
     ");
     $stmt->execute([$unitName]);
     $papers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Get 12-week trend for this unit
+// Get 12-week trend for this unit
     $trendStart = date('Y-m-d', strtotime($saturday . ' -84 days'));
     $stmt = $pdo->prepare("
         SELECT
@@ -251,8 +255,7 @@ function getBusinessUnitDetail($pdo, $unitName, $date = null) {
     ");
     $stmt->execute([$unitName, $trendStart, $saturday]);
     $trend = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Get current data for each paper
+// Get current data for each paper
     $stmt = $pdo->prepare("
         SELECT
             paper_code,
@@ -286,7 +289,8 @@ function getBusinessUnitDetail($pdo, $unitName, $date = null) {
     return [
         'unit_name' => $unitName,
         'papers' => $papers,
-        'trend' => array_map(function($row) {
+        'trend' => array_map(function ($row) {
+
             return [
                 'snapshot_date' => $row['snapshot_date'],
                 'total_active' => (int)$row['total_active'],
@@ -304,17 +308,19 @@ function getBusinessUnitDetail($pdo, $unitName, $date = null) {
 /**
  * Simple linear regression forecast for next week
  */
-function forecastNextWeek($trend) {
+function forecastNextWeek($trend)
+{
+
     $n = count($trend);
     if ($n < 4) {
-        return null; // Not enough data
+        return null;
+    // Not enough data
     }
 
     $sumX = 0;
     $sumY = 0;
     $sumXY = 0;
     $sumX2 = 0;
-
     foreach ($trend as $i => $week) {
         $x = $i + 1;
         $y = $week['total_active'];
@@ -326,12 +332,10 @@ function forecastNextWeek($trend) {
 
     $slope = ($n * $sumXY - $sumX * $sumY) / ($n * $sumX2 - $sumX * $sumX);
     $intercept = ($sumY - $slope * $sumX) / $n;
-
-    // Forecast next week (x = n + 1)
+// Forecast next week (x = n + 1)
     $forecast = round($slope * ($n + 1) + $intercept);
     $lastActual = $trend[$n - 1]['total_active'];
-
-    // Calculate confidence based on variance
+// Calculate confidence based on variance
     $variance = 0;
     foreach ($trend as $i => $week) {
         $predicted = $slope * ($i + 1) + $intercept;
@@ -340,10 +344,12 @@ function forecastNextWeek($trend) {
     $stdDev = sqrt($variance / $n);
     $avgValue = $sumY / $n;
     $confidenceRatio = $stdDev / $avgValue;
-
     $confidence = 'medium';
-    if ($confidenceRatio < 0.02) $confidence = 'high';
-    elseif ($confidenceRatio > 0.05) $confidence = 'low';
+    if ($confidenceRatio < 0.02) {
+        $confidence = 'high';
+    } elseif ($confidenceRatio > 0.05) {
+        $confidence = 'low';
+    }
 
     return [
         'value' => $forecast,
@@ -356,7 +362,9 @@ function forecastNextWeek($trend) {
 /**
  * Detect anomalies in trend data
  */
-function detectAnomalies($trend) {
+function detectAnomalies($trend)
+{
+
     if (count($trend) < 4) {
         return [];
     }
@@ -368,7 +376,6 @@ function detectAnomalies($trend) {
         $variance += pow($value - $mean, 2);
     }
     $stdDev = sqrt($variance / count($values));
-
     $anomalies = [];
     foreach ($trend as $i => $week) {
         $zScore = $stdDev > 0 ? ($week['total_active'] - $mean) / $stdDev : 0;
@@ -388,20 +395,21 @@ function detectAnomalies($trend) {
 /**
  * Find strongest/weakest performers
  */
-function findPerformers($by_business_unit, $comparisons) {
+function findPerformers($by_business_unit, $comparisons)
+{
+
     $performers = [
         'strongest' => null,
         'weakest' => null
     ];
-
     $maxChange = -PHP_INT_MAX;
     $minChange = PHP_INT_MAX;
-
     foreach ($by_business_unit as $unitName => $data) {
-        if (!isset($comparisons[$unitName]['yoy'])) continue;
+        if (!isset($comparisons[$unitName]['yoy'])) {
+            continue;
+        }
 
         $change = $comparisons[$unitName]['yoy']['change_percent'];
-
         if ($change > $maxChange) {
             $maxChange = $change;
             $performers['strongest'] = [
@@ -414,9 +422,9 @@ function findPerformers($by_business_unit, $comparisons) {
         if ($change < $minChange) {
             $minChange = $change;
             $performers['weakest'] = [
-                'unit' => $unitName,
-                'change' => $comparisons[$unitName]['yoy']['change'],
-                'change_percent' => $change
+            'unit' => $unitName,
+            'change' => $comparisons[$unitName]['yoy']['change'],
+            'change_percent' => $change
             ];
         }
     }
@@ -427,18 +435,20 @@ function findPerformers($by_business_unit, $comparisons) {
 /**
  * Get enhanced overview with Phase 2 features
  */
-function getOverviewEnhanced($pdo, $params) {
+function getOverviewEnhanced($pdo, $params)
+{
+
     // Parse parameters
     // If no date provided, use most recent complete Saturday instead of today
     $requestedDate = $params['date'] ?? getMostRecentCompleteSaturday($pdo);
-    $compareMode = $params['compare'] ?? 'yoy'; // yoy, previous, none
+    $compareMode = $params['compare'] ?? 'yoy';
+// yoy, previous, none
 
     // Get week boundaries for requested date
     $week = getWeekBoundaries($requestedDate);
     $week_num = $week['week_num'];
     $year = $week['year'];
-
-    // Query by week_num and year (not snapshot_date) for week-based system
+// Query by week_num and year (not snapshot_date) for week-based system
     $stmt = $pdo->prepare("
         SELECT
             snapshot_date,
@@ -458,13 +468,11 @@ function getOverviewEnhanced($pdo, $params) {
     ");
     $stmt->execute([$week_num, $year]);
     $current = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    // Check if this week has data
+// Check if this week has data
     $has_data = ($current !== false);
-
-    // If no data for this week, don't fall back - return structured empty response
+// If no data for this week, don't fall back - return structured empty response
     if (!$has_data) {
-        // Return empty state with metadata
+// Return empty state with metadata
         return [
             'has_data' => false,
             'week' => [
@@ -493,12 +501,11 @@ function getOverviewEnhanced($pdo, $params) {
     // Get comparison data
     $comparison = null;
     if ($compareMode === 'yoy') {
-        // Year-over-year comparison (same week number last year)
-        $lastYearDate = date('Y-m-d', strtotime($saturday . ' -1 year'));
+    // Year-over-year comparison (same week number last year)
+        $lastYearDate = date('Y-m-d', strtotime($current['snapshot_date'] . ' -1 year'));
         $lastYearWeek = getWeekBoundaries($lastYearDate);
         $lastYearSaturday = $lastYearWeek['end'];
-
-        // Find business units that exist in BOTH current and last year
+    // Find business units that exist in BOTH current and last year
         // This ensures apples-to-apples comparison when business units are added/removed
         $stmt = $pdo->prepare("
             SELECT DISTINCT curr.business_unit
@@ -514,14 +521,12 @@ function getOverviewEnhanced($pdo, $params) {
             ) prev
             ON curr.business_unit = prev.business_unit
         ");
-        $stmt->execute([$saturday, $lastYearSaturday]);
+        $stmt->execute([$current['snapshot_date'], $lastYearSaturday]);
         $commonUnits = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
         if (!empty($commonUnits)) {
             $placeholders = str_repeat('?,', count($commonUnits) - 1) . '?';
-
             // Get last year data for common business units only
-            $stmt = $pdo->prepare("
+                    $stmt = $pdo->prepare("
                 SELECT
                     snapshot_date,
                     SUM(total_active) as total_active,
@@ -536,9 +541,8 @@ function getOverviewEnhanced($pdo, $params) {
             $params = array_merge([$lastYearSaturday], $commonUnits);
             $stmt->execute($params);
             $compareData = $stmt->fetch(PDO::FETCH_ASSOC);
-
             // Get current year data for common business units only
-            $stmt = $pdo->prepare("
+                    $stmt = $pdo->prepare("
                 SELECT
                     SUM(total_active) as total_active,
                     SUM(on_vacation) as on_vacation,
@@ -548,44 +552,43 @@ function getOverviewEnhanced($pdo, $params) {
                   AND snapshot_date = ?
                   AND business_unit IN ($placeholders)
             ");
-            $params = array_merge([$saturday], $commonUnits);
+            $params = array_merge([$current['snapshot_date']], $commonUnits);
             $stmt->execute($params);
             $currentComparable = $stmt->fetch(PDO::FETCH_ASSOC);
-
             if ($compareData && $currentComparable) {
-                $comparison = [
-                    'type' => 'yoy',
-                    'label' => 'Year-over-Year',
-                    'period' => [
-                        'start' => $lastYearWeek['start'],
-                        'end' => $lastYearWeek['end'],
-                        'week_num' => $lastYearWeek['week_num'],
-                        'year' => $lastYearWeek['year'],
-                        'label' => "Week {$lastYearWeek['week_num']}, {$lastYearWeek['year']}"
-                    ],
-                    'data' => [
-                        'total_active' => (int)$compareData['total_active'],
-                        'on_vacation' => (int)$compareData['on_vacation'],
-                        'deliverable' => (int)$compareData['deliverable'],
-                    ],
-                    'changes' => [
-                        'total_active' => (int)$currentComparable['total_active'] - (int)$compareData['total_active'],
-                        'total_active_percent' => $compareData['total_active'] > 0 ?
-                            round((((int)$currentComparable['total_active'] - (int)$compareData['total_active']) / (int)$compareData['total_active']) * 100, 2) : 0,
-                        'on_vacation' => (int)$currentComparable['on_vacation'] - (int)$compareData['on_vacation'],
-                        'deliverable' => (int)$currentComparable['deliverable'] - (int)$compareData['deliverable'],
-                    ]
-                ];
+                    $comparison = [
+                                    'type' => 'yoy',
+                                    'label' => 'Year-over-Year',
+                                    'period' => [
+                                        'start' => $lastYearWeek['start'],
+                                        'end' => $lastYearWeek['end'],
+                                        'week_num' => $lastYearWeek['week_num'],
+                                        'year' => $lastYearWeek['year'],
+                                        'label' => "Week {$lastYearWeek['week_num']}, {$lastYearWeek['year']}"
+                                    ],
+                                    'data' => [
+                                        'total_active' => (int)$compareData['total_active'],
+                                        'on_vacation' => (int)$compareData['on_vacation'],
+                                        'deliverable' => (int)$compareData['deliverable'],
+                                    ],
+                                    'changes' => [
+                                        'total_active' => (int)$currentComparable['total_active'] - (int)$compareData['total_active'],
+                                        'total_active_percent' => $compareData['total_active'] > 0 ?
+                                            round((((int)$currentComparable['total_active'] - (int)$compareData['total_active']) / (int)$compareData['total_active']) * 100, 2) : 0,
+                                        'on_vacation' => (int)$currentComparable['on_vacation'] - (int)$compareData['on_vacation'],
+                                        'deliverable' => (int)$currentComparable['deliverable'] - (int)$compareData['deliverable'],
+                                    ]
+                    ];
             }
         }
     } elseif ($compareMode === 'previous') {
-        // Previous week comparison with fallback to most recent week with data
+    // Previous week comparison with fallback to most recent week with data
         $targetWeekNum = $week_num - 1;
         $targetYear = $year;
-
-        // Handle year boundary
+    // Handle year boundary
         if ($targetWeekNum < 1) {
-            $targetWeekNum = 52; // Assume 52 weeks (adjust for 53-week years if needed)
+            $targetWeekNum = 52;
+// Assume 52 weeks (adjust for 53-week years if needed)
             $targetYear--;
         }
 
@@ -606,8 +609,7 @@ function getOverviewEnhanced($pdo, $params) {
         ");
         $stmt->execute([$targetWeekNum, $targetYear]);
         $compareData = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        // If no data for previous week, fall back to most recent week with data
+    // If no data for previous week, fall back to most recent week with data
         if (!$compareData) {
             $stmt = $pdo->prepare("
                 SELECT
@@ -631,7 +633,6 @@ function getOverviewEnhanced($pdo, $params) {
         if ($compareData) {
             $prevWeekBoundaries = getWeekBoundaries($compareData['snapshot_date']);
             $isFallback = ($compareData['week_num'] != $targetWeekNum);
-
             $comparison = [
                 'type' => 'previous',
                 'label' => $isFallback ?
@@ -665,8 +666,7 @@ function getOverviewEnhanced($pdo, $params) {
     $trend = [];
     $startWeekNum = $week_num - 11;
     $startYear = $year;
-
-    // Handle year boundary
+// Handle year boundary
     if ($startWeekNum < 1) {
         $weeksNeeded = abs($startWeekNum) + 1;
         $startYear--;
@@ -677,8 +677,7 @@ function getOverviewEnhanced($pdo, $params) {
     for ($i = 0; $i < 12; $i++) {
         $currentWeekNum = $startWeekNum + $i;
         $currentYear = $startYear;
-
-        // Handle year boundary within loop
+// Handle year boundary within loop
         if ($currentWeekNum > 52) {
             $currentWeekNum = $currentWeekNum - 52;
             $currentYear++;
@@ -701,7 +700,6 @@ function getOverviewEnhanced($pdo, $params) {
         ");
         $stmt->execute([$currentWeekNum, $currentYear]);
         $weekData = $stmt->fetch(PDO::FETCH_ASSOC);
-
         if ($weekData) {
             $trend[] = [
                 'snapshot_date' => $weekData['snapshot_date'],
@@ -712,7 +710,7 @@ function getOverviewEnhanced($pdo, $params) {
                 'deliverable' => (int)$weekData['deliverable']
             ];
         } else {
-            // Insert null for missing week
+        // Insert null for missing week
             $trend[] = [
                 'snapshot_date' => null,
                 'week_num' => $currentWeekNum,
@@ -753,14 +751,8 @@ function getOverviewEnhanced($pdo, $params) {
             'digital' => (int)$row['digital'],
         ];
         $by_business_unit[$row['business_unit']] = $unitData;
-
-        // Get comparison for this unit (use current snapshot_date)
-        $unit_comparisons[$row['business_unit']] = getBusinessUnitComparison(
-            $pdo,
-            $row['business_unit'],
-            $current['snapshot_date'],
-            $unitData
-        );
+    // Get comparison for this unit (use current snapshot_date)
+        $unit_comparisons[$row['business_unit']] = getBusinessUnitComparison($pdo, $row['business_unit'], $current['snapshot_date'], $unitData);
     }
 
     // Get by edition (using week_num)
@@ -798,12 +790,10 @@ function getOverviewEnhanced($pdo, $params) {
 
     // Get data range
     $dataRange = getDataRange($pdo);
-
-    // Phase 2: Analytics
+// Phase 2: Analytics
     $forecast = forecastNextWeek($trend);
     $anomalies = detectAnomalies($trend);
     $performers = findPerformers($by_business_unit, $unit_comparisons);
-
     return [
         'has_data' => true,
         'week' => [
@@ -825,7 +815,8 @@ function getOverviewEnhanced($pdo, $params) {
             'digital' => (int)$current['digital'],
         ],
         'comparison' => $comparison,
-        'trend' => array_map(function($row) {
+        'trend' => array_map(function ($row) {
+
             // Preserve null values for missing weeks
             return [
                 'snapshot_date' => $row['snapshot_date'],
@@ -856,7 +847,9 @@ function getOverviewEnhanced($pdo, $params) {
 /**
  * Get paper detail
  */
-function getPaperDetail($pdo, $paperCode) {
+function getPaperDetail($pdo, $paperCode)
+{
+
     $stmt = $pdo->prepare("
         SELECT *
         FROM daily_snapshots
@@ -872,7 +865,9 @@ function getPaperDetail($pdo, $paperCode) {
  * Get detail panel data for business unit
  * Returns data for: delivery breakdown, expiration chart, rate distribution, subscription length
  */
-function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
+function getDetailPanelData($pdo, $businessUnit, $snapshotDate)
+{
+
     // Get paper codes for this business unit
     $papers_stmt = $pdo->prepare("
         SELECT DISTINCT paper_code, paper_name
@@ -882,15 +877,13 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
     ");
     $papers_stmt->execute([$businessUnit]);
     $papers = $papers_stmt->fetchAll(PDO::FETCH_ASSOC);
-
     if (empty($papers)) {
         throw new Exception("No papers found for business unit: $businessUnit");
     }
 
     $paper_codes = array_column($papers, 'paper_code');
     $placeholders = str_repeat('?,', count($paper_codes) - 1) . '?';
-
-    // Smart data window logic:
+// Smart data window logic:
     // Any upload is valid for the 7 days preceding its date
     // Find the most recent upload that covers the requested date
     // (i.e., uploaded within 7 days AFTER the requested date)
@@ -905,12 +898,11 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
     ");
     $date_check->execute(array_merge($paper_codes, [$snapshotDate, $snapshotDate]));
     $actual_date_result = $date_check->fetch(PDO::FETCH_ASSOC);
-
     if ($actual_date_result && $actual_date_result['snapshot_date']) {
-        // Found an upload within the 7-day window
+    // Found an upload within the 7-day window
         $actualSnapshotDate = $actual_date_result['snapshot_date'];
     } else {
-        // No upload found in the 7-day window, try to find most recent before requested date
+    // No upload found in the 7-day window, try to find most recent before requested date
         $fallback_check = $pdo->prepare("
             SELECT MAX(snapshot_date) as snapshot_date
             FROM subscriber_snapshots
@@ -919,19 +911,17 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
         ");
         $fallback_check->execute(array_merge($paper_codes, [$snapshotDate]));
         $fallback_result = $fallback_check->fetch(PDO::FETCH_ASSOC);
-
         if ($fallback_result && $fallback_result['snapshot_date']) {
             $actualSnapshotDate = $fallback_result['snapshot_date'];
         } else {
-            $actualSnapshotDate = $snapshotDate; // No data found, will return empty
+            $actualSnapshotDate = $snapshotDate;
+        // No data found, will return empty
         }
     }
 
     $snapshotDate = $actualSnapshotDate;
-
-    // Get comparison data for this business unit
+// Get comparison data for this business unit
     $comparison_data = getBusinessUnitComparison($pdo, $businessUnit, $snapshotDate, []);
-
     $response = [
         'business_unit' => $businessUnit,
         'snapshot_date' => $snapshotDate,
@@ -942,8 +932,7 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
         'rate_distribution' => [],
         'subscription_length' => []
     ];
-
-    // 1. Current delivery breakdown (from daily_snapshots)
+// 1. Current delivery breakdown (from daily_snapshots)
     $delivery_stmt = $pdo->prepare("
         SELECT
             SUM(total_active) as total_active,
@@ -957,7 +946,6 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
     ");
     $delivery_stmt->execute(array_merge([$snapshotDate], $paper_codes));
     $delivery_data = $delivery_stmt->fetch(PDO::FETCH_ASSOC);
-
     if ($delivery_data) {
         $response['delivery_breakdown'] = [
             'total_active' => (int)$delivery_data['total_active'],
@@ -994,22 +982,17 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
                 WHEN 'Week +2' THEN 4
             END
     ");
-    // Pass snapshot_date for each ? placeholder: 9 total (7 in CASE + 1 in WHERE + 1 in final condition)
-    $expiration_stmt->execute(array_merge(
-        [$snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate],
-        $paper_codes,
-        [$snapshotDate]
-    ));
+// Pass snapshot_date for each ? placeholder: 9 total (7 in CASE + 1 in WHERE + 1 in final condition)
+    $expiration_stmt->execute(array_merge([$snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate], $paper_codes, [$snapshotDate]));
     $expiration_data = $expiration_stmt->fetchAll(PDO::FETCH_ASSOC);
+    $response['expiration_chart'] = array_map(function ($row) {
 
-    $response['expiration_chart'] = array_map(function($row) {
         return [
             'week_bucket' => $row['week_bucket'],
             'count' => (int)$row['count']
         ];
     }, $expiration_data);
-
-    // 3. Rate distribution (all rates with at least 1 subscriber)
+// 3. Rate distribution (all rates with at least 1 subscriber)
     $rate_stmt = $pdo->prepare("
         SELECT
             rate_name,
@@ -1024,15 +1007,14 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
     ");
     $rate_stmt->execute(array_merge([$snapshotDate], $paper_codes));
     $rate_data = $rate_stmt->fetchAll(PDO::FETCH_ASSOC);
+    $response['rate_distribution'] = array_map(function ($row) {
 
-    $response['rate_distribution'] = array_map(function($row) {
         return [
             'rate_name' => $row['rate_name'],
             'count' => (int)$row['count']
         ];
     }, $rate_data);
-
-    // 4. Subscription length distribution (normalize 12 M and 1 Y)
+// 4. Subscription length distribution (normalize 12 M and 1 Y)
     $length_stmt = $pdo->prepare("
         SELECT
             CASE
@@ -1050,14 +1032,13 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
     ");
     $length_stmt->execute(array_merge([$snapshotDate], $paper_codes));
     $length_data = $length_stmt->fetchAll(PDO::FETCH_ASSOC);
+    $response['subscription_length'] = array_map(function ($row) {
 
-    $response['subscription_length'] = array_map(function($row) {
         return [
             'subscription_length' => $row['subscription_length'],
             'count' => (int)$row['count']
         ];
     }, $length_data);
-
     return $response;
 }
 
@@ -1069,21 +1050,21 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate) {
  * @param array $params Query parameters
  * @return array Subscriber data
  */
-function getSubscribers($pdo, $params) {
+function getSubscribers($pdo, $params)
+{
+
     $businessUnit = $params['business_unit'] ?? '';
     $snapshotDate = $params['snapshot_date'] ?? date('Y-m-d');
     $metricType = $params['metric_type'] ?? '';
     $metricValue = $params['metric_value'] ?? '';
-
-    // Validate required parameters
+// Validate required parameters
     if (empty($businessUnit) || empty($metricType) || empty($metricValue)) {
         throw new Exception('Missing required parameters: business_unit, metric_type, metric_value');
     }
 
     // Get Saturday for requested date
     $saturday = getSaturdayForWeek($snapshotDate);
-
-    // Find nearest available snapshot
+// Find nearest available snapshot
     $stmt = $pdo->prepare("
         SELECT snapshot_date
         FROM daily_snapshots
@@ -1097,27 +1078,25 @@ function getSubscribers($pdo, $params) {
         ':saturday' => $saturday
     ]);
     $actualDate = $stmt->fetchColumn();
-
     if (!$actualDate) {
         throw new Exception('No data available for this business unit and date');
     }
 
     // Query real subscriber data from subscriber_snapshots table
     $subscribers = [];
-
     switch ($metricType) {
         case 'expiration':
-            $subscribers = getExpirationSubscribers($pdo, $businessUnit, $actualDate, $metricValue);
-            break;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       $subscribers = getExpirationSubscribers($pdo, $businessUnit, $actualDate, $metricValue);
 
+            break;
         case 'rate':
-            $subscribers = getRateSubscribers($pdo, $businessUnit, $actualDate, $metricValue);
-            break;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       $subscribers = getRateSubscribers($pdo, $businessUnit, $actualDate, $metricValue);
 
+            break;
         case 'subscription_length':
-            $subscribers = getSubscriptionLengthSubscribers($pdo, $businessUnit, $actualDate, $metricValue);
-            break;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       $subscribers = getSubscriptionLengthSubscribers($pdo, $businessUnit, $actualDate, $metricValue);
 
+            break;
         default:
             throw new Exception('Invalid metric_type: ' . $metricType);
     }
@@ -1136,16 +1115,18 @@ function getSubscribers($pdo, $params) {
 /**
  * Get subscribers by expiration bucket
  */
-function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket) {
+function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket)
+{
+
     // Calculate date range for bucket
     $today = new DateTime($snapshotDate);
     $weekStart = clone $today;
     $weekEnd = clone $today;
-
     switch ($bucket) {
         case 'Past Due':
             // paid_thru < snapshot_date
-            $stmt = $pdo->prepare("
+
+                                                                                                                                                            $stmt = $pdo->prepare("
                 SELECT
                     sub_num as account_id,
                     name as subscriber_name,
@@ -1171,11 +1152,12 @@ function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket) {
                 ':business_unit' => $businessUnit,
                 ':snapshot_date' => $snapshotDate,
             ]);
-            break;
 
+            break;
         case 'This Week':
             // paid_thru between snapshot_date and snapshot_date + 6 days
-            $weekEnd->modify('+6 days');
+
+                                                                                                                                                            $weekEnd->modify('+6 days');
             $stmt = $pdo->prepare("
                 SELECT
                     sub_num as account_id,
@@ -1205,11 +1187,12 @@ function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket) {
                 ':start_date' => $snapshotDate,
                 ':end_date' => $weekEnd->format('Y-m-d')
             ]);
-            break;
 
+            break;
         case 'Next Week':
             // paid_thru between snapshot_date + 7 and snapshot_date + 13 days
-            $weekStart->modify('+7 days');
+
+                                                                                                                                                            $weekStart->modify('+7 days');
             $weekEnd->modify('+13 days');
             $stmt = $pdo->prepare("
                 SELECT
@@ -1240,11 +1223,12 @@ function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket) {
                 ':start_date' => $weekStart->format('Y-m-d'),
                 ':end_date' => $weekEnd->format('Y-m-d')
             ]);
-            break;
 
+            break;
         case 'Week +2':
             // paid_thru between snapshot_date + 14 and snapshot_date + 20 days
-            $weekStart->modify('+14 days');
+
+                                                                                                                                                            $weekStart->modify('+14 days');
             $weekEnd->modify('+20 days');
             $stmt = $pdo->prepare("
                 SELECT
@@ -1275,8 +1259,8 @@ function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket) {
                 ':start_date' => $weekStart->format('Y-m-d'),
                 ':end_date' => $weekEnd->format('Y-m-d')
             ]);
-            break;
 
+            break;
         default:
             return [];
     }
@@ -1287,7 +1271,9 @@ function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket) {
 /**
  * Get subscribers by rate
  */
-function getRateSubscribers($pdo, $businessUnit, $snapshotDate, $rateName) {
+function getRateSubscribers($pdo, $businessUnit, $snapshotDate, $rateName)
+{
+
     $stmt = $pdo->prepare("
         SELECT
             sub_num as account_id,
@@ -1310,20 +1296,20 @@ function getRateSubscribers($pdo, $businessUnit, $snapshotDate, $rateName) {
         ORDER BY sub_num ASC
         LIMIT 1000
     ");
-
     $stmt->execute([
         ':business_unit' => $businessUnit,
         ':snapshot_date' => $snapshotDate,
         ':rate_name' => $rateName
     ]);
-
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 /**
  * Get subscribers by subscription length
  */
-function getSubscriptionLengthSubscribers($pdo, $businessUnit, $snapshotDate, $length) {
+function getSubscriptionLengthSubscribers($pdo, $businessUnit, $snapshotDate, $length)
+{
+
     $stmt = $pdo->prepare("
         SELECT
             sub_num as account_id,
@@ -1346,13 +1332,11 @@ function getSubscriptionLengthSubscribers($pdo, $businessUnit, $snapshotDate, $l
         ORDER BY sub_num ASC
         LIMIT 1000
     ");
-
     $stmt->execute([
         ':business_unit' => $businessUnit,
         ':snapshot_date' => $snapshotDate,
         ':length' => $length
     ]);
-
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -1360,10 +1344,11 @@ function getSubscriptionLengthSubscribers($pdo, $businessUnit, $snapshotDate, $l
  * OLD FUNCTION - No longer used (kept for reference)
  * Use getExpirationSubscribers(), getRateSubscribers(), getSubscriptionLengthSubscribers() instead
  */
-function generateMockSubscribers_DEPRECATED($businessUnit, $count, $metricType, $metricValue) {
-    $subscribers = [];
+function generateMockSubscribers_DEPRECATED($businessUnit, $count, $metricType, $metricValue)
+{
 
-    // State-specific data
+    $subscribers = [];
+// State-specific data
     $stateData = [
         'South Carolina' => [
             'state' => 'SC',
@@ -1384,20 +1369,16 @@ function generateMockSubscribers_DEPRECATED($businessUnit, $count, $metricType, 
             'zip_prefix' => '825'
         ]
     ];
-
     $state = $stateData[$businessUnit] ?? $stateData['Wyoming'];
     $papers = array_keys($state['papers']);
-
     $firstNames = ['John', 'Mary', 'Robert', 'Patricia', 'Michael', 'Linda', 'William', 'Barbara', 'David', 'Elizabeth',
                    'James', 'Jennifer', 'Richard', 'Maria', 'Joseph', 'Susan', 'Thomas', 'Margaret', 'Charles', 'Dorothy'];
     $lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
                   'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
-
     $rates = ['Senior 6mo', 'Standard 12mo', 'Senior 12mo', 'Military 6mo', 'Student 3mo', 'Digital Only', 'Premium 12mo'];
     $paymentMethods = ['Check', 'Credit Card', 'Cash', 'Money Order', 'Auto-Pay'];
     $deliveryTypes = ['MAIL', 'CARR', 'INTE'];
-
-    // Limit to 1000 for performance
+// Limit to 1000 for performance
     $limit = min($count, 1000);
 
     for ($i = 0; $i < $limit; $i++) {
@@ -1406,36 +1387,38 @@ function generateMockSubscribers_DEPRECATED($businessUnit, $count, $metricType, 
         $city = $state['cities'][$i % count($state['cities'])];
         $paperCode = $papers[$i % count($papers)];
         $paperName = $state['papers'][$paperCode];
-
-        // Generate expiration date based on metric type
+// Generate expiration date based on metric type
         $expirationDate = date('Y-m-d', strtotime('+' . (($i % 30) - 10) . ' days'));
         if ($metricType === 'expiration') {
             switch ($metricValue) {
                 case 'Past Due':
-                    $expirationDate = date('Y-m-d', strtotime('-' . ($i % 14 + 1) . ' days'));
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $expirationDate = date('Y-m-d', strtotime('-' . ($i % 14 + 1) . ' days'));
+
                     break;
                 case 'This Week':
-                    $expirationDate = date('Y-m-d', strtotime('+' . ($i % 7) . ' days'));
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $expirationDate = date('Y-m-d', strtotime('+' . ($i % 7) . ' days'));
+
                     break;
                 case 'Next Week':
-                    $expirationDate = date('Y-m-d', strtotime('+' . (7 + $i % 7) . ' days'));
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $expirationDate = date('Y-m-d', strtotime('+' . (7 + $i % 7) . ' days'));
+
                     break;
                 case 'Week +2':
-                    $expirationDate = date('Y-m-d', strtotime('+' . (14 + $i % 7) . ' days'));
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $expirationDate = date('Y-m-d', strtotime('+' . (14 + $i % 7) . ' days'));
+
                     break;
             }
         }
 
-        $accountId = strtoupper(substr($state['state'], 0, 2)) . '-' . str_pad(10000 + $i, 5, '0', STR_PAD_LEFT);
+        $accountId = strtoupper(substr($state['state'], 0, 2)) . '-' . str_pad((string)(10000 + $i), 5, '0', STR_PAD_LEFT);
         $rate = $rates[$i % count($rates)];
         $rateAmount = 25.00 + (($i % 10) * 5.00);
-
         $subscribers[] = [
             'account_id' => $accountId,
             'subscriber_name' => $firstName . ' ' . $lastName,
-            'phone' => '(' . $state['zip_prefix'] . ') 555-' . str_pad($i % 10000, 4, '0', STR_PAD_LEFT),
+            'phone' => '(' . $state['zip_prefix'] . ') 555-' . str_pad((string)($i % 10000), 4, '0', STR_PAD_LEFT),
             'email' => strtolower($firstName . '.' . $lastName . '@example.com'),
-            'mailing_address' => ($i * 100 + 100) . ' Main St, ' . $city . ', ' . $state['state'] . ' ' . $state['zip_prefix'] . str_pad($i % 100, 2, '0', STR_PAD_LEFT),
+            'mailing_address' => ($i * 100 + 100) . ' Main St, ' . $city . ', ' . $state['state'] . ' ' . $state['zip_prefix'] . str_pad((string)($i % 100), 2, '0', STR_PAD_LEFT),
             'paper_code' => $paperCode,
             'paper_name' => $paperName,
             'current_rate' => $rate,
@@ -1458,14 +1441,15 @@ function generateMockSubscribers_DEPRECATED($businessUnit, $count, $metricType, 
  * @param array $params Query parameters
  * @return array Trend data points
  */
-function getHistoricalTrend($pdo, $params) {
+function getHistoricalTrend($pdo, $params)
+{
+
     $businessUnit = $params['business_unit'] ?? '';
     $metricType = $params['metric_type'] ?? '';
     $metricValue = $params['metric_value'] ?? '';
     $timeRange = $params['time_range'] ?? '12weeks';
     $endDate = $params['end_date'] ?? date('Y-m-d');
-
-    // Validate required parameters
+// Validate required parameters
     if (empty($businessUnit) || empty($metricType) || empty($metricValue)) {
         throw new Exception('Missing required parameters: business_unit, metric_type, metric_value');
     }
@@ -1478,14 +1462,11 @@ function getHistoricalTrend($pdo, $params) {
         '52weeks' => 52
     ];
     $numWeeks = $weeksMap[$timeRange] ?? 12;
-
-    // Get Saturday for end date
+// Get Saturday for end date
     $endSaturday = getSaturdayForWeek($endDate);
-
-    // Calculate start date
+// Calculate start date
     $startDate = date('Y-m-d', strtotime($endSaturday . ' -' . ($numWeeks * 7) . ' days'));
-
-    // Get all Saturdays in range
+// Get all Saturdays in range
     $stmt = $pdo->prepare("
         SELECT DISTINCT snapshot_date
         FROM daily_snapshots
@@ -1500,22 +1481,19 @@ function getHistoricalTrend($pdo, $params) {
         ':end_date' => $endSaturday
     ]);
     $saturdays = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-    // For Phase 1, generate mock trend data
+// For Phase 1, generate mock trend data
     // Phase 2 will query actual historical data
     $dataPoints = [];
     $baseValue = 100;
-
     foreach ($saturdays as $index => $saturday) {
-        // Generate realistic trend with some variation
+    // Generate realistic trend with some variation
         $variance = sin($index / 3) * 10 + (rand(-5, 5));
-        $trend = $baseValue + ($index * 0.5); // Slight upward trend
+        $trend = $baseValue + ($index * 0.5);
+    // Slight upward trend
         $value = (int)($trend + $variance);
-
         $prevValue = $index > 0 ? $dataPoints[$index - 1]['count'] : $value;
         $change = $value - $prevValue;
         $changePercent = $prevValue > 0 ? round(($change / $prevValue) * 100, 1) : 0;
-
         $dataPoints[] = [
             'snapshot_date' => $saturday,
             'count' => max(0, $value),
@@ -1535,14 +1513,18 @@ function getHistoricalTrend($pdo, $params) {
     ];
 }
 
-function sendResponse($data) {
+function sendResponse($data)
+{
+
     echo json_encode([
         'success' => true,
         'data' => $data
     ], JSON_PRETTY_PRINT);
 }
 
-function sendError($message) {
+function sendError($message)
+{
+
     http_response_code(400);
     echo json_encode([
         'success' => false,
@@ -1553,21 +1535,19 @@ function sendError($message) {
 // Main execution
 try {
     $pdo = connectDB($db_config);
-
     $action = $_GET['action'] ?? 'overview';
-
     switch ($action) {
         case 'overview':
-            $params = [
+                                                                                                                                                                                                                                                                 $params = [
                 'date' => $_GET['date'] ?? null,
                 'compare' => $_GET['compare'] ?? 'yoy',
-            ];
-            $data = getOverviewEnhanced($pdo, $params);
-            sendResponse($data);
-            break;
+                                                                                                                                                                                                                                                                 ];
+                                                                                                                                                                                                                                                                 $data = getOverviewEnhanced($pdo, $params);
+                                                                                                                                                                                                                                                                 sendResponse($data);
 
+            break;
         case 'business_unit_detail':
-            $unitName = $_GET['unit'] ?? '';
+                                                                                                                                                                                                                                                                 $unitName = $_GET['unit'] ?? '';
             $date = $_GET['date'] ?? null;
             if (empty($unitName)) {
                 sendError('Business unit name is required');
@@ -1575,25 +1555,25 @@ try {
             }
             $data = getBusinessUnitDetail($pdo, $unitName, $date);
             sendResponse($data);
-            break;
 
+            break;
         case 'paper':
-            $paperCode = $_GET['code'] ?? '';
+                                                                                                                                                                                                                                                                 $paperCode = $_GET['code'] ?? '';
             if (empty($paperCode)) {
                 sendError('Paper code is required');
                 break;
             }
             $data = getPaperDetail($pdo, $paperCode);
             sendResponse($data);
-            break;
 
+            break;
         case 'data_range':
-            $data = getDataRange($pdo);
+                                                                                                                                                                                                                                                                 $data = getDataRange($pdo);
             sendResponse($data);
-            break;
 
+            break;
         case 'detail_panel':
-            $businessUnit = $_GET['business_unit'] ?? '';
+                                                                                                                                                                                                                                                                 $businessUnit = $_GET['business_unit'] ?? '';
             $snapshotDate = $_GET['snapshot_date'] ?? date('Y-m-d');
             if (empty($businessUnit)) {
                 sendError('business_unit parameter is required');
@@ -1601,37 +1581,36 @@ try {
             }
             $data = getDetailPanelData($pdo, $businessUnit, $snapshotDate);
             sendResponse($data);
-            break;
 
+            break;
         case 'get_subscribers':
-            $params = [
+                                                                                                                                                                                                                                                                 $params = [
                 'business_unit' => $_GET['business_unit'] ?? '',
                 'snapshot_date' => $_GET['snapshot_date'] ?? date('Y-m-d'),
                 'metric_type' => $_GET['metric_type'] ?? '',
                 'metric_value' => $_GET['metric_value'] ?? ''
-            ];
-            $data = getSubscribers($pdo, $params);
-            sendResponse($data);
-            break;
+                                                                                                                                                                                                                                                                 ];
+                                                                                                                                                                                                                                                                 $data = getSubscribers($pdo, $params);
+                                                                                                                                                                                                                                                                 sendResponse($data);
 
+            break;
         case 'get_trend':
-            $params = [
+                                                                                                                                                                                                                                                                 $params = [
                 'business_unit' => $_GET['business_unit'] ?? '',
                 'metric_type' => $_GET['metric_type'] ?? '',
                 'metric_value' => $_GET['metric_value'] ?? '',
                 'time_range' => $_GET['time_range'] ?? '12weeks',
                 'end_date' => $_GET['end_date'] ?? date('Y-m-d')
-            ];
-            $data = getHistoricalTrend($pdo, $params);
-            sendResponse($data);
-            break;
+                                                                                                                                                                                                                                                                 ];
+                                                                                                                                                                                                                                                                 $data = getHistoricalTrend($pdo, $params);
+                                                                                                                                                                                                                                                                 sendResponse($data);
 
+            break;
         default:
-            sendError('Invalid action: ' . $action);
+                                                                                                                                                                                                                                                                 sendError('Invalid action: ' . $action);
+
             break;
     }
-
 } catch (Exception $e) {
     sendError('Server error: ' . $e->getMessage());
 }
-?>

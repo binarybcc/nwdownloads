@@ -834,7 +834,7 @@ require_once 'auth_check.php';
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">📅 Subscription Expirations (4-Week View)</h3>
                     <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
-                    <div class="detail-chart-container">
+                    <div class="detail-chart-container" id="expirationChartContainer">
                         <canvas id="expirationChart"></canvas>
                     </div>
                 </div>
@@ -843,7 +843,7 @@ require_once 'auth_check.php';
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">💰 Rate Distribution (All Rates)</h3>
                     <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
-                    <div class="detail-chart-container">
+                    <div class="detail-chart-container" id="rateDistributionChartContainer">
                         <canvas id="rateDistributionChart"></canvas>
                     </div>
                 </div>
@@ -852,7 +852,7 @@ require_once 'auth_check.php';
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">📆 Subscription Length Distribution</h3>
                     <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
-                    <div class="detail-chart-container">
+                    <div class="detail-chart-container" id="subscriptionLengthChartContainer">
                         <canvas id="subscriptionLengthChart"></canvas>
                     </div>
                 </div>
@@ -904,7 +904,7 @@ require_once 'auth_check.php';
     <script src="assets/context-menu.js?v=20251207"></script>
     <script src="assets/export-utils.js?v=20251207"></script>
     <script src="assets/subscriber-table-panel.js?v=20251207"></script>
-    <script src="assets/chart-transition-manager.js?v=20251207"></script>
+    <script src="assets/trend-slider.js?v=20251207"></script>
     <script src="assets/chart-context-integration.js?v=20251207"></script>
     <script>
         // Initialize UI enhancements after page loads

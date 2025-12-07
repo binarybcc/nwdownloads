@@ -18,12 +18,13 @@
  * - openDetailPanel(businessUnit, snapshotDate)
  * - closeDetailPanel()
  * - switchBusinessUnit(unit)
- * - CircDashboard.detailPanel state
+ * - window.CircDashboard.detailPanel state
  */
 
 // Extend CircDashboard namespace for detail panel
-// (CircDashboard already declared in app.js)
-CircDashboard.detailPanel = CircDashboard.detailPanel || {
+// (CircDashboard created in app.js, but handle timing issues)
+window.CircDashboard = window.CircDashboard || {};
+window.window.CircDashboard.detailPanel = window.window.CircDashboard.detailPanel || {
     charts: {
         expiration: null,
         rateDistribution: null,
@@ -36,18 +37,96 @@ CircDashboard.detailPanel = CircDashboard.detailPanel || {
 };
 
 // Chart instances
-let expirationChart = CircDashboard.detailPanel.charts.expiration = null;
-let rateDistributionChart = CircDashboard.detailPanel.charts.rateDistribution = null;
-let subscriptionLengthChart = CircDashboard.detailPanel.charts.subscriptionLength = null;
+let expirationChart = window.CircDashboard.detailPanel.charts.expiration = null;
+let rateDistributionChart = window.CircDashboard.detailPanel.charts.rateDistribution = null;
+let subscriptionLengthChart = window.CircDashboard.detailPanel.charts.subscriptionLength = null;
 
 // Current state
-let currentBusinessUnit = CircDashboard.detailPanel.currentBusinessUnit = null;
-let currentSnapshotDate = CircDashboard.detailPanel.currentSnapshotDate = null;
-let detailPanelData = CircDashboard.detailPanel.data = null;
+let currentBusinessUnit = window.CircDashboard.detailPanel.currentBusinessUnit = null;
+let currentSnapshotDate = window.CircDashboard.detailPanel.currentSnapshotDate = null;
+let detailPanelData = window.CircDashboard.detailPanel.data = null;
 let availableBusinessUnits = ['South Carolina', 'Michigan', 'Wyoming'];  // Will be populated from dashboard data
 
 // Keyboard shortcut handler
 let keyboardShortcutHandler = null;
+
+/**
+ * Blend two colors based on percentage
+ * @param {number} value - The data value
+ * @param {number} maxValue - Maximum value in the dataset
+ * @param {Object} baseColor - RGB base color {r, g, b}
+ * @param {Object} targetColor - RGB target color {r, g, b}
+ * @param {number} opacity - Opacity (0-1), default 0.8
+ * @returns {string} RGBA color string
+ */
+function blendColors(value, maxValue, baseColor, targetColor, opacity = 0.8) {
+    // Calculate percentage (0-100)
+    const percent = maxValue > 0 ? (value / maxValue) * 100 : 0;
+
+    // Blend factor: 0 = pure base color, 1 = pure target color
+    // Use a curve to make low values stay closer to base color
+    const t = Math.pow(percent / 100, 0.8); // Power curve for smoother gradient
+
+    // Interpolate RGB values
+    const r = Math.round(baseColor.r + (targetColor.r - baseColor.r) * t);
+    const g = Math.round(baseColor.g + (targetColor.g - baseColor.g) * t);
+    const b = Math.round(baseColor.b + (targetColor.b - baseColor.b) * t);
+
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+/**
+ * Normalize subscription length labels to canonical values
+ * Handles different naming conventions for same duration
+ *
+ * REUSABLE PATTERN: This normalization function demonstrates a pattern
+ * for consolidating data with different labels that represent the same value.
+ * Can be adapted for other scenarios like:
+ * - State names (South Carolina, SC, S. Carolina)
+ * - Publication codes with aliases
+ * - Date format standardization
+ * - Any field with multiple representations of the same concept
+ *
+ * @param {string} length - Raw subscription length label
+ * @returns {string} Normalized canonical label
+ */
+function normalizeSubscriptionLength(length) {
+    const normalized = length.toUpperCase().trim();
+
+    // 1 Year variations
+    if (normalized.match(/^(12\s*M|1\s*Y|52\s*W|365\s*D)/i) ||
+        normalized.includes('1 YEAR') ||
+        normalized.includes('12 MONTH')) {
+        return '1 Year';
+    }
+
+    // 6 Months variations
+    if (normalized.match(/^(6\s*M|26\s*W|182\s*D)/i) ||
+        normalized.includes('6 MONTH')) {
+        return '6 Months';
+    }
+
+    // 3 Months variations
+    if (normalized.match(/^(3\s*M|13\s*W|90\s*D)/i) ||
+        normalized.includes('3 MONTH')) {
+        return '3 Months';
+    }
+
+    // 2 Months variations
+    if (normalized.match(/^(2\s*M|8\s*W|60\s*D)/i) ||
+        normalized.includes('2 MONTH')) {
+        return '2 Months';
+    }
+
+    // 1 Month variations
+    if (normalized.match(/^(1\s*M|4\s*W|30\s*D)/i) ||
+        normalized.includes('1 MONTH')) {
+        return '1 Month';
+    }
+
+    // If no match, return original (capitalized)
+    return length.trim();
+}
 
 /**
  * Populate state navigation sidebar
@@ -118,6 +197,11 @@ function updateStateNavActive(businessUnit) {
 async function switchBusinessUnit(businessUnit) {
     if (businessUnit === currentBusinessUnit) return;  // Already showing this state
 
+    // Reset any open trend views before switching
+    if (typeof cleanupChartContextMenus === 'function') {
+        cleanupChartContextMenus();
+    }
+
     // Update navigation
     updateStateNavActive(businessUnit);
 
@@ -130,7 +214,7 @@ async function switchBusinessUnit(businessUnit) {
     await new Promise(resolve => setTimeout(resolve, 200));
 
     // Load new data
-    currentBusinessUnit = CircDashboard.detailPanel.currentBusinessUnit = businessUnit;
+    currentBusinessUnit = window.CircDashboard.detailPanel.currentBusinessUnit = businessUnit;
     await loadBusinessUnitData(businessUnit, currentSnapshotDate);
 
     // Fade in new content
@@ -160,13 +244,13 @@ async function loadBusinessUnitData(businessUnit, snapshotDate) {
             throw new Error(result.error || 'Failed to load detail data');
         }
 
-        detailPanelData = CircDashboard.detailPanel.data = result.data;
+        detailPanelData = window.CircDashboard.detailPanel.data = result.data;
 
         // CRITICAL: Update currentSnapshotDate to use ACTUAL snapshot date from API
         // The API resolves the requested date to the actual available snapshot
         // (e.g., requested 2025-11-29 Monday → actual 2025-11-30 Sunday)
         if (result.data.snapshot_date) {
-            currentSnapshotDate = CircDashboard.detailPanel.currentSnapshotDate = result.data.snapshot_date;
+            currentSnapshotDate = window.CircDashboard.detailPanel.currentSnapshotDate = result.data.snapshot_date;
         }
 
         // Render content
@@ -246,8 +330,8 @@ function disableKeyboardShortcuts() {
  * Includes donut-to-state icon animation
  */
 async function openDetailPanel(businessUnit, snapshotDate) {
-    currentBusinessUnit = CircDashboard.detailPanel.currentBusinessUnit = businessUnit;
-    currentSnapshotDate = CircDashboard.detailPanel.currentSnapshotDate = snapshotDate;
+    currentBusinessUnit = window.CircDashboard.detailPanel.currentBusinessUnit = businessUnit;
+    currentSnapshotDate = window.CircDashboard.detailPanel.currentSnapshotDate = snapshotDate;
 
     // Find the donut chart for this business unit (for animation)
     const donutElement = findDonutChartElement(businessUnit);
@@ -335,15 +419,15 @@ function closeDetailPanel() {
     // Destroy charts to free memory
     if (expirationChart) {
         expirationChart.destroy();
-        expirationChart = CircDashboard.detailPanel.charts.expiration = null;
+        expirationChart = window.CircDashboard.detailPanel.charts.expiration = null;
     }
     if (rateDistributionChart) {
         rateDistributionChart.destroy();
-        rateDistributionChart = CircDashboard.detailPanel.charts.rateDistribution = null;
+        rateDistributionChart = window.CircDashboard.detailPanel.charts.rateDistribution = null;
     }
     if (subscriptionLengthChart) {
         subscriptionLengthChart.destroy();
-        subscriptionLengthChart = CircDashboard.detailPanel.charts.subscriptionLength = null;
+        subscriptionLengthChart = window.CircDashboard.detailPanel.charts.subscriptionLength = null;
     }
 }
 
@@ -403,7 +487,13 @@ function renderDetailPanelContent() {
  * Render 4-week expiration chart
  */
 function renderExpirationChart(chartData) {
-    const ctx = document.getElementById('expirationChart').getContext('2d');
+    const canvas = document.getElementById('expirationChart');
+    if (!canvas) {
+        console.warn('Expiration chart canvas not found - may be in trend view');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
 
     // Destroy existing chart
     if (expirationChart) expirationChart.destroy();
@@ -420,7 +510,7 @@ function renderExpirationChart(chartData) {
         return 'rgba(156, 163, 175, 0.8)';
     });
 
-    expirationChart = CircDashboard.detailPanel.charts.expiration = new Chart(ctx, {
+    expirationChart = window.CircDashboard.detailPanel.charts.expiration = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
@@ -465,7 +555,13 @@ function renderExpirationChart(chartData) {
  * Render rate distribution chart
  */
 function renderRateDistributionChart(chartData) {
-    const ctx = document.getElementById('rateDistributionChart').getContext('2d');
+    const canvas = document.getElementById('rateDistributionChart');
+    if (!canvas) {
+        console.warn('Rate distribution chart canvas not found - may be in trend view');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
 
     // Destroy existing chart
     if (rateDistributionChart) rateDistributionChart.destroy();
@@ -492,14 +588,21 @@ function renderRateDistributionChart(chartData) {
         return count;
     });
 
-    rateDistributionChart = CircDashboard.detailPanel.charts.rateDistribution = new Chart(ctx, {
+    // Generate heat map colors (blue → red blend based on subscriber count)
+    const baseBlue = { r: 59, g: 130, b: 246 };   // Original blue
+    const targetRed = { r: 239, g: 68, b: 68 };   // Red for high values
+    const backgroundColors = counts.map(count =>
+        blendColors(count, maxCount, baseBlue, targetRed, 0.8)
+    );
+
+    rateDistributionChart = window.CircDashboard.detailPanel.charts.rateDistribution = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [{
                 label: 'Subscribers',
                 data: displayCounts,
-                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                backgroundColor: backgroundColors,
                 borderWidth: 0,
                 minBarLength: 3,
                 categoryPercentage: 0.6,  // 60% of category space (40% becomes gaps)
@@ -550,22 +653,85 @@ function renderRateDistributionChart(chartData) {
  * Render subscription length chart
  */
 function renderSubscriptionLengthChart(chartData) {
-    const ctx = document.getElementById('subscriptionLengthChart').getContext('2d');
+    const canvas = document.getElementById('subscriptionLengthChart');
+    if (!canvas) {
+        console.warn('Subscription length chart canvas not found - may be in trend view');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
 
     // Destroy existing chart
     if (subscriptionLengthChart) subscriptionLengthChart.destroy();
 
-    const labels = chartData.map(d => d.subscription_length);
-    const counts = chartData.map(d => d.count);
+    // Normalize and aggregate subscription lengths
+    // Maps different labels (12M, 1Y, 52Wk) to same canonical value (1 Year)
+    // Also track original labels for API queries
+    const aggregated = {};
+    const originalLabelsMap = {}; // Maps normalized label → array of original labels
 
-    subscriptionLengthChart = CircDashboard.detailPanel.charts.subscriptionLength = new Chart(ctx, {
+    chartData.forEach(d => {
+        const normalized = normalizeSubscriptionLength(d.subscription_length);
+        if (aggregated[normalized]) {
+            aggregated[normalized] += d.count;
+            // Use Set to automatically deduplicate
+            if (!originalLabelsMap[normalized].has(d.subscription_length)) {
+                originalLabelsMap[normalized].add(d.subscription_length);
+            }
+        } else {
+            aggregated[normalized] = d.count;
+            originalLabelsMap[normalized] = new Set([d.subscription_length]);
+        }
+    });
+
+    // Convert aggregated object to sorted arrays
+    const sortOrder = ['1 Month', '2 Months', '3 Months', '6 Months', '1 Year'];
+    const labels = Object.keys(aggregated).sort((a, b) => {
+        const aIndex = sortOrder.indexOf(a);
+        const bIndex = sortOrder.indexOf(b);
+        // If both in sortOrder, sort by index; otherwise by count (descending)
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        return aggregated[b] - aggregated[a];
+    });
+    const counts = labels.map(label => aggregated[label]);
+
+    // Store original labels mapping for API calls (trends, subscribers)
+    // Convert Sets to Arrays for API compatibility
+    window.subscriptionLengthOriginalLabels = {};
+    for (const [normalized, originalSet] of Object.entries(originalLabelsMap)) {
+        window.subscriptionLengthOriginalLabels[normalized] = Array.from(originalSet);
+    }
+
+    // For display purposes, ensure small values have a minimum visible bar
+    // But keep the actual value for tooltips
+    const maxCount = Math.max(...counts);
+    const minVisiblePercent = 2.0; // 2% minimum bar height for visibility (higher than horizontal charts)
+    const displayCounts = counts.map(count => {
+        const percent = (count / maxCount) * 100;
+        if (percent < minVisiblePercent && count > 0) {
+            // Make tiny bars visible but not to scale
+            return maxCount * (minVisiblePercent / 100);
+        }
+        return count;
+    });
+
+    // Generate heat map colors (teal → yellow blend based on subscriber count)
+    const baseTeal = { r: 16, g: 185, b: 129 };    // Original teal
+    const targetYellow = { r: 251, g: 191, b: 36 }; // Yellow for high values
+    const backgroundColors = counts.map(count =>
+        blendColors(count, maxCount, baseTeal, targetYellow, 0.8)
+    );
+
+    subscriptionLengthChart = window.CircDashboard.detailPanel.charts.subscriptionLength = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [{
                 label: 'Subscribers',
-                data: counts,
-                backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                data: displayCounts,
+                backgroundColor: backgroundColors,
                 borderWidth: 0
             }]
         },
@@ -579,9 +745,11 @@ function renderSubscriptionLengthChart(chartData) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
+                            // Use actual count, not display count
+                            const actualCount = counts[context.dataIndex];
                             const total = counts.reduce((a, b) => a + b, 0);
-                            const percent = ((context.parsed.y / total) * 100).toFixed(1);
-                            return `${formatNumber(context.parsed.y)} subscribers (${percent}%)`;
+                            const percent = ((actualCount / total) * 100).toFixed(1);
+                            return `${formatNumber(actualCount)} subscribers (${percent}%)`;
                         }
                     }
                 }

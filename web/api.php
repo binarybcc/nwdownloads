@@ -1360,6 +1360,7 @@ function getRateSubscribers($pdo, $businessUnit, $snapshotDate, $rateName)
 function getSubscriptionLengthSubscribers($pdo, $businessUnit, $snapshotDate, $length)
 {
 
+    // Use same normalization as detail panel to match aggregated labels
     $stmt = $pdo->prepare("
         SELECT
             sub_num as account_id,
@@ -1378,7 +1379,12 @@ function getSubscriptionLengthSubscribers($pdo, $businessUnit, $snapshotDate, $l
         FROM subscriber_snapshots
         WHERE business_unit = :business_unit
         AND snapshot_date = :snapshot_date
-        AND subscription_length = :length
+        AND (
+            CASE
+                WHEN subscription_length IN ('12 M', '12M', '1 Y', '1Y') THEN '12 M (1 Year)'
+                ELSE subscription_length
+            END
+        ) = :length
         ORDER BY sub_num ASC
         LIMIT 1000
     ");
@@ -1484,6 +1490,120 @@ function generateMockSubscribers_DEPRECATED($businessUnit, $count, $metricType, 
 }
 
 /**
+ * Get count for a specific metric at a snapshot date
+ * Handles different metric types (expiration, rate, subscription_length)
+ *
+ * @param PDO $pdo Database connection
+ * @param string $businessUnit Business unit
+ * @param string $metricType Type of metric (expiration, rate, subscription_length)
+ * @param string $metricValue Value of metric (e.g., 'Past Due', '12 M (1 Year)', etc.)
+ * @param string $snapshotDate Snapshot date
+ * @return int Count for this metric
+ */
+function getMetricCount($pdo, $businessUnit, $metricType, $metricValue, $snapshotDate)
+{
+    if ($metricType === 'expiration') {
+        // Calculate expiration bucket from paid_thru date
+        // Expiration buckets: "Past Due", "This Week", "Next Week", "Week +2", "Later"
+
+        // Get the reference date for this snapshot (calculate week boundaries)
+        $snapshotDt = new DateTime($snapshotDate);
+
+        // Calculate week boundaries based on metric value
+        $whereClause = '';
+        if ($metricValue === 'Past Due') {
+            $whereClause = "ss.paid_thru < :snapshot_date";
+        } elseif ($metricValue === 'This Week') {
+            $weekStart = clone $snapshotDt;
+            $weekStart->modify('this week'); // Monday
+            $weekEnd = clone $weekStart;
+            $weekEnd->modify('+6 days'); // Sunday
+            $whereClause = "ss.paid_thru BETWEEN :week_start AND :week_end";
+        } elseif ($metricValue === 'Next Week') {
+            $weekStart = clone $snapshotDt;
+            $weekStart->modify('next week'); // Next Monday
+            $weekEnd = clone $weekStart;
+            $weekEnd->modify('+6 days'); // Next Sunday
+            $whereClause = "ss.paid_thru BETWEEN :week_start AND :week_end";
+        } elseif ($metricValue === 'Week +2') {
+            $weekStart = clone $snapshotDt;
+            $weekStart->modify('next week')->modify('+1 week'); // Week after next Monday
+            $weekEnd = clone $weekStart;
+            $weekEnd->modify('+6 days'); // Sunday
+            $whereClause = "ss.paid_thru BETWEEN :week_start AND :week_end";
+        } else { // "Later" or any other bucket
+            $laterStart = clone $snapshotDt;
+            $laterStart->modify('next week')->modify('+2 weeks'); // 3 weeks from now
+            $whereClause = "ss.paid_thru >= :later_start";
+        }
+
+        $sql = "
+            SELECT COUNT(*) as count
+            FROM subscriber_snapshots ss
+            WHERE ss.business_unit = :business_unit
+            AND ss.snapshot_date = :snapshot_date
+            AND $whereClause
+        ";
+
+        $stmt = $pdo->prepare($sql);
+        $params = [
+            ':business_unit' => $businessUnit,
+            ':snapshot_date' => $snapshotDate
+        ];
+
+        // Add date range parameters based on metric
+        if ($metricValue === 'This Week' || $metricValue === 'Next Week' || $metricValue === 'Week +2') {
+            $params[':week_start'] = $weekStart->format('Y-m-d');
+            $params[':week_end'] = $weekEnd->format('Y-m-d');
+        } elseif ($metricValue === 'Later') {
+            $params[':later_start'] = $laterStart->format('Y-m-d');
+        }
+
+        $stmt->execute($params);
+
+    } elseif ($metricType === 'rate') {
+        // Query subscriber_snapshots for rate distribution
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as count
+            FROM subscriber_snapshots ss
+            WHERE ss.business_unit = :business_unit
+            AND ss.snapshot_date = :snapshot_date
+            AND ss.rate_name = :metric_value
+        ");
+        $stmt->execute([
+            ':business_unit' => $businessUnit,
+            ':snapshot_date' => $snapshotDate,
+            ':metric_value' => $metricValue
+        ]);
+    } elseif ($metricType === 'subscription_length') {
+        // Query subscriber_snapshots for subscription length
+        // Use same normalization as detail panel to match aggregated labels
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as count
+            FROM subscriber_snapshots ss
+            WHERE ss.business_unit = :business_unit
+            AND ss.snapshot_date = :snapshot_date
+            AND (
+                CASE
+                    WHEN ss.subscription_length IN ('12 M', '12M', '1 Y', '1Y') THEN '12 M (1 Year)'
+                    ELSE ss.subscription_length
+                END
+            ) = :metric_value
+        ");
+        $stmt->execute([
+            ':business_unit' => $businessUnit,
+            ':snapshot_date' => $snapshotDate,
+            ':metric_value' => $metricValue
+        ]);
+    } else {
+        return 0;
+    }
+
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    return (int)($result['count'] ?? 0);
+}
+
+/**
  * Get historical trend data for a specific metric
  * For trend chart visualization
  *
@@ -1516,13 +1636,12 @@ function getHistoricalTrend($pdo, $params)
     $endSaturday = getSaturdayForWeek($endDate);
 // Calculate start date
     $startDate = date('Y-m-d', strtotime($endSaturday . ' -' . ($numWeeks * 7) . ' days'));
-// Get all Saturdays in range
+// Get all snapshots in range
     $stmt = $pdo->prepare("
         SELECT DISTINCT snapshot_date
         FROM daily_snapshots
         WHERE business_unit = :business_unit
         AND snapshot_date BETWEEN :start_date AND :end_date
-        AND DAYOFWEEK(snapshot_date) = 7
         ORDER BY snapshot_date ASC
     ");
     $stmt->execute([
@@ -1530,23 +1649,21 @@ function getHistoricalTrend($pdo, $params)
         ':start_date' => $startDate,
         ':end_date' => $endSaturday
     ]);
-    $saturdays = $stmt->fetchAll(PDO::FETCH_COLUMN);
-// For Phase 1, generate mock trend data
-    // Phase 2 will query actual historical data
+    $snapshotDates = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    // Query actual data for each snapshot
     $dataPoints = [];
-    $baseValue = 100;
-    foreach ($saturdays as $index => $saturday) {
-    // Generate realistic trend with some variation
-        $variance = sin($index / 3) * 10 + (rand(-5, 5));
-        $trend = $baseValue + ($index * 0.5);
-    // Slight upward trend
-        $value = (int)($trend + $variance);
-        $prevValue = $index > 0 ? $dataPoints[$index - 1]['count'] : $value;
-        $change = $value - $prevValue;
+    foreach ($snapshotDates as $index => $snapshotDate) {
+        // Get count for this metric at this snapshot
+        $count = getMetricCount($pdo, $businessUnit, $metricType, $metricValue, $snapshotDate);
+
+        $prevValue = $index > 0 ? $dataPoints[$index - 1]['count'] : $count;
+        $change = $count - $prevValue;
         $changePercent = $prevValue > 0 ? round(($change / $prevValue) * 100, 1) : 0;
+
         $dataPoints[] = [
-            'snapshot_date' => $saturday,
-            'count' => max(0, $value),
+            'snapshot_date' => $snapshotDate,
+            'count' => $count,
             'change_from_previous' => $change,
             'change_percent' => $changePercent
         ];

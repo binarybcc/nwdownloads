@@ -112,7 +112,8 @@ class SubscriberTablePanel {
      */
     buildPanelHTML() {
         const { title, subtitle, data } = this.data;
-        const subscribers = data.subscribers || [];
+        // data can be either an array directly or an object with subscribers property
+        const subscribers = Array.isArray(data) ? data : (data?.subscribers || []);
         const count = subscribers.length;
 
         return `
@@ -361,7 +362,9 @@ class SubscriberTablePanel {
      */
     handleExportExcel() {
         if (typeof exportSubscriberList !== 'undefined') {
-            exportSubscriberList(this.data.data, 'excel');
+            // Use exportData if available (includes metadata), otherwise try to construct from data
+            const exportPayload = this.data.exportData || this.data.data;
+            exportSubscriberList(exportPayload, 'excel');
         } else {
             console.error('Export function not available');
             alert('Export functionality not loaded. Please refresh the page.');
@@ -373,7 +376,9 @@ class SubscriberTablePanel {
      */
     handleExportCSV() {
         if (typeof exportSubscriberList !== 'undefined') {
-            exportSubscriberList(this.data.data, 'csv');
+            // Use exportData if available (includes metadata), otherwise try to construct from data
+            const exportPayload = this.data.exportData || this.data.data;
+            exportSubscriberList(exportPayload, 'csv');
         } else {
             console.error('Export function not available');
             alert('Export functionality not loaded. Please refresh the page.');

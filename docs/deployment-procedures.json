@@ -1,0 +1,509 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-12-07T21:50:00Z",
+    "purpose": "Consolidated deployment workflows and operational procedures",
+    "replaces": [
+      "README.md (deployment section)",
+      "docker-hub-workflow.md",
+      "DEPLOYMENT-2025-12-07.md",
+      "CLAUDE.md (deployment section)"
+    ]
+  },
+  "deployment_strategy": {
+    "philosophy": "Docker Hub hybrid approach",
+    "development": {
+      "approach": "Volume mounts for live editing",
+      "compose_file": "docker-compose.yml",
+      "benefits": [
+        "Edit code and refresh browser instantly",
+        "No image rebuilding required",
+        "Fast iteration during development"
+      ],
+      "drawbacks": [
+        "Requires local source code",
+        "Not portable across machines"
+      ]
+    },
+    "production": {
+      "approach": "Pre-built images from Docker Hub",
+      "compose_file": "docker-compose.prod.yml",
+      "benefits": [
+        "Fully containerized and portable",
+        "Version-controlled deployments",
+        "Consistent across environments"
+      ],
+      "drawbacks": [
+        "Requires rebuild + push for code changes",
+        "Slightly slower deployment workflow"
+      ]
+    }
+  },
+  "workflows": {
+    "local_development": {
+      "description": "Start and work in development environment",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Navigate to project",
+          "command": "cd $PROJECT_ROOT",
+          "note": "PROJECT_ROOT auto-set by direnv"
+        },
+        {
+          "step": 2,
+          "action": "Start containers",
+          "command": "docker compose up -d"
+        },
+        {
+          "step": 3,
+          "action": "Verify containers running",
+          "command": "docker compose ps",
+          "expected_output": "circulation_db (healthy), circulation_web (Up)"
+        },
+        {
+          "step": 4,
+          "action": "Access dashboard",
+          "url": "http://localhost:8081/"
+        },
+        {
+          "step": 5,
+          "action": "Make code changes",
+          "note": "Edit files in ./web/ directory - changes reflect immediately on refresh"
+        },
+        {
+          "step": 6,
+          "action": "View logs if needed",
+          "commands": {
+            "all": "docker compose logs -f",
+            "web_only": "docker compose logs -f web",
+            "database_only": "docker compose logs -f database"
+          }
+        },
+        {
+          "step": 7,
+          "action": "Stop environment when done",
+          "command": "docker compose down"
+        }
+      ]
+    },
+    "build_and_push": {
+      "description": "Build multi-platform image and push to Docker Hub",
+      "prerequisites": [
+        "Docker buildx installed",
+        "Docker Hub login completed (docker login)",
+        "Multiarch builder created and active"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "Ensure you're in project root",
+          "command": "cd $PROJECT_ROOT"
+        },
+        {
+          "step": 2,
+          "action": "Run build script",
+          "command": "./build-and-push.sh",
+          "with_version": "./build-and-push.sh v1.2.3"
+        },
+        {
+          "step": 3,
+          "action": "Script automatically does",
+          "tasks": [
+            "Builds for linux/amd64 (Synology NAS)",
+            "Builds for linux/arm64 (Apple Silicon Mac)",
+            "Tags as 'latest'",
+            "Tags with version if specified",
+            "Pushes to binarybcc/nwdownloads-circ",
+            "Displays deployment instructions"
+          ]
+        },
+        {
+          "step": 4,
+          "action": "Verify push succeeded",
+          "url": "https://hub.docker.com/repository/docker/binarybcc/nwdownloads-circ/tags",
+          "check_for": "Updated 'latest' tag timestamp"
+        }
+      ],
+      "manual_build_alternative": {
+        "description": "If build-and-push.sh fails",
+        "commands": [
+          "docker buildx build --platform linux/amd64,linux/arm64 -t binarybcc/nwdownloads-circ:latest --push .",
+          "docker buildx build --platform linux/amd64,linux/arm64 -t binarybcc/nwdownloads-circ:v1.2.3 -t binarybcc/nwdownloads-circ:latest --push ."
+        ]
+      }
+    },
+    "deploy_to_production": {
+      "description": "Deploy latest Docker image to Synology NAS",
+      "prerequisites": [
+        "Image built and pushed to Docker Hub",
+        "SSH access to NAS configured",
+        "docker-compose.prod.yml up to date on NAS"
+      ],
+      "critical_rules": [
+        "NEVER make changes directly in production",
+        "ALWAYS test in development first",
+        "NEVER copy code files to production (deploy via Docker Hub only)",
+        "Configuration files only via SSH (docker-compose.prod.yml, db_init scripts)"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "SSH into Synology NAS",
+          "command": "sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no -p 22 it@192.168.1.254",
+          "credentials": {
+            "host": "192.168.1.254",
+            "user": "it",
+            "password": "Mojave48ice"
+          }
+        },
+        {
+          "step": 2,
+          "action": "Navigate to project directory",
+          "command": "cd /volume1/docker/nwdownloads"
+        },
+        {
+          "step": 3,
+          "action": "Pull latest image from Docker Hub",
+          "command": "sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull",
+          "expected_output": "Pulling web ... done"
+        },
+        {
+          "step": 4,
+          "action": "Deploy updated containers",
+          "command": "sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d",
+          "expected_output": "Recreating circulation_web ... done"
+        },
+        {
+          "step": 5,
+          "action": "Verify deployment",
+          "command": "sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps",
+          "expected_status": {
+            "circulation_db": "Up (healthy)",
+            "circulation_web": "Up"
+          }
+        },
+        {
+          "step": 6,
+          "action": "Check logs for errors",
+          "commands": {
+            "web": "sudo /usr/local/bin/docker logs circulation_web --tail 50",
+            "database": "sudo /usr/local/bin/docker logs circulation_db --tail 50"
+          },
+          "look_for": [
+            "✅ Apache started successfully",
+            "✅ No PHP errors",
+            "❌ Any 500 errors or warnings"
+          ]
+        },
+        {
+          "step": 7,
+          "action": "Functional testing",
+          "tests": [
+            {
+              "test": "Access dashboard",
+              "url": "http://192.168.1.254:8081/",
+              "expected": "Login page loads correctly"
+            },
+            {
+              "test": "Test login",
+              "action": "Use Newzware credentials",
+              "expected": "Redirect to dashboard after auth"
+            },
+            {
+              "test": "Test dashboard rendering",
+              "checks": [
+                "Metrics display correctly",
+                "Business unit cards load",
+                "Charts render without errors"
+              ]
+            },
+            {
+              "test": "Test upload functionality",
+              "url": "http://192.168.1.254:8081/upload.html",
+              "action": "Upload recent AllSubscriberReport CSV",
+              "expected": "Import succeeds, dashboard updates"
+            }
+          ]
+        }
+      ],
+      "alternative_quick_update": {
+        "description": "If containers already deployed, just update web container",
+        "steps": [
+          "sshpass -p 'Mojave48ice' ssh it@192.168.1.254",
+          "cd /volume1/docker/nwdownloads",
+          "sudo /usr/local/bin/docker pull binarybcc/nwdownloads-circ:latest",
+          "sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate web"
+        ]
+      }
+    },
+    "rollback_production": {
+      "description": "Rollback to previous Docker image version",
+      "when_to_use": [
+        "New deployment breaks functionality",
+        "Performance regression detected",
+        "Critical bug discovered in production"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "SSH into NAS",
+          "command": "sshpass -p 'Mojave48ice' ssh it@192.168.1.254"
+        },
+        {
+          "step": 2,
+          "action": "Navigate to project",
+          "command": "cd /volume1/docker/nwdownloads"
+        },
+        {
+          "step": 3,
+          "action": "Check available images",
+          "command": "sudo /usr/local/bin/docker images binarybcc/nwdownloads-circ",
+          "note": "Look for previous version tags or digests"
+        },
+        {
+          "step": 4,
+          "action": "Pull specific version",
+          "command": "sudo /usr/local/bin/docker pull binarybcc/nwdownloads-circ:v1.0.0",
+          "alternative": "sudo /usr/local/bin/docker pull binarybcc/nwdownloads-circ@sha256:<digest>"
+        },
+        {
+          "step": 5,
+          "action": "Update docker-compose.prod.yml",
+          "change": "image: binarybcc/nwdownloads-circ:v1.0.0",
+          "method": "Edit via SSH or transfer updated file"
+        },
+        {
+          "step": 6,
+          "action": "Restart with specific version",
+          "command": "sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate"
+        },
+        {
+          "step": 7,
+          "action": "Verify rollback",
+          "command": "sudo /usr/local/bin/docker inspect circulation_web | grep Image"
+        }
+      ],
+      "recent_known_good_version": {
+        "commit": "ad8eca6",
+        "digest": "sha256:4f9b0196f4ae8356bf102ac43f4f945227594cd24a58e35f854f5a9490ca7110",
+        "date": "2025-12-07",
+        "description": "Multi-platform builds + setTimeout fix"
+      }
+    },
+    "file_transfer_to_production": {
+      "description": "Transfer configuration files to production (NOT code)",
+      "method": "SSH cat (SCP/SFTP disabled on NAS)",
+      "valid_use_cases": [
+        "Update docker-compose.prod.yml",
+        "Update database initialization scripts",
+        "Update environment-specific config"
+      ],
+      "invalid_use_cases": [
+        "Copying web/ directory (use Docker Hub)",
+        "Copying PHP files (use Docker Hub)",
+        "Copying JavaScript/CSS (use Docker Hub)"
+      ],
+      "commands": {
+        "docker_compose_prod": "sshpass -p 'Mojave48ice' ssh it@192.168.1.254 \"cat > /volume1/docker/nwdownloads/docker-compose.prod.yml\" < docker-compose.prod.yml",
+        "db_init_script": "sshpass -p 'Mojave48ice' ssh it@192.168.1.254 \"cat > /volume1/docker/nwdownloads/db_init/init.sql\" < db_init/init.sql",
+        "env_file": "sshpass -p 'Mojave48ice' ssh it@192.168.1.254 \"cat > /volume1/docker/nwdownloads/.env\" < .env"
+      }
+    },
+    "version_management": {
+      "description": "Docker image tagging and versioning strategy",
+      "tagging_strategy": {
+        "latest": {
+          "description": "Always points to most recent stable build",
+          "used_for": "Production deployments by default",
+          "auto_updated": true
+        },
+        "version_tags": {
+          "description": "Semantic versioning (v1.2.3)",
+          "used_for": "Major releases, rollback capability",
+          "format": "v{major}.{minor}.{patch}",
+          "examples": ["v1.0.0", "v1.0.1", "v1.1.0"]
+        }
+      },
+      "workflow": {
+        "regular_update": "./build-and-push.sh (tags as latest only)",
+        "major_release": "./build-and-push.sh v1.0.0 (tags as v1.0.0 + latest)",
+        "bugfix_release": "./build-and-push.sh v1.0.1",
+        "feature_release": "./build-and-push.sh v1.1.0"
+      }
+    }
+  },
+  "common_operations": {
+    "check_container_status": {
+      "development": "docker compose ps",
+      "production": "sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps"
+    },
+    "view_logs": {
+      "development": {
+        "all": "docker compose logs -f",
+        "web": "docker compose logs -f web",
+        "database": "docker compose logs -f database"
+      },
+      "production": {
+        "all": "sudo /usr/local/bin/docker compose -f docker-compose.prod.yml logs -f",
+        "web": "sudo /usr/local/bin/docker logs circulation_web",
+        "database": "sudo /usr/local/bin/docker logs circulation_db"
+      }
+    },
+    "restart_containers": {
+      "development": "docker compose restart",
+      "production": "sudo /usr/local/bin/docker compose -f docker-compose.prod.yml restart"
+    },
+    "force_recreate": {
+      "development": "docker compose up -d --force-recreate",
+      "production": "sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate"
+    },
+    "database_access": {
+      "development": {
+        "interactive": "docker exec -it circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' -D circulation_dashboard",
+        "query": "docker exec circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' -D circulation_dashboard -e \"[SQL]\""
+      },
+      "production": {
+        "interactive": "sudo /usr/local/bin/docker exec -it circulation_db mariadb -uroot -pRootPassword456! -D circulation_dashboard",
+        "query": "sudo /usr/local/bin/docker exec circulation_db mariadb -uroot -pRootPassword456! -D circulation_dashboard -e \"[SQL]\""
+      }
+    },
+    "check_latest_data": {
+      "command": "docker exec circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' -D circulation_dashboard -e \"SELECT snapshot_date, paper_code, total_active, deliverable FROM daily_snapshots ORDER BY snapshot_date DESC LIMIT 10;\""
+    },
+    "database_backup": {
+      "create": "docker exec circulation_db mariadb-dump -uroot -pRootPassword456! circulation_dashboard > backup_$(date +%Y%m%d).sql",
+      "restore": "cat backup_20251207.sql | docker exec -i circulation_db mariadb -uroot -pRootPassword456! circulation_dashboard"
+    }
+  },
+  "troubleshooting": {
+    "build_fails": {
+      "docker_daemon_not_running": {
+        "error": "Cannot connect to the Docker daemon",
+        "solution": "Start Docker Desktop or check Docker service: docker info"
+      },
+      "copy_failed": {
+        "error": "COPY failed: no such file or directory",
+        "solution": "Ensure in project root: cd $PROJECT_ROOT && ./build-and-push.sh"
+      },
+      "line_ending_issues": {
+        "error": "bad interpreter: /bin/bash^M",
+        "solution": "Fix line endings: sed -i '' 's/\\r$//' build-and-push.sh && chmod +x build-and-push.sh"
+      }
+    },
+    "push_fails": {
+      "access_denied": {
+        "error": "denied: requested access to the resource is denied",
+        "solution": "Login to Docker Hub: docker login (username: binarybcc)"
+      },
+      "repository_not_found": {
+        "error": "repository does not exist",
+        "solution": "Verify repository: https://hub.docker.com/repository/docker/binarybcc/nwdownloads-circ/"
+      }
+    },
+    "deployment_fails": {
+      "pull_access_denied": {
+        "error": "pull access denied",
+        "solution": "Login on NAS: sudo /usr/local/bin/docker login"
+      },
+      "container_wont_start": {
+        "checks": [
+          "View logs: sudo /usr/local/bin/docker logs circulation_web",
+          "Database not ready: Wait for health check",
+          "Port 8081 in use: Check with netstat -an | grep 8081",
+          "Environment variables missing: Check docker-compose.prod.yml"
+        ]
+      },
+      "database_connection_failed": {
+        "error": "Connection refused to database",
+        "solution": "Test connectivity: sudo /usr/local/bin/docker exec circulation_web php -r \"\\$pdo = new PDO('mysql:host=database;dbname=circulation_dashboard', 'circ_dash', 'Barnaby358@Jones!'); echo 'DB Connected!';\""
+      },
+      "old_code_still_running": {
+        "error": "Changes not visible after deployment",
+        "solutions": [
+          "Verify image digest: sudo /usr/local/bin/docker inspect circulation_web | grep Image",
+          "Force recreate: sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate"
+        ]
+      }
+    },
+    "csv_upload_fails": {
+      "invalid_csv_format": {
+        "error": "CSV does not appear to be an All Subscriber Report",
+        "solution": "Ensure All Subscriber Report query with required columns: Ed, ISS, DEL"
+      },
+      "no_valid_data": {
+        "error": "No valid data found",
+        "solution": "Check report includes active subscribers, date filter excludes pre-2025"
+      },
+      "week_precedence_error": {
+        "error": "Later-in-week data already exists",
+        "solution": "Expected behavior - cannot overwrite Saturday with Tuesday data"
+      }
+    }
+  },
+  "best_practices": {
+    "development": [
+      "Always test changes locally first",
+      "Use volume mounts for fast iteration",
+      "Keep docker-compose.yml in sync with prod",
+      "Test with realistic data (recent CSV uploads)"
+    ],
+    "deployment": [
+      "Test thoroughly in development before production",
+      "Use version tags for major releases",
+      "Monitor logs after deployment",
+      "Verify functionality with test scenarios",
+      "Keep deployment documentation updated"
+    ],
+    "versioning": [
+      "Tag major releases with semantic versions",
+      "Enables rollback if needed",
+      "Documents release history",
+      "Easier to track deployed versions"
+    ],
+    "database": [
+      "Backup before schema changes",
+      "Test restore procedures",
+      "Monitor query performance",
+      "Check disk space usage"
+    ],
+    "security": [
+      "Never commit .env files",
+      "Change default passwords in production",
+      "Restrict database access to localhost",
+      "Keep credentials outside web root"
+    ]
+  },
+  "synology_specific_notes": {
+    "docker_commands": "Always use sudo with /usr/local/bin/docker",
+    "database_hostname": "Use 'database' (Docker Compose service name), NOT IP address",
+    "ssh_credentials": {
+      "host": "192.168.1.254",
+      "user": "it",
+      "password": "Mojave48ice",
+      "connection": "sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no -p 22 it@192.168.1.254"
+    },
+    "file_transfer": "SCP/SFTP disabled - use SSH cat method",
+    "environment_variables": "Hardcoded in docker-compose.prod.yml (NOT .env file)"
+  },
+  "quick_reference": {
+    "urls": {
+      "development_dashboard": "http://localhost:8081/",
+      "development_upload": "http://localhost:8081/upload.html",
+      "production_dashboard": "http://192.168.1.254:8081/",
+      "production_upload": "http://192.168.1.254:8081/upload.html",
+      "docker_hub": "https://hub.docker.com/repository/docker/binarybcc/nwdownloads-circ",
+      "github": "https://github.com/binarybcc/nwdownloads"
+    },
+    "complete_deployment_flow": [
+      "1. Make changes in Development (volume mounts allow live editing)",
+      "2. Test at http://localhost:8081/",
+      "3. Commit to Git and push to GitHub",
+      "4. Run ./build-and-push.sh (builds multi-platform, pushes to Docker Hub)",
+      "5. SSH to NAS: sshpass -p 'Mojave48ice' ssh it@192.168.1.254",
+      "6. cd /volume1/docker/nwdownloads",
+      "7. sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull",
+      "8. sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d",
+      "9. Verify at http://192.168.1.254:8081/"
+    ]
+  }
+}

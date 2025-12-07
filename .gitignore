@@ -43,6 +43,11 @@ test_*.php
 debug_*.php
 *_analysis.py
 *.json
+# Exception: Documentation knowledge base (AI-optimized)
+!docs/knowledge-base.json
+!docs/architecture.json
+!docs/deployment-procedures.json
+!docs/troubleshooting-rules.json
 
 # Screenshots and documentation images
 Screenshot*.png

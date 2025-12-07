@@ -3,6 +3,22 @@
 ## Project Overview
 Newspaper circulation dashboard for tracking subscriber metrics across multiple business units and publications.
 
+## 📚 Documentation Reference
+
+**AI-Optimized Knowledge Base** (Primary reference as of December 7, 2025):
+- `/docs/knowledge-base.json` - Core project info, tech stack, business context, deployment workflows
+- `/docs/architecture.json` - System architecture, database schemas, frontend structure, API endpoints
+- `/docs/deployment-procedures.json` - Complete deployment workflows and operational procedures
+- `/docs/troubleshooting-rules.json` - Decision tree troubleshooting guides
+
+**Recent Deployment Documentation:**
+- `/docs/DEPLOYMENT-2025-12-07.md` - Multi-platform builds + setTimeout fix deployment
+
+**Archived Documentation:**
+- `/docs/ARCHIVE/` - Historical markdown documentation (33 files) superseded by JSON knowledge base
+
+**Note:** This CLAUDE.md file provides quick-reference commands and critical production protocols. For comprehensive technical details, refer to the JSON knowledge base files above.
+
 ## 📍 Multi-Workstation Setup
 
 **This project is developed across multiple computers with different file paths.**
@@ -50,14 +66,15 @@ direnv allow
 
 **Before ANY production database, deployment, or infrastructure operation, Claude MUST:**
 
-1. **Read PRODUCTION-CHECKLIST.md** - Contains all connection details, credentials, and common operations
-2. **Use the production-operations skill** - Enforces documentation-first approach
+1. **Read the JSON knowledge base** - Contains all connection details, credentials, and workflows
+2. **Check deployment-procedures.json** - Complete deployment workflows with commands
 3. **Follow the 3-attempt rule** - If it takes more than 3 attempts, you didn't read the docs
 
 **Key files to check BEFORE executing:**
-- `PRODUCTION-CHECKLIST.md` - Quick reference with copy/paste commands
-- `.claude/CLAUDE.md` - This file (project configuration)
-- `docker-compose.yml` - Current Docker configuration
+- `/docs/deployment-procedures.json` - Complete deployment workflows and commands
+- `/docs/troubleshooting-rules.json` - Decision trees for common issues
+- `/docs/knowledge-base.json` - Database credentials and configuration
+- `.claude/CLAUDE.md` - This file (quick reference and protocols)
 
 **Critical production details:**
 - Database hostname from web container: `database` (Docker Compose service name, NOT IP address)
@@ -120,7 +137,7 @@ direnv allow
 - **Never copy code files to Production** - deploy via Docker Hub only
 - **Configuration files only** via SSH (docker-compose.prod.yml, db_init scripts)
 
-**Documentation**: See `/docs/docker-hub-workflow.md` for complete workflow details
+**Documentation**: See `/docs/deployment-procedures.json` for complete workflow details
 
 ## Key Technical Notes
 
@@ -206,7 +223,7 @@ docker compose up -d
 - Old subscription rates retired, making 2024 data incomplete/inaccurate
 - Current data range: Jan 4, 2025 onwards (250 records)
 - 2026 will be first year with valid year-over-year comparisons
-- See: `/docs/data-cleanup-2025-12-02.md` for full details
+- See: `/docs/knowledge-base.json` (data_state section) for details
 
 ### Database Schema
 - `daily_snapshots` - Daily circulation metrics by paper/business unit
@@ -215,17 +232,22 @@ docker compose up -d
 ## File Organization
 
 ```
-/web/                       - PHP application and API
-/sql/                       - Database initialization scripts
-/db_init/                   - Database setup files
-/docs/                      - Documentation
-  /docker-hub-workflow.md   - Complete Docker Hub deployment guide
-/docker-compose.yml         - Development config (volume mounts)
-/docker-compose.prod.yml    - Production config (Docker Hub images)
-/Dockerfile                 - Web container build definition
-/build-and-push.sh          - Script to build and push to Docker Hub
-/.envrc                     - direnv config (auto-sets PROJECT_ROOT)
-/.env.example               - Environment template
+/web/                         - PHP application and API
+/sql/                         - Database initialization scripts
+/db_init/                     - Database setup files
+/docs/                        - Documentation (AI-optimized JSON + recent deployment docs)
+  /knowledge-base.json        - Core project knowledge
+  /architecture.json          - System architecture and schemas
+  /deployment-procedures.json - Deployment workflows
+  /troubleshooting-rules.json - Troubleshooting decision trees
+  /DEPLOYMENT-2025-12-07.md   - Recent deployment guide
+  /ARCHIVE/                   - Historical markdown docs (33 files)
+/docker-compose.yml           - Development config (volume mounts)
+/docker-compose.prod.yml      - Production config (Docker Hub images)
+/Dockerfile                   - Web container build definition
+/build-and-push.sh            - Script to build and push to Docker Hub
+/.envrc                       - direnv config (auto-sets PROJECT_ROOT)
+/.env.example                 - Environment template
 ```
 
 ## Weekly Data Upload Process

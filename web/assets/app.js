@@ -286,16 +286,14 @@ function renderEmptyState() {
     emptyCard.appendChild(message);
 
     const explanation = document.createElement('p');
-    explanation.className = 'text-sm text-amber-600 mb-6';
-    explanation.textContent = dashboardData.explanation || 'Upload a CSV to add data for this week.';
+    explanation.className = 'text-sm text-amber-700 mb-2';
+    explanation.textContent = 'AllSubs reports are point-in-time snapshots.';
     emptyCard.appendChild(explanation);
 
-    const uploadBtn = document.createElement('a');
-    uploadBtn.href = 'upload.html';
-    uploadBtn.className = 'inline-block bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200';
-    uploadBtn.style.color = '#ffffff'; // Force white text
-    uploadBtn.textContent = 'Upload Data';
-    emptyCard.appendChild(uploadBtn);
+    const note = document.createElement('p');
+    note.className = 'text-sm text-amber-600 italic';
+    note.textContent = 'Historical data cannot be recreated for missed weeks.';
+    emptyCard.appendChild(note);
 
     businessUnitsContainer.appendChild(emptyCard);
 

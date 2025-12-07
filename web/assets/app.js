@@ -5,6 +5,8 @@
  * Date: 2025-12-01
  */
 
+alert('APP.JS LOADED - Testing if JavaScript executes');
+
 // Configuration
 const API_BASE = './api.php';
 

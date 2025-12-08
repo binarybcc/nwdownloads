@@ -236,7 +236,6 @@ class SubscriberTablePanel {
             'Current Rate',
             'Rate Amount',
             'Last Payment',
-            'Payment Method',
             'Expiration Date',
             'Delivery Type'
         ];
@@ -294,7 +293,6 @@ class SubscriberTablePanel {
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; white-space: nowrap;">${sub.current_rate}</td>
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #059669; white-space: nowrap;">$${sub.rate_amount}</td>
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; white-space: nowrap;">$${sub.last_payment_amount}</td>
-                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; white-space: nowrap;">${sub.payment_method}</td>
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-family: monospace; white-space: nowrap;">${sub.expiration_date}</td>
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; white-space: nowrap;">
                         <span style="

@@ -635,7 +635,8 @@ require_once 'auth_check.php';
                 <!-- On Vacation -->
                 <div class="metric-card bg-white rounded-xl shadow p-6"
                      role="region"
-                     aria-labelledby="metric-vacation-label">
+                     aria-labelledby="metric-vacation-label"
+                     oncontextmenu="showVacationContextMenu(event, 'overall'); return false;">
                     <div class="flex items-center justify-between mb-2">
                         <div id="metric-vacation-label" class="text-sm font-medium text-gray-600">Subscribers On Vacation</div>
                         <div class="text-2xl" aria-hidden="true">🏖️</div>
@@ -643,6 +644,14 @@ require_once 'auth_check.php';
                     <div class="text-3xl font-bold text-gray-900" id="onVacation" aria-live="polite">--</div>
                     <div class="text-sm text-gray-500 mt-2">
                         <span id="vacationPercent">--</span> of total
+                    </div>
+
+                    <!-- Longest 3 Vacations -->
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <div class="text-xs font-medium text-gray-500 mb-2">Longest Vacations</div>
+                        <div id="longestVacationsOverall" class="space-y-1.5">
+                            <div class="text-xs text-gray-400 italic">Loading...</div>
+                        </div>
                     </div>
                 </div>
 
@@ -748,10 +757,13 @@ require_once 'auth_check.php';
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex justify-between items-center text-sm text-gray-500">
                 <div>
-                    <span class="font-medium text-gray-900">Circulation Dashboard</span> v2.0 - Phase 2
+                    <span class="font-medium text-gray-900">Circulation Dashboard</span> <?php
+                        require_once 'version.php';
+                        echo VERSION_STRING;
+                    ?>
                 </div>
                 <div>
-                    16 years of historical data • 864 weekly snapshots
+                    © <?php echo date('Y'); ?> Edwards Group Holdings, Inc. ESOP
                 </div>
             </div>
         </div>
@@ -919,6 +931,7 @@ require_once 'auth_check.php';
     <script src="assets/subscriber-table-panel.js?v=20251207"></script>
     <script src="assets/trend-slider.js?v=20251207"></script>
     <script src="assets/chart-context-integration.js?v=20251207"></script>
+    <script src="assets/vacation-display.js?v=20251208"></script>
     <script>
         // Initialize UI enhancements after dashboard is fully rendered
         // This listens for the 'DashboardRendered' event dispatched by renderDashboard()

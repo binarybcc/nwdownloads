@@ -1,0 +1,65 @@
+# PHP Authentication System Prompt
+
+**Role:** Expert Web Developer (PHP/HTML/CSS/JS)
+**Task:** Build a simple, "old-school" login system for an internal network site.
+
+## Context
+We need a login page that authenticates users against a remote Newzware XML API. This is for an internal tool where security is based on "keeping honest people honest". The environment is HTTP-only.
+
+## Requirements
+
+### 1. Tech Stack
+*   **Backend:** PHP (Vanilla, no frameworks).
+*   **Frontend:** HTML5, CSS3 (Modern, clean, professional), Vanilla JS.
+*   **Styling:** Use a clean, modern aesthetic (e.g., centered card, nice typography, blue/gray color scheme).
+
+### 2. Files to Create
+*   `login.php`: The login form.
+*   `auth.php`: The form processor (can be merged into `login.php` if cleaner).
+*   `config.php`: Store the API URL and Site ID.
+
+### 3. Authentication Logic
+*   **Form Submission:** POST `login_id` and `password`.
+*   **API Request:** Send a POST or GET request to the Newzware endpoint.
+    *   **URL:** `https://seneca.newzware.com/authentication/auth70_xml.jsp`
+    *   **Parameters:**
+        *   `site`: `seneca` (or from config)
+        *   `login_id`: (from form)
+        *   `password`: (from form)
+*   **XML Parsing:** Parse the returned XML response.
+*   **Access Rules:**
+    *   **ALLOW** if and only if:
+        1.  `<authenticated>` node equals `Yes`
+        2.  **AND** `<usertype>` node equals `NW`
+    *   **DENY** in all other cases.
+
+### 4. User Experience
+*   **Success:** Redirect the user to `view_data.php` (or a placeholder URL).
+*   **Failure:** Display a clear error message on the login page (e.g., "Access Denied" or "Invalid Credentials").
+*   **Persistence:**
+    *   Do **NOT** use long-term "Remember Me" cookies.
+    *   Allow the browser's built-in password manager to save credentials (standard form behavior).
+    *   Use a simple PHP `$_SESSION` to track the logged-in state for the duration of the visit, just to prevent direct access to `view_data.php` without passing the gate.
+
+### 5. Code Snippets & Reference
+**XML Response Schema (Success):**
+```xml
+<newzware>
+    <authenticated>Yes</authenticated>
+    <usertype>NW</usertype>
+    <!-- other fields ignored -->
+</newzware>
+```
+
+**XML Response Schema (Failure):**
+```xml
+<newzware>
+    <authenticated>No</authenticated>
+    <message>Error message here</message>
+</newzware>
+```
+
+## Deliverables
+Provide the complete, ready-to-copy code for:
+1.  `login.php` (Single file solution preferred for simplicity, handling both display and processing).
+2.  `view_data.php` (Simple protected page example).

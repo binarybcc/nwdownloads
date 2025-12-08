@@ -46,16 +46,294 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 - **Web Server**: Local PHP container
 - **Deployment Method**: Docker Compose on local machine
 
-## Deployment Workflow
+## 🔀 GIT WORKFLOW - PULL REQUEST PROTOCOL (MANDATORY)
 
-**Development → Production Flow:**
-1. Make changes in Development environment
-2. Test thoroughly locally
-3. Create archive of changes
-4. Deploy to Production via SSH/SCP
-5. Verify Production deployment
+**⚠️ CRITICAL RULE: NEVER COMMIT DIRECTLY TO MASTER/MAIN BRANCH**
+
+**All changes MUST go through Pull Requests (PRs). No exceptions.**
+
+### Why Pull Requests?
+
+**Safety:**
+- ✅ Code review before deployment
+- ✅ Catch bugs before Production
+- ✅ Test in Development environment first
+- ✅ Easy rollback if issues occur
+
+**Documentation:**
+- ✅ Clear history of what changed and why
+- ✅ Discussion and decisions preserved
+- ✅ PR descriptions explain context
+
+**Quality:**
+- ✅ `@claude` can review code automatically
+- ✅ Automated tests can run
+- ✅ Team collaboration and feedback
+
+### The Proper Workflow (For Every Feature/Fix):
+
+**Step 1: Start with a Feature Branch**
+```bash
+# BEFORE making ANY changes
+git checkout master
+git pull origin master  # Get latest code
+
+# Create descriptive branch name
+git checkout -b feature/add-weekly-trends
+# OR
+git checkout -b fix/dashboard-loading-error
+```
+
+**Branch Naming Convention:**
+- `feature/description` - New functionality
+- `fix/description` - Bug fixes
+- `refactor/description` - Code improvements
+- `docs/description` - Documentation updates
+
+**Step 2: Make Changes and Commit**
+```bash
+# Make your changes to files
+# Test locally in Development environment
+
+git add .
+git commit -m "Add weekly trend comparison chart
+
+- Added trend chart component
+- Updated dashboard layout
+- Added API endpoint for trend data
+- Tested with last 4 weeks of data"
+```
+
+**Commit Message Format:**
+```
+Short summary (50 chars or less)
+
+Detailed explanation:
+- What changed
+- Why it changed
+- How to test it
+```
+
+**Step 3: Push Branch to GitHub**
+```bash
+git push -u origin feature/add-weekly-trends
+```
+
+**Step 4: Create Pull Request**
+```bash
+gh pr create \
+  --title "Add weekly trend comparison chart" \
+  --body "## Summary
+Adds a new chart showing week-over-week subscriber trends by business unit.
+
+## Changes:
+- Added trend chart component to dashboard
+- Created new API endpoint: /api/get_weekly_trends.php
+- Updated dashboard layout to accommodate chart
+- Added database query for trend calculations
+
+## Testing:
+- ✅ Tested with last 4 weeks of data
+- ✅ Verified on Development environment (localhost:8081)
+- ✅ Checked mobile and desktop layouts
+- ✅ Validated data accuracy against raw reports
+
+## Database Impact:
+- No schema changes
+- Uses existing daily_snapshots table
+- Query performance: <100ms
+
+## Deployment Notes:
+- Test on Development first
+- Deploy to Production after approval
+- No additional configuration needed"
+```
+
+**Step 5: Review with Claude**
+```bash
+# In GitHub, add comment to PR:
+@claude review this code for:
+- Security vulnerabilities
+- Performance issues
+- Code quality
+- Database query optimization
+```
+
+**Step 6: Test on Development**
+```bash
+# Switch to your branch
+git checkout feature/add-weekly-trends
+
+# Test locally
+docker compose up -d
+# Open http://localhost:8081 and verify changes
+```
+
+**Step 7: Merge When Ready**
+```bash
+# Option A: Via CLI
+gh pr merge --squash  # Squashes commits into one
+
+# Option B: Via GitHub Web
+# Click "Merge pull request" button
+```
+
+**Step 8: Clean Up**
+```bash
+# Switch back to master
+git checkout master
+git pull origin master  # Get the merged changes
+
+# Delete local branch (no longer needed)
+git branch -d feature/add-weekly-trends
+
+# Delete remote branch (optional, usually auto-deleted)
+git push origin --delete feature/add-weekly-trends
+```
+
+### Quick Reference Commands:
+
+**Start New Work:**
+```bash
+git checkout master && git pull && git checkout -b feature/my-feature
+```
+
+**Create PR:**
+```bash
+git push -u origin $(git branch --show-current)
+gh pr create --title "Title" --body "Description"
+```
+
+**Review PR:**
+```bash
+gh pr view --web  # Opens in browser
+gh pr checks      # Show status checks
+```
+
+**Merge PR:**
+```bash
+gh pr merge --squash
+```
+
+**Clean Up:**
+```bash
+git checkout master && git pull && git branch -d feature/my-feature
+```
+
+### Common Scenarios:
+
+**Small Bug Fix:**
+```bash
+git checkout -b fix/typo-in-upload-form
+# Fix the typo
+git add web/upload.html
+git commit -m "Fix typo in upload form label"
+git push -u origin fix/typo-in-upload-form
+gh pr create --title "Fix typo in upload form" --body "Corrects 'Uplaod' to 'Upload'"
+gh pr merge --squash
+git checkout master && git pull
+```
+
+**Large Feature:**
+```bash
+git checkout -b feature/subscriber-alerts
+# Work on feature over several commits
+git commit -m "Add alert data model"
+git commit -m "Add alert UI components"
+git commit -m "Add email notification system"
+git push -u origin feature/subscriber-alerts
+gh pr create --title "Add subscriber alert system" --body "[detailed description]"
+# Wait for review, make adjustments
+# @claude review this PR
+# Merge when approved
+```
+
+**Emergency Production Fix:**
+```bash
+git checkout -b hotfix/database-connection-error
+# Fix the critical issue
+git add .
+git commit -m "Fix database connection timeout in production"
+git push -u origin hotfix/database-connection-error
+gh pr create --title "HOTFIX: Database connection timeout" --body "Critical fix for production issue"
+# Get quick review
+gh pr merge --squash
+# Deploy to production immediately
+```
+
+### What NOT to Do:
+
+**❌ WRONG - Direct to Master:**
+```bash
+git checkout master
+git add .
+git commit -m "Add feature"
+git push origin master  # NEVER DO THIS!
+```
+
+**❌ WRONG - No Testing:**
+```bash
+git push origin feature/untested-feature
+gh pr create
+gh pr merge  # Without testing!
+```
+
+**❌ WRONG - Vague PR Description:**
+```bash
+gh pr create --title "Changes" --body "Updated stuff"
+```
+
+**✅ RIGHT - Proper Workflow:**
+```bash
+git checkout -b feature/descriptive-name
+# Make changes
+# Test thoroughly in Development
+git commit -m "Clear description of what and why"
+git push -u origin feature/descriptive-name
+gh pr create --title "Clear title" --body "Detailed description with testing notes"
+# @claude review this PR
+# Test again
+gh pr merge --squash
+```
+
+### Claude's Responsibilities:
+
+**When implementing features, Claude MUST:**
+
+1. ✅ Create a feature branch (NEVER commit to master)
+2. ✅ Make changes on the branch
+3. ✅ Test in Development environment
+4. ✅ Create PR with detailed description
+5. ✅ Wait for approval before merging
+6. ✅ Clean up branch after merge
+
+**Claude will ask: "Should I create a PR for review, or merge directly?"**
+
+**If you say "merge" - Claude will:**
+1. Create PR
+2. Merge immediately
+3. Clean up branch
+
+**If you say "review" - Claude will:**
+1. Create PR
+2. Wait for your approval
+3. Then merge and clean up
+
+### Integration with Deployment Workflow
+
+**Full Development → Production Flow:**
+1. Create feature branch
+2. Make changes in Development environment
+3. Test thoroughly locally (http://localhost:8081)
+4. Create Pull Request
+5. Review (manual or `@claude` review)
+6. Merge to master
+7. Create deployment archive
+8. Deploy to Production via SSH (http://192.168.1.254:8081)
+9. Verify Production deployment
 
 **Never make changes directly in Production** - always test in Development first.
+**Never commit directly to master** - always use Pull Requests.
 
 ## Key Technical Notes
 

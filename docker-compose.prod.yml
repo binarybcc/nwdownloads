@@ -16,7 +16,6 @@ services:
       MYSQL_PASSWORD: Barnaby358@Jones!
     volumes:
       - db_data:/var/lib/mysql
-      - ./db_init:/docker-entrypoint-initdb.d:ro
     networks:
       - circulation_network
     healthcheck:

@@ -29,6 +29,9 @@ require_once 'auth_check.php';
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+    <!-- Backfill Indicator Module -->
+    <script src="assets/backfill-indicator.js?v=20251208"></script>
+
     <!-- Custom Styles -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -920,9 +923,14 @@ require_once 'auth_check.php';
         // Initialize UI enhancements after dashboard is fully rendered
         // This listens for the 'DashboardRendered' event dispatched by renderDashboard()
         // Replaces the old setTimeout(500) race condition with explicit event coordination
-        document.addEventListener('DashboardRendered', function() {
+        document.addEventListener('DashboardRendered', function(event) {
             if (typeof initializeUIEnhancements === 'function') {
                 initializeUIEnhancements();
+            }
+
+            // Update backfill indicators if data is backfilled
+            if (window.backfillIndicator && event.detail && event.detail.backfill) {
+                window.backfillIndicator.update(event.detail.backfill);
             }
         });
 

@@ -13,8 +13,8 @@ echo "✅ Database is ready"
 
 # Run database migrations
 echo "🔄 Running database migrations..."
-cd /var/www/migrations
-if /var/www/vendor/bin/phinx migrate -c /var/www/phinx.php 2>&1 | tee /tmp/migration.log; then
+cd /var/www
+if /var/www/vendor/bin/phinx migrate -c /var/www/phinx.php -e production 2>&1 | tee /tmp/migration.log; then
     echo "✅ Migrations completed successfully"
 else
     echo "⚠️  Migration warnings (this is normal if no new migrations)"

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Phase 1A Database Setup Script
  * Creates publication_schedule table and weekly_summary view
@@ -8,7 +9,6 @@
 header('Content-Type: text/plain');
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-
 // Database configuration
 $db_config = [
     'host' => getenv('DB_HOST') ?: 'localhost',
@@ -19,7 +19,9 @@ $db_config = [
     'socket' => getenv('DB_SOCKET') !== false ? getenv('DB_SOCKET') : '/run/mysqld/mysqld10.sock',
 ];
 
-function connectDB($config) {
+function connectDB($config)
+{
+
     try {
         if (empty($config['socket']) || !file_exists($config['socket'])) {
             $dsn = "mysql:host={$config['host']};port={$config['port']};dbname={$config['database']};charset=utf8mb4";
@@ -37,12 +39,10 @@ function connectDB($config) {
 echo "==========================================\n";
 echo "Phase 1A: Database Foundation Setup\n";
 echo "==========================================\n\n";
-
 try {
     $pdo = connectDB($db_config);
     echo "✅ Connected to database\n\n";
-
-    // Step 1: Create publication_schedule table
+// Step 1: Create publication_schedule table
     echo "Step 1: Creating publication_schedule table...\n";
     $sql = "CREATE TABLE IF NOT EXISTS publication_schedule (
         paper_code VARCHAR(10) NOT NULL,
@@ -53,38 +53,45 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Publication schedule for all papers'";
     $pdo->exec($sql);
     echo "✅ publication_schedule table created\n\n";
-
-    // Step 2: Seed publication schedule data
+// Step 2: Seed publication schedule data
     echo "Step 2: Seeding publication schedule data...\n";
-
-    // Clear existing data
+// Clear existing data
     $pdo->exec("DELETE FROM publication_schedule");
-
-    // TJ: Print Wed/Sat, Digital Tue-Sat
+// TJ: Print Wed/Sat, Digital Tue-Sat
     $stmt = $pdo->prepare("INSERT INTO publication_schedule (paper_code, day_of_week, has_print, has_digital) VALUES (?, ?, ?, ?)");
-    $stmt->execute(['TJ', 2, 0, 1]); // Tuesday: Digital only
-    $stmt->execute(['TJ', 3, 1, 1]); // Wednesday: Print + Digital
-    $stmt->execute(['TJ', 4, 0, 1]); // Thursday: Digital only
-    $stmt->execute(['TJ', 5, 0, 1]); // Friday: Digital only
-    $stmt->execute(['TJ', 6, 1, 1]); // Saturday: Print + Digital
+    $stmt->execute(['TJ', 2, 0, 1]);
+// Tuesday: Digital only
+    $stmt->execute(['TJ', 3, 1, 1]);
+// Wednesday: Print + Digital
+    $stmt->execute(['TJ', 4, 0, 1]);
+// Thursday: Digital only
+    $stmt->execute(['TJ', 5, 0, 1]);
+// Friday: Digital only
+    $stmt->execute(['TJ', 6, 1, 1]);
+// Saturday: Print + Digital
 
     // TA: Print Wed only
-    $stmt->execute(['TA', 3, 1, 0]); // Wednesday: Print only
+    $stmt->execute(['TA', 3, 1, 0]);
+// Wednesday: Print only
 
     // TR: Print Wed/Sat, Digital on print days
-    $stmt->execute(['TR', 3, 1, 1]); // Wednesday: Print + Digital
-    $stmt->execute(['TR', 6, 1, 1]); // Saturday: Print + Digital
+    $stmt->execute(['TR', 3, 1, 1]);
+// Wednesday: Print + Digital
+    $stmt->execute(['TR', 6, 1, 1]);
+// Saturday: Print + Digital
 
     // LJ: Print Wed/Sat, Digital on print days
-    $stmt->execute(['LJ', 3, 1, 1]); // Wednesday: Print + Digital
-    $stmt->execute(['LJ', 6, 1, 1]); // Saturday: Print + Digital
+    $stmt->execute(['LJ', 3, 1, 1]);
+// Wednesday: Print + Digital
+    $stmt->execute(['LJ', 6, 1, 1]);
+// Saturday: Print + Digital
 
     // WRN: Print Thu only, Digital on print days
-    $stmt->execute(['WRN', 4, 1, 1]); // Thursday: Print + Digital
+    $stmt->execute(['WRN', 4, 1, 1]);
+// Thursday: Print + Digital
 
     echo "✅ Publication schedule seeded (13 rows)\n\n";
-
-    // Verify data
+// Verify data
     echo "Verification - Print days by paper:\n";
     $result = $pdo->query("
         SELECT
@@ -106,19 +113,15 @@ try {
         GROUP BY paper_code
         ORDER BY paper_code
     ");
-
     while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
         printf("  %s: %s\n", $row['paper_code'], $row['print_days']);
     }
     echo "\n";
-
-    // Step 3: Create weekly_summary view
+// Step 3: Create weekly_summary view
     echo "Step 3: Creating weekly_summary view...\n";
-
-    // Drop existing view if it exists
+// Drop existing view if it exists
     $pdo->exec("DROP VIEW IF EXISTS weekly_summary");
-
-    // Create the view
+// Create the view
     $sql = "CREATE VIEW weekly_summary AS
 SELECT
     DATE_SUB(ds.snapshot_date, INTERVAL WEEKDAY(ds.snapshot_date) DAY) as week_start_date,
@@ -159,11 +162,9 @@ ORDER BY
     week_start_date DESC,
     ds.business_unit,
     ds.paper_name";
-
     $pdo->exec($sql);
     echo "✅ weekly_summary view created\n\n";
-
-    // Test the view
+// Test the view
     echo "Testing weekly_summary view:\n";
     $result = $pdo->query("
         SELECT
@@ -177,12 +178,12 @@ ORDER BY
         ORDER BY week_start_date DESC, paper_code
         LIMIT 10
     ");
-
     $rows = $result->fetchAll(PDO::FETCH_ASSOC);
     if (count($rows) > 0) {
         echo "  Found " . count($rows) . " week(s) of data:\n";
         foreach ($rows as $row) {
-            printf("  %s | %s | %d/%d days | %s active\n",
+            printf(
+                "  %s | %s | %d/%d days | %s active\n",
                 $row['week_label'],
                 $row['paper_code'],
                 $row['print_days_reported'],
@@ -194,7 +195,6 @@ ORDER BY
         echo "  ⚠️  No weekly data yet (expected - need print day uploads)\n";
     }
     echo "\n";
-
     echo "==========================================\n";
     echo "Phase 1A Setup Complete!\n";
     echo "==========================================\n\n";
@@ -202,9 +202,7 @@ ORDER BY
     echo "1. Upload CSVs on print days (Wed, Thu, Sat)\n";
     echo "2. After 1 week, weekly_summary will show data\n";
     echo "3. Proceed to Phase 1B (API development)\n\n";
-
 } catch (Exception $e) {
     echo "❌ Error: " . $e->getMessage() . "\n";
     exit(1);
 }
-?>

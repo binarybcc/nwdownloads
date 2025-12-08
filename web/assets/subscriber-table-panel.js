@@ -5,6 +5,17 @@
  * Date: 2025-12-05
  */
 
+/**
+ * LOAD ORDER: 9 of 11
+ *
+ * DEPENDENCIES:
+ * - app.js: API_BASE, formatNumber
+ * - detail_panel.js: currentBusinessUnit, currentSnapshotDate
+ *
+ * PROVIDES:
+ * - Subscriber table rendering and pagination
+ */
+
 class SubscriberTablePanel {
     constructor(options = {}) {
         this.colorScheme = options.colorScheme || 'teal';
@@ -101,7 +112,8 @@ class SubscriberTablePanel {
      */
     buildPanelHTML() {
         const { title, subtitle, data } = this.data;
-        const subscribers = data.subscribers || [];
+        // data can be either an array directly or an object with subscribers property
+        const subscribers = Array.isArray(data) ? data : (data?.subscribers || []);
         const count = subscribers.length;
 
         return `
@@ -234,22 +246,28 @@ class SubscriberTablePanel {
                 background: white;
                 border-radius: 12px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-                overflow: hidden;
+                overflow-x: auto;
+                overflow-y: visible;
             ">
                 <table style="
                     width: 100%;
                     border-collapse: collapse;
-                    font-size: 0.9rem;
+                    font-size: 0.75rem;
+                    table-layout: auto;
                 ">
                     <thead>
                         <tr style="background: #14B8A6; color: white;">
                             ${headers.map(h => `
                                 <th style="
-                                    padding: 1rem 0.75rem;
+                                    padding: 0.5rem 0.5rem;
                                     text-align: left;
                                     font-weight: 600;
                                     white-space: nowrap;
                                     border-right: 1px solid rgba(255,255,255,0.2);
+                                    position: sticky;
+                                    top: 0;
+                                    z-index: 10;
+                                    background: #14B8A6;
                                 ">
                                     ${h}
                                 </th>
@@ -267,23 +285,23 @@ class SubscriberTablePanel {
                 <tr style="background: ${bgColor}; transition: background 150ms;"
                     onmouseover="this.style.background='#CCFBF1'"
                     onmouseout="this.style.background='${bgColor}'">
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB; font-family: monospace; font-weight: 600; color: #0891B2;">${sub.account_id}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB; font-weight: 500;">${sub.subscriber_name}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB; font-family: monospace;">${sub.phone}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB; color: #0891B2;"><a href="mailto:${sub.email}" style="color: inherit; text-decoration: none;">${sub.email}</a></td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB; max-width: 200px;">${sub.mailing_address}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB; font-weight: 600;">${sub.paper_code}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB;">${sub.current_rate}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #059669;">$${sub.rate_amount}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB;">$${sub.last_payment_amount}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB;">${sub.payment_method}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB; font-family: monospace;">${sub.expiration_date}</td>
-                    <td style="padding: 0.875rem 0.75rem; border-bottom: 1px solid #E5E7EB;">
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-family: monospace; font-weight: 600; color: #0891B2; white-space: nowrap;">${sub.account_id}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-weight: 500; white-space: nowrap;">${sub.subscriber_name}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-family: monospace; white-space: nowrap;">${sub.phone}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; color: #0891B2; white-space: nowrap;"><a href="mailto:${sub.email}" style="color: inherit; text-decoration: none;">${sub.email}</a></td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; white-space: nowrap; max-width: 250px; overflow: hidden; text-overflow: ellipsis;">${sub.mailing_address}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-weight: 600; white-space: nowrap;">${sub.paper_code}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; white-space: nowrap;">${sub.current_rate}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #059669; white-space: nowrap;">$${sub.rate_amount}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; white-space: nowrap;">$${sub.last_payment_amount}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; white-space: nowrap;">${sub.payment_method}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-family: monospace; white-space: nowrap;">${sub.expiration_date}</td>
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; white-space: nowrap;">
                         <span style="
                             display: inline-block;
-                            padding: 0.25rem 0.75rem;
+                            padding: 0.15rem 0.5rem;
                             border-radius: 9999px;
-                            font-size: 0.75rem;
+                            font-size: 0.7rem;
                             font-weight: 600;
                             background: ${this.getDeliveryTypeColor(sub.delivery_type).bg};
                             color: ${this.getDeliveryTypeColor(sub.delivery_type).text};
@@ -344,7 +362,9 @@ class SubscriberTablePanel {
      */
     handleExportExcel() {
         if (typeof exportSubscriberList !== 'undefined') {
-            exportSubscriberList(this.data.data, 'excel');
+            // Use exportData if available (includes metadata), otherwise try to construct from data
+            const exportPayload = this.data.exportData || this.data.data;
+            exportSubscriberList(exportPayload, 'excel');
         } else {
             console.error('Export function not available');
             alert('Export functionality not loaded. Please refresh the page.');
@@ -356,7 +376,9 @@ class SubscriberTablePanel {
      */
     handleExportCSV() {
         if (typeof exportSubscriberList !== 'undefined') {
-            exportSubscriberList(this.data.data, 'csv');
+            // Use exportData if available (includes metadata), otherwise try to construct from data
+            const exportPayload = this.data.exportData || this.data.data;
+            exportSubscriberList(exportPayload, 'csv');
         } else {
             console.error('Export function not available');
             alert('Export functionality not loaded. Please refresh the page.');

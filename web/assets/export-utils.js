@@ -5,6 +5,18 @@
  */
 
 /**
+ * LOAD ORDER: 8 of 11
+ *
+ * DEPENDENCIES:
+ * - app.js: dashboardData, formatNumber
+ * - XLSX (CDN): Excel export
+ * - jsPDF, html2canvas (CDN): PDF export
+ *
+ * PROVIDES:
+ * - Export utility functions
+ */
+
+/**
  * Export data to formatted Excel file
  * Includes styling, frozen headers, auto-filters, and alternating row colors
  *

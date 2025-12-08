@@ -3,18 +3,86 @@
 ## Project Overview
 Newspaper circulation dashboard for tracking subscriber metrics across multiple business units and publications.
 
+## 📚 Documentation Reference
+
+**Primary Documentation** (Updated December 7, 2025):
+- `/docs/KNOWLEDGE-BASE.md` - Comprehensive reference covering:
+  - System architecture & database schemas
+  - Frontend structure & API endpoints
+  - Tech stack & business context
+  - Docker deployment strategies
+  - Common operations & performance notes
+- `/docs/TROUBLESHOOTING.md` - Complete troubleshooting guide with:
+  - Decision tree diagnostics for 9 common issue categories
+  - Step-by-step solutions with copy-paste commands
+  - Quick diagnostic commands reference
+- `/docs/cost_analysis.md` - Real-world development cost analysis & ROI
+
+**Recent Deployment Documentation:**
+- `/docs/DEPLOYMENT-2025-12-07.md` - Multi-platform builds + setTimeout fix deployment
+
+**Archived Documentation:**
+- `/docs/ARCHIVE/` - Historical files including:
+  - Superseded JSON knowledge base files (architecture.json, knowledge-base.json, etc.)
+  - Legacy markdown documentation (33+ files)
+
+**Note:** This CLAUDE.md file provides quick-reference commands and critical production protocols. For comprehensive technical details, refer to KNOWLEDGE-BASE.md and TROUBLESHOOTING.md above.
+
+## 📍 Multi-Workstation Setup
+
+**This project is developed across multiple computers with different file paths.**
+
+**Primary Workstation (johncorbin):**
+- Path: `/Users/johncorbin/Desktop/projs/nwdownloads/`
+
+**Secondary Workstation (user):**
+- Path: `/Users/user/Development/work/_active/nwdownloads/`
+
+**In all documentation below, `$PROJECT_ROOT` refers to your local project directory.**
+
+### Automatic Environment Setup (direnv)
+
+**This project uses direnv to automatically set `$PROJECT_ROOT` when you enter the directory.**
+
+**One-time setup per workstation:**
+
+```bash
+# 1. Verify direnv is installed
+direnv version
+
+# 2. Enable direnv in your shell (add to ~/.zshrc or ~/.bashrc)
+eval "$(direnv hook zsh)"    # For zsh
+# OR
+eval "$(direnv hook bash)"   # For bash
+
+# 3. Reload your shell
+source ~/.zshrc   # or source ~/.bashrc
+
+# 4. Navigate to project and allow direnv
+cd /path/to/nwdownloads
+direnv allow
+
+# Done! PROJECT_ROOT is now auto-set when you cd into this directory
+```
+
+**How it works:**
+- When you `cd` into the project, direnv automatically runs `.envrc`
+- `.envrc` sets `PROJECT_ROOT=$(pwd)` - automatically adapts to each computer
+- When you leave the directory, variables are unset automatically
+- No conflicts with other projects!
+
 ## ⚠️ PRODUCTION OPERATIONS PROTOCOL (MANDATORY)
 
 **Before ANY production database, deployment, or infrastructure operation, Claude MUST:**
 
-1. **Read PRODUCTION-CHECKLIST.md** - Contains all connection details, credentials, and common operations
-2. **Use the production-operations skill** - Enforces documentation-first approach
+1. **Read the documentation** - Contains all connection details, credentials, and workflows
+2. **Check KNOWLEDGE-BASE.md** - Complete deployment workflows with commands
 3. **Follow the 3-attempt rule** - If it takes more than 3 attempts, you didn't read the docs
 
 **Key files to check BEFORE executing:**
-- `PRODUCTION-CHECKLIST.md` - Quick reference with copy/paste commands
-- `.claude/CLAUDE.md` - This file (project configuration)
-- `docker-compose.yml` - Current Docker configuration
+- `/docs/KNOWLEDGE-BASE.md` - Complete system reference (deployment, credentials, configuration)
+- `/docs/TROUBLESHOOTING.md` - Decision trees for common issues
+- `.claude/CLAUDE.md` - This file (quick reference and protocols)
 
 **Critical production details:**
 - Database hostname from web container: `database` (Docker Compose service name, NOT IP address)
@@ -39,7 +107,7 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 - **Deployment Method**: Docker Compose via SSH
 
 **DEVELOPMENT**: OrbStack/Local deployment
-- **Location**: `/Users/johncorbin/Desktop/projs/nwdownloads/`
+- **Location**: `$PROJECT_ROOT` (see Multi-Workstation Setup above for your specific path)
 - **Access URL**: `http://localhost:8081/`
 - **Purpose**: Testing, development, and experimentation
 - **Database**: Local MariaDB container
@@ -328,12 +396,43 @@ gh pr merge --squash
 4. Create Pull Request
 5. Review (manual or `@claude` review)
 6. Merge to master
-7. Create deployment archive
-8. Deploy to Production via SSH (http://192.168.1.254:8081)
+7. Build and push to Docker Hub
+8. Deploy to Production via Docker Hub image pull
 9. Verify Production deployment
 
 **Never make changes directly in Production** - always test in Development first.
 **Never commit directly to master** - always use Pull Requests.
+
+### Docker Hub Hybrid Approach
+
+**Repository**: `binarybcc/nwdownloads-circ`
+**URL**: https://hub.docker.com/repository/docker/binarybcc/nwdownloads-circ/
+
+**Development Environment** (`docker-compose.yml`):
+- Uses **volume mounts** for live code editing
+- Changes to `./web/` directory reflect immediately in browser
+- No rebuilding required - fast iteration
+- Files: `docker-compose.yml` (default config)
+
+**Production Environment** (`docker-compose.prod.yml`):
+- Uses **pre-built images** from Docker Hub
+- Application code **baked into image** (no volume mounts)
+- Fully containerized and portable
+- Files: `docker-compose.prod.yml` (production config)
+
+**Development → Production Flow:**
+1. Make changes in Development environment (with volume mounts)
+2. Test thoroughly locally at http://localhost:8081/
+3. Build and push to Docker Hub: `./build-and-push.sh`
+4. Deploy to Production by pulling latest image
+5. Verify Production deployment at http://192.168.1.254:8081/
+
+**Critical Rules:**
+- **Never make changes directly in Production** - always test in Development first
+- **Never copy code files to Production** - deploy via Docker Hub only
+- **Configuration files only** via SSH (docker-compose.prod.yml, db_init scripts)
+
+**Documentation**: See `/docs/KNOWLEDGE-BASE.md` (Docker & Deployment section) for complete workflow details
 
 ## Key Technical Notes
 
@@ -359,30 +458,34 @@ sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no -p 22 it@192.168.1.254
 # Navigate to project
 cd /volume1/docker/nwdownloads
 
+# IMPORTANT: Always use docker-compose.prod.yml in production
 # View running containers
-sudo /usr/local/bin/docker compose ps
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps
+
+# Pull latest image from Docker Hub
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull
+
+# Deploy with latest image
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d
 
 # View logs
 sudo /usr/local/bin/docker logs circulation_web
 sudo /usr/local/bin/docker logs circulation_db
 
-# Restart containers
-sudo /usr/local/bin/docker compose restart
+# Restart containers (without rebuilding)
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml restart
 
 # Stop containers
-sudo /usr/local/bin/docker compose down
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml down
 
-# Start containers
-sudo /usr/local/bin/docker compose up -d
-
-# Rebuild and restart
-sudo /usr/local/bin/docker compose up -d --build --force-recreate
+# Force recreate (useful after image update)
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate
 ```
 
 ### Development (local):
 ```bash
 # Navigate to project
-cd /Users/johncorbin/Desktop/projs/nwdownloads
+cd $PROJECT_ROOT
 
 # All standard docker compose commands work
 docker compose ps
@@ -415,7 +518,7 @@ docker compose up -d
 - Old subscription rates retired, making 2024 data incomplete/inaccurate
 - Current data range: Jan 4, 2025 onwards (250 records)
 - 2026 will be first year with valid year-over-year comparisons
-- See: `/docs/data-cleanup-2025-12-02.md` for full details
+- See: `/docs/KNOWLEDGE-BASE.md` (Data State section) for details
 
 ### Database Schema
 - `daily_snapshots` - Daily circulation metrics by paper/business unit
@@ -424,13 +527,21 @@ docker compose up -d
 ## File Organization
 
 ```
-/web/              - PHP application and API
-/sql/              - Database initialization scripts
-/db_init/          - Database setup files
-/docs/             - Documentation
-/docker-compose.yml - Container orchestration
-/Dockerfile        - Web container build
-/.env.example      - Environment template
+/web/                         - PHP application and API
+/sql/                         - Database initialization scripts
+/db_init/                     - Database setup files
+/docs/                        - Documentation
+  /KNOWLEDGE-BASE.md          - Comprehensive system reference
+  /TROUBLESHOOTING.md         - Decision tree troubleshooting guide
+  /cost_analysis.md           - Development cost analysis
+  /DEPLOYMENT-2025-12-07.md   - Recent deployment guide
+  /ARCHIVE/                   - Historical docs (JSON KB files + 33 markdown files)
+/docker-compose.yml           - Development config (volume mounts)
+/docker-compose.prod.yml      - Production config (Docker Hub images)
+/Dockerfile                   - Web container build definition
+/build-and-push.sh            - Script to build and push to Docker Hub
+/.envrc                       - direnv config (auto-sets PROJECT_ROOT)
+/.env.example                 - Environment template
 ```
 
 ## Weekly Data Upload Process
@@ -562,18 +673,38 @@ PRIMARY KEY (snapshot_date, paper_code)  -- Enables UPSERT
 
 ## Common Tasks
 
-### Update Code on Production:
-1. Test changes in Development
-2. Create clean archive (exclude temp files)
-3. SCP to NAS
-4. Extract and restart containers
+### Deploy Code Updates to Production (Image-Based Deployment):
+```bash
+# Step 1: Build and push to Docker Hub (from either workstation)
+cd $PROJECT_ROOT
+./build-and-push.sh
+
+# Step 2: Deploy to Production (SSH into NAS)
+sshpass -p 'Mojave48ice' ssh it@192.168.1.254
+cd /volume1/docker/nwdownloads
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d
+
+# Step 3: Verify deployment
+sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps
+# Open: http://192.168.1.254:8081/
+```
+
+**Note:** Code files are deployed via Docker Hub images ONLY. Never copy .php or .html files directly to production.
+
+### Deploy Configuration Files to Production:
+```bash
+# For docker-compose.prod.yml, db_init scripts, or other config files
+# (NOT application code - that goes via Docker Hub)
+sshpass -p 'Mojave48ice' ssh it@192.168.1.254 "cat > /volume1/docker/nwdownloads/docker-compose.prod.yml" < docker-compose.prod.yml
+```
 
 ### Check Database:
 ```bash
-# Production
-sudo /usr/local/bin/docker exec circulation_db mariadb -ucircuser -pChangeThisPassword123! -D circulation_dashboard -e "SHOW TABLES;"
+# Production (using root credentials)
+sudo /usr/local/bin/docker exec circulation_db mariadb -uroot -pRootPassword456! -D circulation_dashboard -e "SHOW TABLES;"
 
-# Development
+# Development (using application user credentials)
 docker exec circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' -D circulation_dashboard -e "SHOW TABLES;"
 ```
 

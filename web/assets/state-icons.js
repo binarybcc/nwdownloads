@@ -1,7 +1,17 @@
 /**
  * State Icon Images
- * Real state outlines (288px x 288px PNGs with #3B82F6 blue)
- * Date: 2025-12-05
+ * Real state outlines (SVG format, scalable vector graphics)
+ * Date: 2025-12-06 (Updated to use SVG files)
+ */
+
+/**
+ * LOAD ORDER: 2 of 11
+ *
+ * DEPENDENCIES: None
+ *
+ * PROVIDES:
+ * - getStateAbbr(businessUnit): Returns state abbreviation
+ * - getStateIconImg(businessUnit): Returns img tag for state icon
  */
 
 const STATE_ICON_PATHS = {

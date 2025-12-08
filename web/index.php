@@ -1,8 +1,10 @@
 <?php
+
 /**
  * Circulation Dashboard - Main Interface
  * Requires Newzware authentication to access
  */
+
 require_once 'auth_check.php';
 ?>
 <!DOCTYPE html>
@@ -13,7 +15,7 @@ require_once 'auth_check.php';
     <title>Circulation Dashboard v2</title>
 
     <!-- Tailwind CSS - Optimized Production Build -->
-    <link rel="stylesheet" href="assets/output.css?v=20251205">
+    <link rel="stylesheet" href="assets/output.css?v=20251206">
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -456,8 +458,11 @@ require_once 'auth_check.php';
 </head>
 <body class="bg-gray-50">
 
+    <!-- Sticky Header Container -->
+    <div class="sticky top-0 z-50 bg-white shadow-sm">
+
     <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-50" role="banner">
+    <header class="bg-white" role="banner">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex justify-between items-center">
                 <div>
@@ -525,7 +530,7 @@ require_once 'auth_check.php';
     </header>
 
     <!-- Date Navigation Bar -->
-    <nav class="bg-white border-b border-gray-200 sticky top-16 z-40" role="navigation" aria-label="Date navigation">
+    <nav class="bg-white border-b border-gray-200" role="navigation" aria-label="Date navigation">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 
@@ -587,6 +592,8 @@ require_once 'auth_check.php';
             </div>
         </div>
     </nav>
+
+    </div><!-- End Sticky Header Container -->
 
     <!-- Main Content -->
     <main id="mainContent" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" role="main" aria-label="Dashboard content">
@@ -827,7 +834,7 @@ require_once 'auth_check.php';
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">📅 Subscription Expirations (4-Week View)</h3>
                     <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
-                    <div class="detail-chart-container">
+                    <div class="detail-chart-container" id="expirationChartContainer">
                         <canvas id="expirationChart"></canvas>
                     </div>
                 </div>
@@ -836,7 +843,7 @@ require_once 'auth_check.php';
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">💰 Rate Distribution (All Rates)</h3>
                     <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
-                    <div class="detail-chart-container">
+                    <div class="detail-chart-container" id="rateDistributionChartContainer">
                         <canvas id="rateDistributionChart"></canvas>
                     </div>
                 </div>
@@ -845,7 +852,7 @@ require_once 'auth_check.php';
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">📆 Subscription Length Distribution</h3>
                     <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
-                    <div class="detail-chart-container">
+                    <div class="detail-chart-container" id="subscriptionLengthChartContainer">
                         <canvas id="subscriptionLengthChart"></canvas>
                     </div>
                 </div>
@@ -883,33 +890,30 @@ require_once 'auth_check.php';
     </div> <!-- /detailPanel -->
 
     <!-- JavaScript - Cache-busting version parameter forces browser to fetch latest files -->
-    <script src="assets/app.js?v=20251205"></script>
-    <!-- PHASE 2: Enhancements -->
-    <script src="assets/app_phase2_enhancements.js?v=20251205"></script>
+    <script src="assets/app.js?v=20251207"></script>
     <!-- State Icons & Chart Layout -->
-    <script src="assets/state-icons.js?v=20251205"></script>
-    <script src="assets/chart-layout-manager.js?v=20251205"></script>
-    <script src="assets/donut-to-state-animation.js?v=20251205"></script>
+    <script src="assets/state-icons.js?v=20251207"></script>
+    <script src="assets/chart-layout-manager.js?v=20251207"></script>
+    <script src="assets/donut-to-state-animation.js?v=20251207"></script>
     <!-- Detail Panel -->
-    <script src="assets/detail_panel.js?v=20251205"></script>
+    <script src="assets/detail_panel.js?v=20251207"></script>
     <!-- UI/UX Quick Wins -->
-    <script src="assets/ui-enhancements.js?v=20251205"></script>
+    <script src="assets/ui-enhancements.js?v=20251207"></script>
 
     <!-- PHASE 3: Contextual Chart Menus -->
-    <script src="assets/context-menu.js?v=20251205"></script>
-    <script src="assets/export-utils.js?v=20251205"></script>
-    <script src="assets/subscriber-table-panel.js?v=20251205"></script>
-    <script src="assets/chart-transition-manager.js?v=20251205"></script>
-    <script src="assets/chart-context-integration.js?v=20251205"></script>
+    <script src="assets/context-menu.js?v=20251207"></script>
+    <script src="assets/export-utils.js?v=20251207"></script>
+    <script src="assets/subscriber-table-panel.js?v=20251207"></script>
+    <script src="assets/trend-slider.js?v=20251207"></script>
+    <script src="assets/chart-context-integration.js?v=20251207"></script>
     <script>
-        // Initialize UI enhancements after page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Run enhancements after a short delay to ensure data is loaded
-            setTimeout(function() {
-                if (typeof initializeUIEnhancements === 'function') {
-                    initializeUIEnhancements();
-                }
-            }, 500);
+        // Initialize UI enhancements after dashboard is fully rendered
+        // This listens for the 'DashboardRendered' event dispatched by renderDashboard()
+        // Replaces the old setTimeout(500) race condition with explicit event coordination
+        document.addEventListener('DashboardRendered', function() {
+            if (typeof initializeUIEnhancements === 'function') {
+                initializeUIEnhancements();
+            }
         });
 
         // Override the existing toggleExportMenu function to update ARIA state

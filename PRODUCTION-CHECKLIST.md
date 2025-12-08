@@ -9,7 +9,7 @@
 Before ANY production operation, verify:
 
 - [ ] I have read `.claude/CLAUDE.md`
-- [ ] I have read `docker-compose.yml`
+- [ ] I have read `docker-compose.prod.yml` (production config)
 - [ ] I know the exact connection details (see below)
 - [ ] I have a written plan with max 3 steps
 - [ ] I am NOT guessing or trying random approaches
@@ -92,10 +92,10 @@ sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no it@192.168.1.254 'cat /
 
 **NAS File System:**
 - Project root: `/volume1/docker/nwdownloads/`
-- Web files: `/volume1/docker/nwdownloads/web/`
+- Web files: **Baked into Docker image** (pulled from Docker Hub)
 - Database init: `/volume1/docker/nwdownloads/db_init/`
 - SQL scripts: `/volume1/docker/nwdownloads/sql/`
-- Docker Compose: `/volume1/docker/nwdownloads/docker-compose.yml`
+- Docker Compose Production: `/volume1/docker/nwdownloads/docker-compose.prod.yml`
 
 **Container Internal Paths:**
 - Web root: `/var/www/html/` (inside circulation_web container)
@@ -120,14 +120,32 @@ sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no it@192.168.1.254 'cat /
 
 ## 🔧 COMMON OPERATIONS
 
-### 1. Deploy Updated PHP File
+### 1. Deploy Code Updates (Docker Hub - PRIMARY METHOD)
+
+**⚠️ IMPORTANT: Code deployments use Docker Hub images ONLY. Never copy .php/.html files directly.**
 
 ```bash
-# Upload file
-sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no it@192.168.1.254 'cat > /volume1/docker/nwdownloads/web/upload.php' < web/upload.php
+# From development workstation: Build and push to Docker Hub
+cd $PROJECT_ROOT
+./build-and-push.sh
 
-# Restart web container
-sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no it@192.168.1.254 'cd /volume1/docker/nwdownloads && echo Mojave48ice | sudo -S -k /usr/local/bin/docker compose restart web'
+# On production NAS: Pull latest image and deploy
+sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no it@192.168.1.254 'cd /volume1/docker/nwdownloads && echo Mojave48ice | sudo -S -k /usr/local/bin/docker compose -f docker-compose.prod.yml pull && echo Mojave48ice | sudo -S -k /usr/local/bin/docker compose -f docker-compose.prod.yml up -d'
+
+# Verify deployment
+sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no it@192.168.1.254 'echo Mojave48ice | sudo -S -k /usr/local/bin/docker compose -f docker-compose.prod.yml ps'
+```
+
+### 1b. Deploy Configuration Files (SSH Cat - Config Only)
+
+**Use SSH cat ONLY for configuration files (docker-compose.prod.yml, db_init scripts).**
+
+```bash
+# Deploy docker-compose.prod.yml
+sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no it@192.168.1.254 'cat > /volume1/docker/nwdownloads/docker-compose.prod.yml' < docker-compose.prod.yml
+
+# Deploy database init script
+sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no it@192.168.1.254 'cat > /volume1/docker/nwdownloads/db_init/init.sql' < db_init/init.sql
 ```
 
 ### 2. Execute SQL Script on Production Database
@@ -220,11 +238,11 @@ sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no it@192.168.1.254 'cd /v
 ## 📚 MORE INFORMATION
 
 - **Full project config:** `.claude/CLAUDE.md`
-- **Docker configuration:** `docker-compose.yml`
-- **Deployment guide:** `docs/DEPLOYMENT-STRATEGY.md`
+- **Docker production config:** `docker-compose.prod.yml`
+- **Docker Hub workflow:** `docs/docker-hub-workflow.md`
 - **Database schema:** `sql/` directory
 
 ---
 
-**Last Updated:** 2025-12-05
+**Last Updated:** 2025-12-06 (Updated for Docker Hub image-based deployments)
 **Created By:** Claude (after learning the hard way to read documentation first)

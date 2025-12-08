@@ -1,4 +1,5 @@
 <?php
+
 /**
  * All Subscriber Report Upload and Import Handler
  *
@@ -12,18 +13,15 @@
 
 // Require authentication
 require_once 'auth_check.php';
-
 // Error reporting for debugging
 error_reporting(E_ALL);
-ini_set('display_errors', 0);  // Don't display errors to user
+ini_set('display_errors', 0);
+// Don't display errors to user
 ini_set('log_errors', 1);
-
 // Start timing
 $start_time = microtime(true);
-
 // Response header
 header('Content-Type: application/json');
-
 // Database configuration
 $db_config = [
     'host' => getenv('DB_HOST') ?: 'database',
@@ -32,27 +30,23 @@ $db_config = [
     'username' => getenv('DB_USER') ?: 'circ_dash',
     'password' => getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!',
 ];
-
 try {
-    // Connect to database
+// Connect to database
     $dsn = "mysql:host={$db_config['host']};port={$db_config['port']};dbname={$db_config['database']};charset=utf8mb4";
     $pdo = new PDO($dsn, $db_config['username'], $db_config['password'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
-
-    // Validate file upload
+// Validate file upload
     if (!isset($_FILES['allsubscriber']) || $_FILES['allsubscriber']['error'] !== UPLOAD_ERR_OK) {
         throw new Exception('No file uploaded or upload error occurred');
     }
 
     $file = $_FILES['allsubscriber'];
-
-    // Validate file type
+// Validate file type
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime_type = finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
-
     if (!in_array($mime_type, ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel'])) {
         throw new Exception('Invalid file type. Please upload a CSV file');
     }
@@ -64,11 +58,9 @@ try {
 
     // Parse CSV and process
     $result = processAllSubscriberReport($pdo, $file['tmp_name']);
-
-    // Calculate processing time
+// Calculate processing time
     $processing_time = round(microtime(true) - $start_time, 2) . ' seconds';
-
-    // Return success
+// Return success
     echo json_encode([
         'success' => true,
         'date_range' => $result['date_range'],
@@ -78,7 +70,6 @@ try {
         'processing_time' => $processing_time,
         'summary_html' => $result['summary_html']
     ]);
-
 } catch (Exception $e) {
     http_response_code(400);
     echo json_encode([
@@ -89,39 +80,35 @@ try {
 }
 
 /**
- * Calculate snapshot_date based on Sunday boundary logic
+ * Extract snapshot_date from filename
  *
- * Complete week: Monday 8am - Saturday 11:59pm
- * Safe export window: Saturday 11:59pm - Monday 7:59am (includes Sunday)
+ * Filename format: AllSubscriberReportYYYYMMDDHHMMSS.csv
+ * Example: AllSubscriberReport20251206164201.csv → 2025-12-06
  *
- * @param string $uploadDateTime Format: 'Y-m-d H:i:s'
- * @return string snapshot_date in 'Y-m-d' format (always a Sunday)
+ * The filename timestamp is the source of truth for the snapshot date.
+ *
+ * @param string $filename Original uploaded filename
+ * @return string snapshot_date in 'Y-m-d' format, or current date if parsing fails
  */
-function calculateSnapshotDate($uploadDateTime) {
-    $timestamp = strtotime($uploadDateTime);
-    $dayOfWeek = (int)date('N', $timestamp); // 1=Monday, 7=Sunday
-    $hour = (int)date('G', $timestamp); // 0-23
+function extractSnapshotDateFromFilename($filename)
+{
 
-    // Sunday → use today (already the week ending)
-    if ($dayOfWeek == 7) {
-        return date('Y-m-d', $timestamp);
+    // Pattern: AllSubscriberReport + YYYYMMDDHHMMSS + .csv
+    // Extract the 14-digit timestamp: YYYYMMDDHHMMSS
+    if (preg_match('/AllSubscriberReport(\d{14})\.csv$/i', $filename, $matches)) {
+        $timestamp = $matches[1];
+// Extract YYYYMMDD (first 8 digits)
+        $dateStr = substr($timestamp, 0, 8);
+// Format: YYYYMMDD → YYYY-MM-DD
+        $year = substr($dateStr, 0, 4);
+        $month = substr($dateStr, 4, 2);
+        $day = substr($dateStr, 6, 2);
+        return "$year-$month-$day";
     }
 
-    // Saturday → use tomorrow (this week's Sunday)
-    if ($dayOfWeek == 6) {
-        return date('Y-m-d', strtotime('+1 day', $timestamp));
-    }
-
-    // Monday before 8am → use yesterday (still in safe window, last week's Sunday)
-    if ($dayOfWeek == 1 && $hour < 8) {
-        return date('Y-m-d', strtotime('-1 day', $timestamp));
-    }
-
-    // Monday 8am+ or Tue-Fri → current week incomplete, go back to PREVIOUS week's Sunday
-    // Logic: Current week started Mon 8am, so any upload after that needs previous week
-    // Days back = dayOfWeek (to get to this week's Sunday) + 7 (to go back one more week)
-    $daysBack = $dayOfWeek + 7;
-    return date('Y-m-d', strtotime("-$daysBack days", $timestamp));
+    // Fallback: If filename doesn't match expected pattern, use current date
+    error_log("Warning: Could not extract date from filename '$filename', using current date");
+    return date('Y-m-d');
 }
 
 /**
@@ -134,7 +121,9 @@ function calculateSnapshotDate($uploadDateTime) {
  * - Actual data rows
  * - Footer section (starting with "Report Criteria")
  */
-function processAllSubscriberReport($pdo, $filepath) {
+function processAllSubscriberReport($pdo, $filepath)
+{
+
     $handle = fopen($filepath, 'r');
     if (!$handle) {
         throw new Exception('Could not open uploaded file');
@@ -145,12 +134,12 @@ function processAllSubscriberReport($pdo, $filepath) {
     $header_line = 0;
     while (($row = fgetcsv($handle)) !== false) {
         $header_line++;
-
-        // Look for "SUB NUM" in any column (case-insensitive)
+    // Look for "SUB NUM" in any column (case-insensitive)
         foreach ($row as $cell) {
             if (stripos($cell, 'SUB NUM') !== false) {
                 $header = $row;
-                break 2;  // Break out of both loops
+                break 2;
+            // Break out of both loops
             }
         }
 
@@ -166,16 +155,14 @@ function processAllSubscriberReport($pdo, $filepath) {
 
     // Trim whitespace from column names
     $header = array_map('trim', $header);
-
-    // Validate header format - check for required columns
+// Validate header format - check for required columns
     // Note: Column names may have extra spaces, so we check if they exist anywhere
     $required_columns = ['SUB NUM', 'Ed', 'ISS', 'DEL'];
     $missing_columns = [];
-
     foreach ($required_columns as $required) {
         $found = false;
         foreach ($header as $col) {
-            // Check if the required column exists (case-insensitive, ignore extra spaces)
+        // Check if the required column exists (case-insensitive, ignore extra spaces)
             if (strtoupper(trim($col)) === strtoupper($required)) {
                 $found = true;
                 break;
@@ -192,14 +179,12 @@ function processAllSubscriberReport($pdo, $filepath) {
 
     // Map column indices
     $col_map = array_flip($header);
-
-    // Skip decorative separator rows (typically 2-3 rows of dashes/equals after header)
+// Skip decorative separator rows (typically 2-3 rows of dashes/equals after header)
     $rows_skipped = 0;
     while (($row = fgetcsv($handle)) !== false && $rows_skipped < 5) {
-        // Check if row is decorative (all dashes, equals, or mostly empty)
+    // Check if row is decorative (all dashes, equals, or mostly empty)
         $first_cell = trim($row[0] ?? '');
-
-        // If first cell starts with dash or is empty but we haven't seen data yet, skip
+    // If first cell starts with dash or is empty but we haven't seen data yet, skip
         if (empty($first_cell) || preg_match('/^[-=_]+$/', $first_cell)) {
             $rows_skipped++;
             continue;
@@ -214,7 +199,8 @@ function processAllSubscriberReport($pdo, $filepath) {
 
     // Tracking variables
     $snapshots = [];
-    $subscriber_records = [];  // NEW: Individual subscriber records
+    $subscriber_records = [];
+// NEW: Individual subscriber records
     $stats = [
         'new_records' => 0,
         'updated_records' => 0,
@@ -224,36 +210,49 @@ function processAllSubscriberReport($pdo, $filepath) {
         'max_date' => null,
         'by_business_unit' => []
     ];
-
-    // Calculate snapshot_date based on Sunday boundary logic
-    // Complete week: Mon 8am - Sat 11:59pm
-    // Safe export window: Sat 11:59pm - Mon 7:59am
-    // Rule: Export in safe window → this Sunday, otherwise → previous Sunday
-    $today = date('Y-m-d');
-    $upload_datetime = date('Y-m-d H:i:s'); // Current date/time
-    $snapshot_date = calculateSnapshotDate($upload_datetime);
-
-    // Store original upload info for audit trail
-    $original_upload_date = $today;
+// Extract snapshot_date from filename (source of truth)
+    // Filename format: AllSubscriberReport20251206164201.csv → 2025-12-06
     $original_filename = $_FILES['allsubscriber']['name'] ?? 'unknown';
+    $snapshot_date = extractSnapshotDateFromFilename($original_filename);
+// Calculate week number and year from snapshot_date
+    // IMPORTANT: Monday snapshots represent PREVIOUS week's data
+    $dt = new DateTime($snapshot_date);
+    $dayOfWeek = (int)$dt->format('w');
+// 0=Sunday, 6=Saturday
 
-    // Process each row
-    $row_num = $header_line;  // Start counting from header line
+    // If Monday (1), subtract 1 day to get previous week's Saturday
+    // This assigns Monday snapshots to the week that just ended
+    if ($dayOfWeek === 1) {
+        $dt->modify('-1 day');
+// Move to previous Saturday
+    }
+
+    // Calculate week number using ISO 8601 (Monday start), then adjust to Sunday start
+    $week_num = (int)$dt->format('W');
+    $year = (int)$dt->format('Y');
+// Store original upload info for audit trail
+    $today = date('Y-m-d');
+    $original_upload_date = $today;
+// Process each row
+    $row_num = $header_line;
+// Start counting from header line
 
     // Helper function to check if row is footer/metadata
-    $isFooterRow = function($row) {
+    $isFooterRow = function ($row) {
+
         $first_cell = trim($row[0] ?? '');
         // Check for footer markers
-        if (stripos($first_cell, 'Report Criteria') !== false ||
+        if (
+            stripos($first_cell, 'Report Criteria') !== false ||
             stripos($first_cell, 'Report Start:') !== false ||
             stripos($first_cell, 'Copies:Issues') !== false ||
-            stripos($first_cell, 'Edition Code') !== false) {
+            stripos($first_cell, 'Edition Code') !== false
+        ) {
             return true;
         }
         return false;
     };
-
-    // Process first data row if we found one
+// Process first data row if we found one
     $rows_to_process = [];
     if (isset($first_data_row)) {
         $rows_to_process[] = $first_data_row;
@@ -262,8 +261,7 @@ function processAllSubscriberReport($pdo, $filepath) {
     // Read remaining rows
     while (($row = fgetcsv($handle)) !== false) {
         $row_num++;
-
-        // Stop at footer section
+// Stop at footer section
         if ($isFooterRow($row)) {
             break;
         }
@@ -278,48 +276,41 @@ function processAllSubscriberReport($pdo, $filepath) {
 
     // Now process all collected rows
     foreach ($rows_to_process as $row) {
-
         try {
-            // Extract all subscriber fields
+        // Extract all subscriber fields
             // Core subscriber identification
             $sub_num = trim($row[$col_map['SUB NUM']] ?? '');
             $paper_code = trim($row[$col_map['Ed']] ?? '');
             $name = isset($col_map['Name']) ? trim($row[$col_map['Name']] ?? '') : '';
-
-            // Subscription details
+        // Subscription details
             $route = isset($col_map['Route']) ? trim($row[$col_map['Route']] ?? '') : '';
             $delivery_type = trim($row[$col_map['DEL']] ?? '');
             $zone = isset($col_map['Zone']) ? trim($row[$col_map['Zone']] ?? '') : '';
             $subscription_length = isset($col_map['LEN']) ? trim($row[$col_map['LEN']] ?? '') : '';
             $payment_status = isset($col_map['PAY']) ? trim($row[$col_map['PAY']] ?? '') : '';
-
-            // Dates
+        // Dates
             $begin_date = isset($col_map['BEGIN']) ? trim($row[$col_map['BEGIN']] ?? '') : '';
             $paid_thru = isset($col_map['Paid Thru']) ? trim($row[$col_map['Paid Thru']] ?? '') : '';
-
-            // Financial
+        // Financial
             $daily_rate = isset($col_map['DAILY RATE']) ? trim($row[$col_map['DAILY RATE']] ?? '') : '';
             $last_payment = isset($col_map['LAST PAY']) ? trim($row[$col_map['LAST PAY']] ?? '') : '';
-
-            // Contact information (NEW)
+        // Contact information (NEW)
             $address = isset($col_map['Address']) ? trim($row[$col_map['Address']] ?? '') : '';
             $city_state_postal = isset($col_map['CITY  STATE  POSTAL']) ? trim($row[$col_map['CITY  STATE  POSTAL']] ?? '') : '';
             $phone = isset($col_map['Phone']) ? trim($row[$col_map['Phone']] ?? '') : '';
             $email = isset($col_map['Email']) ? trim($row[$col_map['Email']] ?? '') : '';
-
-            // Additional fields (NEW)
+        // Additional fields (NEW)
             $abc = isset($col_map['ABC']) ? trim($row[$col_map['ABC']] ?? '') : '';
             $issue_code = isset($col_map['ISS']) ? trim($row[$col_map['ISS']] ?? '') : '';
             $login_id = isset($col_map['Login ID']) ? trim($row[$col_map['Login ID']] ?? '') : '';
             $last_login = isset($col_map['Last Login']) ? trim($row[$col_map['Last Login']] ?? '') : '';
-
-            // Skip invalid rows
+        // Skip invalid rows
             if (empty($paper_code) || empty($sub_num)) {
                 continue;
             }
 
-            // Use calculated snapshot_date (Sunday boundary logic applied above)
-            // Already set: $snapshot_date = calculateSnapshotDate($upload_datetime);
+            // Use snapshot_date extracted from filename
+            // Already set: $snapshot_date = extractSnapshotDateFromFilename($original_filename);
 
             // Filter: Only 2025-01-01 onwards
             if ($snapshot_date < '2025-01-01') {
@@ -330,12 +321,13 @@ function processAllSubscriberReport($pdo, $filepath) {
             $paper_info = getPaperInfo($paper_code);
             $business_unit = $paper_info['business_unit'];
             $paper_name = $paper_info['name'];
-
-            // Initialize snapshot for this date/paper if not exists
-            $key = $snapshot_date . '|' . $paper_code;
+        // Initialize snapshot for this week/paper if not exists
+            $key = $week_num . '|' . $year . '|' . $paper_code;
             if (!isset($snapshots[$key])) {
                 $snapshots[$key] = [
                     'snapshot_date' => $snapshot_date,
+                    'week_num' => $week_num,
+                    'year' => $year,
                     'paper_code' => $paper_code,
                     'paper_name' => $paper_name,
                     'business_unit' => $business_unit,
@@ -349,20 +341,24 @@ function processAllSubscriberReport($pdo, $filepath) {
 
             // Count subscribers
             $snapshots[$key]['total_active']++;
-
-            // Count by delivery type
+        // Count by delivery type
             switch (strtoupper($delivery_type)) {
                 case 'MAIL':
-                    $snapshots[$key]['mail_delivery']++;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              $snapshots[$key]['mail_delivery']++;
+
                     break;
                 case 'CARR':
                 case 'CARRIER':
                     $snapshots[$key]['carrier_delivery']++;
+
                     break;
                 case 'INTE':
                 case 'INTERNET':
                 case 'DIGITAL':
+                case 'EMAI':
+                case 'EMAIL':
                     $snapshots[$key]['digital_only']++;
+
                     break;
             }
 
@@ -375,6 +371,8 @@ function processAllSubscriberReport($pdo, $filepath) {
             // NEW: Store individual subscriber record
             $subscriber_records[] = [
                 'snapshot_date' => $snapshot_date,
+                'week_num' => $week_num,
+                'year' => $year,
                 'sub_num' => $sub_num,
                 'paper_code' => $paper_code,
                 'paper_name' => $paper_name,
@@ -400,67 +398,116 @@ function processAllSubscriberReport($pdo, $filepath) {
                 'login_id' => $login_id,
                 'last_login' => parseDate($last_login)
             ];
-
         } catch (Exception $e) {
-            // Log error but continue processing
+        // Log error but continue processing
             error_log("Row $row_num error: " . $e->getMessage());
         }
     }
 
     fclose($handle);
-
     if (empty($snapshots)) {
         throw new Exception('No valid data found in CSV file (or all data is before 2025-01-01)');
     }
 
-    // Prepare UPSERT statement
-    $stmt = $pdo->prepare("
-        INSERT INTO daily_snapshots (
-            snapshot_date, paper_code, paper_name, business_unit,
-            total_active, deliverable, mail_delivery, carrier_delivery, digital_only, on_vacation
-        ) VALUES (
-            :snapshot_date, :paper_code, :paper_name, :business_unit,
-            :total_active, :deliverable, :mail_delivery, :carrier_delivery, :digital_only, :on_vacation
-        )
-        ON DUPLICATE KEY UPDATE
-            paper_name = VALUES(paper_name),
-            business_unit = VALUES(business_unit),
-            total_active = VALUES(total_active),
-            deliverable = VALUES(deliverable),
-            mail_delivery = VALUES(mail_delivery),
-            carrier_delivery = VALUES(carrier_delivery),
-            digital_only = VALUES(digital_only),
-            on_vacation = VALUES(on_vacation)
-    ");
+    // WEEK-BASED UPSERT WITH DAY-OF-WEEK PRECEDENCE
+    // Rule: "Latest day-of-week wins"
+    // - Saturday data replaces Friday data
+    // - Friday data replaces Thursday data
+    // - Tuesday data is REJECTED if Friday data already exists
 
-    // Insert/Update snapshots
     $pdo->beginTransaction();
-
     try {
+        // Step 1: Check if data already exists for this week
+        $check_stmt = $pdo->prepare("
+            SELECT snapshot_date, DAYOFWEEK(snapshot_date) as day_of_week
+            FROM daily_snapshots
+            WHERE week_num = ? AND year = ?
+            LIMIT 1
+        ");
+        $check_stmt->execute([$week_num, $year]);
+        $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
+
+        $upload_day_of_week = (int)date('N', strtotime($snapshot_date)); // 1=Mon, 7=Sun
+        $replaced_data = false;
+        $rejection_message = null;
+
+        if ($existing) {
+            // Data exists for this week - compare day-of-week
+            $existing_date = $existing['snapshot_date'];
+            // MySQL DAYOFWEEK: 1=Sun, 2=Mon, ..., 7=Sat
+            // Convert to ISO (1=Mon, 7=Sun) for easier comparison
+            $existing_day_mysql = (int)$existing['day_of_week'];
+            $existing_day_iso = $existing_day_mysql == 1 ? 7 : $existing_day_mysql - 1;
+
+            if ($upload_day_of_week > $existing_day_iso) {
+                // New data is LATER in week - accept and replace
+                $delete_daily = $pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
+                $delete_daily->execute([$week_num, $year]);
+                $deleted_daily = $delete_daily->rowCount();
+
+                $delete_subscriber = $pdo->prepare("DELETE FROM subscriber_snapshots WHERE week_num = ? AND year = ?");
+                $delete_subscriber->execute([$week_num, $year]);
+                $deleted_subscriber = $delete_subscriber->rowCount();
+
+                $day_names = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                $upload_day_name = $day_names[$upload_day_of_week];
+                $existing_day_name = $day_names[$existing_day_iso];
+
+                error_log("✅ Accepted: $upload_day_name data ($snapshot_date) replaced $existing_day_name data ($existing_date) for Week $week_num, $year");
+                $replaced_data = true;
+
+            } elseif ($upload_day_of_week == $existing_day_iso) {
+                // Same day - replace (re-upload scenario)
+                $delete_daily = $pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
+                $delete_daily->execute([$week_num, $year]);
+                $deleted_daily = $delete_daily->rowCount();
+
+                $delete_subscriber = $pdo->prepare("DELETE FROM subscriber_snapshots WHERE week_num = ? AND year = ?");
+                $delete_subscriber->execute([$week_num, $year]);
+                $deleted_subscriber = $delete_subscriber->rowCount();
+
+                error_log("✅ Re-upload: Same day data replaced for Week $week_num, $year");
+                $replaced_data = true;
+
+            } else {
+                // New data is EARLIER in week - reject
+                $day_names = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                $upload_day_name = $day_names[$upload_day_of_week];
+                $existing_day_name = $day_names[$existing_day_iso];
+
+                $pdo->rollBack();
+                throw new Exception(
+                    "❌ Upload rejected: $upload_day_name data ($snapshot_date) cannot replace existing $existing_day_name data ($existing_date). " .
+                    "Later-in-week data takes precedence. Upload $existing_day_name or later data to replace."
+                );
+            }
+        }
+        // If no existing data, proceed with insert (no deletion needed)
+
+        // Step 2: Prepare INSERT statement for daily_snapshots
+        $stmt = $pdo->prepare("
+            INSERT INTO daily_snapshots (
+                snapshot_date, week_num, year, paper_code, paper_name, business_unit,
+                total_active, deliverable, mail_delivery, carrier_delivery, digital_only, on_vacation
+            ) VALUES (
+                :snapshot_date, :week_num, :year, :paper_code, :paper_name, :business_unit,
+                :total_active, :deliverable, :mail_delivery, :carrier_delivery, :digital_only, :on_vacation
+            )
+        ");
+    // Step 3: Insert snapshots
         foreach ($snapshots as $snapshot) {
-            // Calculate deliverable (total_active - on_vacation)
+    // Calculate deliverable (total_active - on_vacation)
             $snapshot['deliverable'] = $snapshot['total_active'] - $snapshot['on_vacation'];
-
-            // Check if record exists
-            $check_stmt = $pdo->prepare("
-                SELECT COUNT(*) FROM daily_snapshots
-                WHERE snapshot_date = ? AND paper_code = ?
-            ");
-            $check_stmt->execute([$snapshot['snapshot_date'], $snapshot['paper_code']]);
-            $exists = $check_stmt->fetchColumn() > 0;
-
-            // Execute upsert
+    // Execute insert
             $stmt->execute($snapshot);
-
-            // Track stats
-            if ($exists) {
+    // Track stats
+            if ($replaced_data) {
                 $stats['updated_records']++;
             } else {
                 $stats['new_records']++;
             }
             $stats['total_processed']++;
-
-            // Track date range
+    // Track date range
             if ($stats['min_date'] === null || $snapshot['snapshot_date'] < $stats['min_date']) {
                 $stats['min_date'] = $snapshot['snapshot_date'];
             }
@@ -480,55 +527,30 @@ function processAllSubscriberReport($pdo, $filepath) {
             }
         }
 
-        // NEW: Insert subscriber-level records in bulk with UPSERT logic
+            // Step 4: Insert subscriber-level records (week data already deleted above)
         if (!empty($subscriber_records)) {
             $sub_stmt = $pdo->prepare("
                 INSERT INTO subscriber_snapshots (
-                    snapshot_date, sub_num, paper_code, paper_name, business_unit,
+                    snapshot_date, week_num, year, sub_num, paper_code, paper_name, business_unit,
                     name, route, rate_name, subscription_length, delivery_type,
                     payment_status, begin_date, paid_thru, daily_rate, on_vacation,
                     address, city_state_postal, abc, issue_code, last_payment_amount,
                     phone, email, login_id, last_login
                 ) VALUES (
-                    :snapshot_date, :sub_num, :paper_code, :paper_name, :business_unit,
+                    :snapshot_date, :week_num, :year, :sub_num, :paper_code, :paper_name, :business_unit,
                     :name, :route, :rate_name, :subscription_length, :delivery_type,
                     :payment_status, :begin_date, :paid_thru, :daily_rate, :on_vacation,
                     :address, :city_state_postal, :abc, :issue_code, :last_payment_amount,
                     :phone, :email, :login_id, :last_login
                 )
-                ON DUPLICATE KEY UPDATE
-                    paper_name = VALUES(paper_name),
-                    business_unit = VALUES(business_unit),
-                    name = VALUES(name),
-                    route = VALUES(route),
-                    rate_name = VALUES(rate_name),
-                    subscription_length = VALUES(subscription_length),
-                    delivery_type = VALUES(delivery_type),
-                    payment_status = VALUES(payment_status),
-                    begin_date = VALUES(begin_date),
-                    paid_thru = VALUES(paid_thru),
-                    daily_rate = VALUES(daily_rate),
-                    on_vacation = VALUES(on_vacation),
-                    address = VALUES(address),
-                    city_state_postal = VALUES(city_state_postal),
-                    abc = VALUES(abc),
-                    issue_code = VALUES(issue_code),
-                    last_payment_amount = VALUES(last_payment_amount),
-                    phone = VALUES(phone),
-                    email = VALUES(email),
-                    login_id = VALUES(login_id),
-                    last_login = VALUES(last_login),
-                    import_timestamp = CURRENT_TIMESTAMP
             ");
-
             foreach ($subscriber_records as $sub) {
                 $sub_stmt->execute($sub);
                 $stats['subscriber_records_imported']++;
             }
         }
 
-        $pdo->commit();
-
+            $pdo->commit();
     } catch (Exception $e) {
         $pdo->rollBack();
         throw $e;
@@ -556,7 +578,9 @@ function processAllSubscriberReport($pdo, $filepath) {
 /**
  * Get paper information
  */
-function getPaperInfo($paper_code) {
+function getPaperInfo($paper_code)
+{
+
     $papers = [
         'TJ' => ['name' => 'The Journal', 'business_unit' => 'South Carolina'],
         'TA' => ['name' => 'The Advertiser', 'business_unit' => 'Michigan'],
@@ -565,7 +589,6 @@ function getPaperInfo($paper_code) {
         'WRN' => ['name' => 'Wind River News', 'business_unit' => 'Wyoming'],
         'FN' => ['name' => 'Former News', 'business_unit' => 'Sold']
     ];
-
     return $papers[$paper_code] ?? ['name' => $paper_code, 'business_unit' => 'Unknown'];
 }
 
@@ -573,21 +596,21 @@ function getPaperInfo($paper_code) {
  * Parse various date formats from Newzware CSV
  * Handles formats like: 6/5/25, 12/4/25, etc.
  */
-function parseDate($date_string) {
+function parseDate($date_string)
+{
+
     if (empty($date_string)) {
         return null;
     }
 
     // Try parsing M/D/Y format (6/5/25)
     $date_string = trim($date_string);
-
-    // Handle M/D/Y or M/D/YY format
+// Handle M/D/Y or M/D/YY format
     if (preg_match('#^(\d{1,2})/(\d{1,2})/(\d{2,4})$#', $date_string, $matches)) {
         $month = $matches[1];
         $day = $matches[2];
         $year = $matches[3];
-
-        // Convert 2-digit year to 4-digit (assume 2000s)
+// Convert 2-digit year to 4-digit (assume 2000s)
         if (strlen($year) == 2) {
             $year = '20' . $year;
         }

@@ -66,6 +66,23 @@ hotfolder/
 
 # Node.js
 node_modules/
+# Screenshots and documentation images
+Screenshot*.png
+*.jpg
+*.png
+
+# PDF documentation (keep in separate docs repo if needed)
+*.pdf
+
+# Archive files
+*.zip
+
+# Test/development artifacts
+context.txt
+hotfolder/
+
+# Node.js
+node_modules/
 package-lock.json
 
 # Build artifacts

@@ -409,7 +409,13 @@ function renderDashboard() {
 
     // Dispatch custom event to signal dashboard is fully rendered
     // This replaces the setTimeout(500) hack with explicit event coordination
-    document.dispatchEvent(new Event('DashboardRendered'));
+    // Include backfill data for visual indicators
+    const event = new CustomEvent('DashboardRendered', {
+        detail: {
+            backfill: dashboardData.backfill || null
+        }
+    });
+    document.dispatchEvent(event);
 }
 
 
@@ -1183,6 +1189,9 @@ function renderAnalytics() {
     const container = document.getElementById('analyticsInsights');
     if (!container) return;
 
+    // Find the section element (parent of container)
+    const section = container.closest('section');
+
     let html = '';
 
     // Forecast Card
@@ -1234,8 +1243,8 @@ function renderAnalytics() {
         `;
     }
 
-    // Anomaly Alert Card
-    if (analytics.anomalies) {
+    // Anomaly Alert Card - only show if there are anomalies detected
+    if (analytics.anomalies && analytics.anomalies.length > 0) {
         const anomalyCount = analytics.anomalies.length;
         const latestAnomaly = analytics.anomalies[analytics.anomalies.length - 1];
 
@@ -1247,8 +1256,7 @@ function renderAnalytics() {
                 </div>
                 <div class="text-3xl font-bold text-amber-900">${anomalyCount}</div>
                 <div class="text-sm text-amber-700 mt-2">
-                    ${anomalyCount === 0 ? 'No anomalies detected' :
-                      anomalyCount === 1 ? 'anomaly in last 12 weeks' :
+                    ${anomalyCount === 1 ? 'anomaly in last 12 weeks' :
                       'anomalies in last 12 weeks'}
                 </div>
                 ${latestAnomaly ? `
@@ -1261,7 +1269,18 @@ function renderAnalytics() {
         `;
     }
 
-    container.innerHTML = html;
+    // If no analytics cards to show, hide the entire section
+    if (html === '') {
+        container.innerHTML = '';
+        if (section) {
+            section.style.display = 'none';
+        }
+    } else {
+        container.innerHTML = html;
+        if (section) {
+            section.style.display = 'block';
+        }
+    }
 }
 
 // ========================================

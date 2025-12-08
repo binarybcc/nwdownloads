@@ -29,6 +29,9 @@ require_once 'auth_check.php';
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+    <!-- Backfill Indicator Module -->
+    <script src="assets/backfill-indicator.js?v=20251208"></script>
+
     <!-- Custom Styles -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -480,6 +483,16 @@ require_once 'auth_check.php';
                         </div>
                     </div>
 
+                    <!-- Upload Button -->
+                    <a href="upload_page.php"
+                       class="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition flex items-center space-x-2"
+                       title="Upload weekly data">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        <span>Upload</span>
+                    </a>
+
                     <!-- Logout Button -->
                     <a href="logout.php"
                        class="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition flex items-center space-x-2"
@@ -910,9 +923,14 @@ require_once 'auth_check.php';
         // Initialize UI enhancements after dashboard is fully rendered
         // This listens for the 'DashboardRendered' event dispatched by renderDashboard()
         // Replaces the old setTimeout(500) race condition with explicit event coordination
-        document.addEventListener('DashboardRendered', function() {
+        document.addEventListener('DashboardRendered', function(event) {
             if (typeof initializeUIEnhancements === 'function') {
                 initializeUIEnhancements();
+            }
+
+            // Update backfill indicators if data is backfilled
+            if (window.backfillIndicator && event.detail && event.detail.backfill) {
+                window.backfillIndicator.update(event.detail.backfill);
             }
         });
 

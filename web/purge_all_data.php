@@ -136,7 +136,7 @@ try {
     echo "Database is now empty and ready for fresh data upload.\n";
     echo "\n";
     echo "Next steps:\n";
-    echo "1. Go to http://localhost:8081/upload.html\n";
+    echo "1. Go to http://localhost:8081/upload_page.php\n";
     echo "2. Upload your first CSV (older date)\n";
     echo "3. Upload your second CSV (newer date)\n";
     echo "4. Verify the data looks correct\n";

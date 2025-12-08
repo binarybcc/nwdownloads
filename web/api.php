@@ -355,8 +355,12 @@ function getBusinessUnitDetail($pdo, $unitName, $date = null)
  */
 function forecastNextWeek($trend)
 {
+    // Filter out NULL weeks (weeks with no data)
+    $validWeeks = array_filter($trend, function($week) {
+        return $week['total_active'] !== null;
+    });
 
-    $n = count($trend);
+    $n = count($validWeeks);
     if ($n < 4) {
         return null;
     // Not enough data
@@ -366,7 +370,9 @@ function forecastNextWeek($trend)
     $sumY = 0;
     $sumXY = 0;
     $sumX2 = 0;
-    foreach ($trend as $i => $week) {
+    // Re-index array so $i starts at 0
+    $validWeeks = array_values($validWeeks);
+    foreach ($validWeeks as $i => $week) {
         $x = $i + 1;
         $y = $week['total_active'];
         $sumX += $x;
@@ -379,10 +385,10 @@ function forecastNextWeek($trend)
     $intercept = ($sumY - $slope * $sumX) / $n;
 // Forecast next week (x = n + 1)
     $forecast = round($slope * ($n + 1) + $intercept);
-    $lastActual = $trend[$n - 1]['total_active'];
+    $lastActual = $validWeeks[$n - 1]['total_active'];
 // Calculate confidence based on variance
     $variance = 0;
-    foreach ($trend as $i => $week) {
+    foreach ($validWeeks as $i => $week) {
         $predicted = $slope * ($i + 1) + $intercept;
         $variance += pow($week['total_active'] - $predicted, 2);
     }
@@ -409,12 +415,16 @@ function forecastNextWeek($trend)
  */
 function detectAnomalies($trend)
 {
+    // Filter out NULL weeks (weeks with no data)
+    $validWeeks = array_filter($trend, function($week) {
+        return $week['total_active'] !== null;
+    });
 
-    if (count($trend) < 4) {
+    if (count($validWeeks) < 4) {
         return [];
     }
 
-    $values = array_column($trend, 'total_active');
+    $values = array_column($validWeeks, 'total_active');
     $mean = array_sum($values) / count($values);
     $variance = 0;
     foreach ($values as $value) {
@@ -422,7 +432,7 @@ function detectAnomalies($trend)
     }
     $stdDev = sqrt($variance / count($values));
     $anomalies = [];
-    foreach ($trend as $i => $week) {
+    foreach ($validWeeks as $i => $week) {
         $zScore = $stdDev > 0 ? ($week['total_active'] - $mean) / $stdDev : 0;
         if (abs($zScore) > 2) {
             $anomalies[] = [
@@ -494,6 +504,7 @@ function getOverviewEnhanced($pdo, $params)
     $week_num = $week['week_num'];
     $year = $week['year'];
 // Query by week_num and year (not snapshot_date) for week-based system
+    // Include source tracking for backfill indicators
     $stmt = $pdo->prepare("
         SELECT
             snapshot_date,
@@ -504,7 +515,11 @@ function getOverviewEnhanced($pdo, $params)
             SUM(deliverable) as deliverable,
             SUM(mail_delivery) as mail,
             SUM(carrier_delivery) as carrier,
-            SUM(digital_only) as digital
+            SUM(digital_only) as digital,
+            MAX(source_filename) as source_filename,
+            MAX(source_date) as source_date,
+            MAX(is_backfilled) as is_backfilled,
+            MAX(backfill_weeks) as backfill_weeks
         FROM daily_snapshots
         WHERE paper_code != 'FN'
           AND week_num = ?
@@ -843,6 +858,14 @@ function getOverviewEnhanced($pdo, $params)
     $forecast = forecastNextWeek($trend);
     $anomalies = detectAnomalies($trend);
     $performers = findPerformers($by_business_unit, $unit_comparisons);
+    // Prepare backfill metadata
+    $backfill_info = [
+        'is_backfilled' => (bool)($current['is_backfilled'] ?? false),
+        'backfill_weeks' => (int)($current['backfill_weeks'] ?? 0),
+        'source_date' => $current['source_date'] ?? null,
+        'source_filename' => $current['source_filename'] ?? null
+    ];
+
     return [
         'has_data' => true,
         'week' => [
@@ -863,6 +886,7 @@ function getOverviewEnhanced($pdo, $params)
             'carrier' => (int)$current['carrier'],
             'digital' => (int)$current['digital'],
         ],
+        'backfill' => $backfill_info,
         'comparison' => $comparison,
         'comparison_message' => $comparison_message,
         'trend' => array_map(function ($row) {

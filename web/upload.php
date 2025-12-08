@@ -13,6 +13,18 @@
 
 // Require authentication
 require_once 'auth_check.php';
+
+// Only accept POST requests
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405); // Method Not Allowed
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Method not allowed. This endpoint only accepts POST requests.'
+    ]);
+    exit;
+}
+
 // Error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
@@ -212,24 +224,19 @@ function processAllSubscriberReport($pdo, $filepath)
     ];
 // Extract snapshot_date from filename (source of truth)
     // Filename format: AllSubscriberReport20251206164201.csv → 2025-12-06
+    // NOTE: Filename date is when report was RUN, but data is for PREVIOUS week
     $original_filename = $_FILES['allsubscriber']['name'] ?? 'unknown';
-    $snapshot_date = extractSnapshotDateFromFilename($original_filename);
-// Calculate week number and year from snapshot_date
-    // IMPORTANT: Monday snapshots represent PREVIOUS week's data
-    $dt = new DateTime($snapshot_date);
-    $dayOfWeek = (int)$dt->format('w');
-// 0=Sunday, 6=Saturday
+    $file_date = extractSnapshotDateFromFilename($original_filename);
 
-    // If Monday (1), subtract 1 day to get previous week's Saturday
-    // This assigns Monday snapshots to the week that just ended
-    if ($dayOfWeek === 1) {
-        $dt->modify('-1 day');
-// Move to previous Saturday
-    }
+    // Subtract 7 days to get the week the data actually represents
+    // (Report run on Dec 8 = data for week ending Dec 7 = Week 49: Dec 1-7)
+    $dt = new DateTime($file_date);
+    $dt->modify('-7 days');
+    $snapshot_date = $dt->format('Y-m-d');
 
-    // Calculate week number using ISO 8601 (Monday start), then adjust to Sunday start
-    $week_num = (int)$dt->format('W');
-    $year = (int)$dt->format('Y');
+    // Calculate week number and year from adjusted date using ISO 8601
+    $week_num = (int)$dt->format('W');  // ISO week number (1-53)
+    $year = (int)$dt->format('o');      // ISO year (not 'Y' - important for year boundaries!)
 // Store original upload info for audit trail
     $today = date('Y-m-d');
     $original_upload_date = $today;
@@ -409,150 +416,226 @@ function processAllSubscriberReport($pdo, $filepath)
         throw new Exception('No valid data found in CSV file (or all data is before 2025-01-01)');
     }
 
-    // WEEK-BASED UPSERT WITH DAY-OF-WEEK PRECEDENCE
-    // Rule: "Latest day-of-week wins"
-    // - Saturday data replaces Friday data
-    // - Friday data replaces Thursday data
-    // - Tuesday data is REJECTED if Friday data already exists
+    // SOFT BACKFILL ALGORITHM
+    // Rule: "Latest filename date wins, backfills backward until hitting existing data"
+    //
+    // Logic:
+    // 1. Upload date from filename (source_date) is the authority
+    // 2. Replace any data for this week from older uploads
+    // 3. Backfill backward week-by-week until:
+    //    - Hit Oct 1, 2025 (minimum date), OR
+    //    - Hit a week with data from a NEWER upload (source_date > this upload)
+    // 4. Track: source_filename, source_date, is_backfilled, backfill_weeks
 
     $pdo->beginTransaction();
     try {
-        // Step 1: Check if data already exists for this week
-        $check_stmt = $pdo->prepare("
-            SELECT snapshot_date, DAYOFWEEK(snapshot_date) as day_of_week
-            FROM daily_snapshots
-            WHERE week_num = ? AND year = ?
-            LIMIT 1
-        ");
-        $check_stmt->execute([$week_num, $year]);
-        $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        // Determine backfill range (start of Week 48 - first real data week)
+        $min_backfill_date = '2025-11-24';
+        $min_backfill_week_year = getWeekAndYear($min_backfill_date);
+        $min_backfill_week = $min_backfill_week_year['week'];
+        $min_backfill_year = $min_backfill_week_year['year'];
 
-        $upload_day_of_week = (int)date('N', strtotime($snapshot_date)); // 1=Mon, 7=Sun
-        $replaced_data = false;
-        $rejection_message = null;
+        // Find which weeks need to be filled/replaced
+        $weeks_to_process = [];
 
-        if ($existing) {
-            // Data exists for this week - compare day-of-week
-            $existing_date = $existing['snapshot_date'];
-            // MySQL DAYOFWEEK: 1=Sun, 2=Mon, ..., 7=Sat
-            // Convert to ISO (1=Mon, 7=Sun) for easier comparison
-            $existing_day_mysql = (int)$existing['day_of_week'];
-            $existing_day_iso = $existing_day_mysql == 1 ? 7 : $existing_day_mysql - 1;
+        // Start from upload week, work BACKWARD ONLY
+        $current_week = $week_num;
+        $current_year = $year;
+        $weeks_back = 0;
 
-            if ($upload_day_of_week > $existing_day_iso) {
-                // New data is LATER in week - accept and replace
-                $delete_daily = $pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
-                $delete_daily->execute([$week_num, $year]);
-                $deleted_daily = $delete_daily->rowCount();
-
-                $delete_subscriber = $pdo->prepare("DELETE FROM subscriber_snapshots WHERE week_num = ? AND year = ?");
-                $delete_subscriber->execute([$week_num, $year]);
-                $deleted_subscriber = $delete_subscriber->rowCount();
-
-                $day_names = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                $upload_day_name = $day_names[$upload_day_of_week];
-                $existing_day_name = $day_names[$existing_day_iso];
-
-                error_log("✅ Accepted: $upload_day_name data ($snapshot_date) replaced $existing_day_name data ($existing_date) for Week $week_num, $year");
-                $replaced_data = true;
-
-            } elseif ($upload_day_of_week == $existing_day_iso) {
-                // Same day - replace (re-upload scenario)
-                $delete_daily = $pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
-                $delete_daily->execute([$week_num, $year]);
-                $deleted_daily = $delete_daily->rowCount();
-
-                $delete_subscriber = $pdo->prepare("DELETE FROM subscriber_snapshots WHERE week_num = ? AND year = ?");
-                $delete_subscriber->execute([$week_num, $year]);
-                $deleted_subscriber = $delete_subscriber->rowCount();
-
-                error_log("✅ Re-upload: Same day data replaced for Week $week_num, $year");
-                $replaced_data = true;
-
-            } else {
-                // New data is EARLIER in week - reject
-                $day_names = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                $upload_day_name = $day_names[$upload_day_of_week];
-                $existing_day_name = $day_names[$existing_day_iso];
-
-                $pdo->rollBack();
-                throw new Exception(
-                    "❌ Upload rejected: $upload_day_name data ($snapshot_date) cannot replace existing $existing_day_name data ($existing_date). " .
-                    "Later-in-week data takes precedence. Upload $existing_day_name or later data to replace."
-                );
-            }
-        }
-        // If no existing data, proceed with insert (no deletion needed)
-
-        // Step 2: Prepare INSERT statement for daily_snapshots
-        $stmt = $pdo->prepare("
-            INSERT INTO daily_snapshots (
-                snapshot_date, week_num, year, paper_code, paper_name, business_unit,
-                total_active, deliverable, mail_delivery, carrier_delivery, digital_only, on_vacation
-            ) VALUES (
-                :snapshot_date, :week_num, :year, :paper_code, :paper_name, :business_unit,
-                :total_active, :deliverable, :mail_delivery, :carrier_delivery, :digital_only, :on_vacation
-            )
-        ");
-    // Step 3: Insert snapshots
-        foreach ($snapshots as $snapshot) {
-    // Calculate deliverable (total_active - on_vacation)
-            $snapshot['deliverable'] = $snapshot['total_active'] - $snapshot['on_vacation'];
-    // Execute insert
-            $stmt->execute($snapshot);
-    // Track stats
-            if ($replaced_data) {
-                $stats['updated_records']++;
-            } else {
-                $stats['new_records']++;
-            }
-            $stats['total_processed']++;
-    // Track date range
-            if ($stats['min_date'] === null || $snapshot['snapshot_date'] < $stats['min_date']) {
-                $stats['min_date'] = $snapshot['snapshot_date'];
-            }
-            if ($stats['max_date'] === null || $snapshot['snapshot_date'] > $stats['max_date']) {
-                $stats['max_date'] = $snapshot['snapshot_date'];
+        while (true) {
+            // Check if we've reached the minimum date
+            if ($current_year < $min_backfill_year ||
+                ($current_year == $min_backfill_year && $current_week < $min_backfill_week)) {
+                error_log("🛑 Backfill stopped at minimum date (Oct 1, 2025)");
+                break; // Hit Oct 1, 2025 limit
             }
 
-            // Track by business unit
-            $bu = $snapshot['business_unit'];
-            if (!isset($stats['by_business_unit'][$bu])) {
-                $stats['by_business_unit'][$bu] = ['count' => 0, 'papers' => [], 'total_subs' => 0];
+            // Check if this week has data
+            $check_stmt = $pdo->prepare("
+                SELECT source_date, is_backfilled
+                FROM daily_snapshots
+                WHERE week_num = ? AND year = ?
+                LIMIT 1
+            ");
+            $check_stmt->execute([$current_week, $current_year]);
+            $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($existing && $existing['source_date']) {
+                // Week has data
+                // Only replace if this is the UPLOAD WEEK (weeks_back = 0) and existing is older
+                // For backfilled weeks, stop when hitting any existing data
+                if ($weeks_back == 0 && $existing['source_date'] < $file_date) {
+                    // This is the upload week and existing data is older - replace it
+                    error_log("♻️ Replacing upload week $current_week, $current_year (old data from {$existing['source_date']}, new from $file_date)");
+                } else {
+                    // Either this is a backfill week hitting existing data, OR upload week has newer data
+                    error_log("🛑 Backfill stopped at Week $current_week, $current_year (has data from {$existing['source_date']})");
+                    break;
+                }
             }
-            $stats['by_business_unit'][$bu]['count']++;
-            $stats['by_business_unit'][$bu]['total_subs'] += $snapshot['total_active'];
-            if (!in_array($snapshot['paper_code'], $stats['by_business_unit'][$bu]['papers'])) {
-                $stats['by_business_unit'][$bu]['papers'][] = $snapshot['paper_code'];
+
+            // Add this week to processing list
+            $weeks_to_process[] = [
+                'week' => $current_week,
+                'year' => $current_year,
+                'weeks_offset' => $weeks_back,
+                'is_backfilled' => ($weeks_back > 0)
+            ];
+
+            // Move to previous week
+            $weeks_back++;
+            $current_week--;
+            if ($current_week < 1) {
+                // Wrapped to previous year
+                $current_year--;
+                $current_week = 52; // Approximate - ISO weeks are complex at year boundaries
             }
         }
 
-            // Step 4: Insert subscriber-level records (week data already deleted above)
-        if (!empty($subscriber_records)) {
-            $sub_stmt = $pdo->prepare("
-                INSERT INTO subscriber_snapshots (
-                    snapshot_date, week_num, year, sub_num, paper_code, paper_name, business_unit,
-                    name, route, rate_name, subscription_length, delivery_type,
-                    payment_status, begin_date, paid_thru, daily_rate, on_vacation,
-                    address, city_state_postal, abc, issue_code, last_payment_amount,
-                    phone, email, login_id, last_login
+        // Reverse so we process oldest to newest (cleaner for logging)
+        $weeks_to_process = array_reverse($weeks_to_process);
+
+        if (empty($weeks_to_process)) {
+            throw new Exception('No weeks to process - all data is from newer uploads');
+        }
+
+        $total_weeks_processed = count($weeks_to_process);
+        $total_backfilled = 0;
+        $total_real = 0;
+
+        // Step 2: Process each week (delete old data, insert new)
+        foreach ($weeks_to_process as $week_info) {
+            $target_week = $week_info['week'];
+            $target_year = $week_info['year'];
+            $is_backfilled = $week_info['is_backfilled'];
+            $weeks_offset = $week_info['weeks_offset'];
+
+            // Calculate snapshot_date for this specific week (first day of week)
+            // Use ISO 8601: Week 1 is the week with first Thursday of year
+            $target_snapshot_date = (new DateTime())
+                ->setISODate($target_year, $target_week, 1) // Monday of target week
+                ->format('Y-m-d');
+
+            // Delete existing data for this week (if any)
+            $delete_daily = $pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
+            $delete_daily->execute([$target_week, $target_year]);
+
+            $delete_subscriber = $pdo->prepare("DELETE FROM subscriber_snapshots WHERE week_num = ? AND year = ?");
+            $delete_subscriber->execute([$target_week, $target_year]);
+
+            // Prepare INSERT statement for daily_snapshots with source tracking
+            $stmt = $pdo->prepare("
+                INSERT INTO daily_snapshots (
+                    snapshot_date, week_num, year, paper_code, paper_name, business_unit,
+                    total_active, deliverable, mail_delivery, carrier_delivery, digital_only, on_vacation,
+                    source_filename, source_date, is_backfilled, backfill_weeks
                 ) VALUES (
-                    :snapshot_date, :week_num, :year, :sub_num, :paper_code, :paper_name, :business_unit,
-                    :name, :route, :rate_name, :subscription_length, :delivery_type,
-                    :payment_status, :begin_date, :paid_thru, :daily_rate, :on_vacation,
-                    :address, :city_state_postal, :abc, :issue_code, :last_payment_amount,
-                    :phone, :email, :login_id, :last_login
+                    :snapshot_date, :week_num, :year, :paper_code, :paper_name, :business_unit,
+                    :total_active, :deliverable, :mail_delivery, :carrier_delivery, :digital_only, :on_vacation,
+                    :source_filename, :source_date, :is_backfilled, :backfill_weeks
                 )
             ");
-            foreach ($subscriber_records as $sub) {
-                $sub_stmt->execute($sub);
-                $stats['subscriber_records_imported']++;
+
+            // Insert snapshots for this week
+            foreach ($snapshots as $snapshot) {
+                // Use calculated snapshot_date for this week (not filename date)
+                $snapshot['snapshot_date'] = $target_snapshot_date;
+
+                // Add week/year to snapshot
+                $snapshot['week_num'] = $target_week;
+                $snapshot['year'] = $target_year;
+
+                // Calculate deliverable (total_active - on_vacation)
+                $snapshot['deliverable'] = $snapshot['total_active'] - $snapshot['on_vacation'];
+
+                // Add source tracking (source_date is the file date, NOT adjusted snapshot_date)
+                $snapshot['source_filename'] = $original_filename;
+                $snapshot['source_date'] = $file_date;  // Original filename date (when report was run)
+                $snapshot['is_backfilled'] = $is_backfilled ? 1 : 0;
+                $snapshot['backfill_weeks'] = $weeks_offset;
+
+                // Execute insert
+                $stmt->execute($snapshot);
+
+                // Track stats
+                if ($is_backfilled) {
+                    $stats['updated_records']++;
+                    $total_backfilled++;
+                } else {
+                    $stats['new_records']++;
+                    $total_real++;
+                }
+                $stats['total_processed']++;
+
+                // Track date range
+                if ($stats['min_date'] === null || $snapshot['snapshot_date'] < $stats['min_date']) {
+                    $stats['min_date'] = $snapshot['snapshot_date'];
+                }
+                if ($stats['max_date'] === null || $snapshot['snapshot_date'] > $stats['max_date']) {
+                    $stats['max_date'] = $snapshot['snapshot_date'];
+                }
+
+                // Track by business unit
+                $bu = $snapshot['business_unit'];
+                if (!isset($stats['by_business_unit'][$bu])) {
+                    $stats['by_business_unit'][$bu] = ['count' => 0, 'papers' => [], 'total_subs' => 0];
+                }
+                $stats['by_business_unit'][$bu]['count']++;
+                $stats['by_business_unit'][$bu]['total_subs'] += $snapshot['total_active'];
+                if (!in_array($snapshot['paper_code'], $stats['by_business_unit'][$bu]['papers'])) {
+                    $stats['by_business_unit'][$bu]['papers'][] = $snapshot['paper_code'];
+                }
+            }
+
+            // Step 3: Insert subscriber-level records for this week
+            if (!empty($subscriber_records)) {
+                $sub_stmt = $pdo->prepare("
+                    INSERT INTO subscriber_snapshots (
+                        snapshot_date, week_num, year, sub_num, paper_code, paper_name, business_unit,
+                        name, route, rate_name, subscription_length, delivery_type,
+                        payment_status, begin_date, paid_thru, daily_rate, on_vacation,
+                        address, city_state_postal, abc, issue_code, last_payment_amount,
+                        phone, email, login_id, last_login,
+                        source_filename, source_date, is_backfilled, backfill_weeks
+                    ) VALUES (
+                        :snapshot_date, :week_num, :year, :sub_num, :paper_code, :paper_name, :business_unit,
+                        :name, :route, :rate_name, :subscription_length, :delivery_type,
+                        :payment_status, :begin_date, :paid_thru, :daily_rate, :on_vacation,
+                        :address, :city_state_postal, :abc, :issue_code, :last_payment_amount,
+                        :phone, :email, :login_id, :last_login,
+                        :source_filename, :source_date, :is_backfilled, :backfill_weeks
+                    )
+                ");
+
+                foreach ($subscriber_records as $sub) {
+                    // Use calculated snapshot_date for this week
+                    $sub['snapshot_date'] = $target_snapshot_date;
+
+                    // Add week/year
+                    $sub['week_num'] = $target_week;
+                    $sub['year'] = $target_year;
+
+                    // Add source tracking (source_date is the file date, NOT adjusted snapshot_date)
+                    $sub['source_filename'] = $original_filename;
+                    $sub['source_date'] = $file_date;  // Original filename date (when report was run)
+                    $sub['is_backfilled'] = $is_backfilled ? 1 : 0;
+                    $sub['backfill_weeks'] = $weeks_offset;
+
+                    $sub_stmt->execute($sub);
+                    $stats['subscriber_records_imported']++;
+                }
             }
         }
+
+        // Log backfill summary
+        error_log("✅ SoftBackfill complete: $total_weeks_processed weeks processed ($total_real real, $total_backfilled backfilled)");
 
             $pdo->commit();
     } catch (Exception $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         throw $e;
     }
 
@@ -625,4 +708,20 @@ function parseDate($date_string)
     }
 
     return null;
+}
+
+/**
+ * Get ISO week number and year from date
+ * Used for softBackfill system
+ *
+ * @param string $date Date in Y-m-d format
+ * @return array ['week' => int, 'year' => int]
+ */
+function getWeekAndYear($date)
+{
+    $dt = new DateTime($date);
+    return [
+        'week' => (int)$dt->format('W'),  // ISO week number
+        'year' => (int)$dt->format('Y')   // Year
+    ];
 }

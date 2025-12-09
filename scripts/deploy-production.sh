@@ -98,7 +98,7 @@ run_migration() {
 verify_vacation_data() {
     log "Verifying vacation data integrity..."
 
-    # Check for vacation dates without on_vacation flag
+    # Check for vacation dates without on_vacation flag in subscriber_snapshots
     local missing_flags=$(db_query "
         SELECT COUNT(*) as count
         FROM subscriber_snapshots
@@ -108,12 +108,25 @@ verify_vacation_data() {
 
     if [ "$missing_flags" != "0" ]; then
         log_warning "Found ${missing_flags} vacation records with missing on_vacation flag"
-        log "Fixing on_vacation flags..."
+        log "Fixing on_vacation flags in subscriber_snapshots..."
         db_query "UPDATE subscriber_snapshots SET on_vacation = 1 WHERE vacation_start IS NOT NULL AND on_vacation = 0;" || error_exit "Failed to fix vacation flags"
-        log_success "Fixed on_vacation flags"
-    else
-        log_success "Vacation data integrity OK"
+        log_success "Fixed on_vacation flags in subscriber_snapshots"
     fi
+
+    # Sync vacation counts from subscriber_snapshots to daily_snapshots
+    log "Syncing vacation counts to daily_snapshots..."
+    db_query "
+        UPDATE daily_snapshots ds
+        INNER JOIN (
+            SELECT snapshot_date, paper_code, SUM(on_vacation) as vacation_count
+            FROM subscriber_snapshots
+            WHERE on_vacation = 1
+            GROUP BY snapshot_date, paper_code
+        ) ss ON ds.snapshot_date = ss.snapshot_date AND ds.paper_code = ss.paper_code
+        SET ds.on_vacation = ss.vacation_count;
+    " || error_exit "Failed to sync vacation counts to daily_snapshots"
+
+    log_success "Vacation data integrity OK and synced"
 }
 
 # Verify CSS files

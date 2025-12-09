@@ -10,6 +10,10 @@
 .env.production
 .env.development
 
+# Environment-specific Apache configuration
+# Use .htaccess.production for production deployment
+web/.htaccess
+
 # Backup files
 *.backup
 *.bak

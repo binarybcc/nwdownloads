@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Vacation Data - Circulation Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-2xl w-full space-y-8">
+            <!-- Header -->
+            <div>
+                <h2 class="text-center text-3xl font-extrabold text-gray-900">
+                    Upload Vacation Data
+                </h2>
+                <p class="mt-2 text-center text-sm text-gray-600">
+                    Import "Subscribers On Vacation" CSV export from Newzware
+                </p>
+            </div>
+
+            <!-- Upload Form -->
+            <div class="bg-white shadow rounded-lg p-8">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="space-y-6">
+                        <!-- File Input -->
+                        <div>
+                            <label for="csv_file" class="block text-sm font-medium text-gray-700 mb-2">
+                                Select Vacation CSV File
+                            </label>
+                            <input
+                                type="file"
+                                id="csv_file"
+                                name="csv_file"
+                                accept=".csv"
+                                required
+                                class="block w-full text-sm text-gray-500
+                                       file:mr-4 file:py-2 file:px-4
+                                       file:rounded-md file:border-0
+                                       file:text-sm file:font-semibold
+                                       file:bg-blue-50 file:text-blue-700
+                                       hover:file:bg-blue-100
+                                       cursor-pointer"
+                            />
+                            <p class="mt-2 text-xs text-gray-500">
+                                Expected format: SubscribersOnVacation[timestamp].csv from Newzware
+                            </p>
+                        </div>
+
+                        <!-- Upload Button -->
+                        <div>
+                            <button
+                                type="submit"
+                                id="uploadButton"
+                                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <span id="uploadButtonText">Upload and Process Vacation Data</span>
+                                <span id="uploadSpinner" class="hidden ml-2">
+                                    <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Results Area -->
+                <div id="resultArea" class="mt-6 hidden">
+                    <!-- Success message -->
+                    <div id="successMessage" class="hidden bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-green-800">
+                                    Vacation data imported successfully!
+                                </h3>
+                                <div id="successDetails" class="mt-2 text-sm text-green-700"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Error message -->
+                    <div id="errorMessage" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800">
+                                    Import failed
+                                </h3>
+                                <div id="errorDetails" class="mt-2 text-sm text-red-700"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <a href="index.php" class="text-sm text-blue-600 hover:text-blue-500">
+                        ← Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const uploadButton = document.getElementById('uploadButton');
+        const uploadButtonText = document.getElementById('uploadButtonText');
+        const uploadSpinner = document.getElementById('uploadSpinner');
+        const resultArea = document.getElementById('resultArea');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const successDetails = document.getElementById('successDetails');
+        const errorDetails = document.getElementById('errorDetails');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(form);
+            const file = document.getElementById('csv_file').files[0];
+
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            // Show loading state
+            uploadButton.disabled = true;
+            uploadButtonText.textContent = 'Processing...';
+            uploadSpinner.classList.remove('hidden');
+            resultArea.classList.add('hidden');
+            successMessage.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+
+            try {
+                const response = await fetch('upload_vacations.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Show success
+                    resultArea.classList.remove('hidden');
+                    successMessage.classList.remove('hidden');
+
+                    const stats = data.stats;
+                    let details = `
+                        <p class="font-semibold">File: ${data.filename}</p>
+                        <ul class="mt-2 space-y-1">
+                            <li>• Total rows processed: ${stats.total_rows}</li>
+                            <li>• Snapshots updated: ${stats.updated_rows}</li>
+                            <li>• Rows skipped: ${stats.skipped_rows}</li>
+                        </ul>
+                    `;
+
+                    if (Object.keys(stats.by_paper).length > 0) {
+                        details += '<p class="mt-3 font-semibold">By Paper:</p><ul class="mt-1 space-y-1">';
+                        for (const [paper, count] of Object.entries(stats.by_paper)) {
+                            details += `<li>• ${paper}: ${count} updated</li>`;
+                        }
+                        details += '</ul>';
+                    }
+
+                    if (stats.errors.length > 0) {
+                        details += '<p class="mt-3 font-semibold">Warnings:</p><ul class="mt-1 space-y-1 text-xs">';
+                        stats.errors.slice(0, 10).forEach(err => {
+                            details += `<li>• ${err}</li>`;
+                        });
+                        if (stats.errors.length > 10) {
+                            details += `<li>• ... and ${stats.errors.length - 10} more</li>`;
+                        }
+                        details += '</ul>';
+                    }
+
+                    successDetails.innerHTML = details;
+
+                    // Reset form
+                    form.reset();
+
+                } else {
+                    // Show error
+                    resultArea.classList.remove('hidden');
+                    errorMessage.classList.remove('hidden');
+                    errorDetails.textContent = data.error || 'Unknown error occurred';
+                }
+
+            } catch (error) {
+                resultArea.classList.remove('hidden');
+                errorMessage.classList.remove('hidden');
+                errorDetails.textContent = 'Network error: ' + error.message;
+            } finally {
+                // Reset button state
+                uploadButton.disabled = false;
+                uploadButtonText.textContent = 'Upload and Process Vacation Data';
+                uploadSpinner.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

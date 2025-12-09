@@ -133,6 +133,28 @@ require_once 'auth_check.php';
             border-color: #3b82f6;
         }
 
+        /* Context Menu Hover Effects */
+        .context-menu-section {
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .context-menu-section:hover {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        /* Key Metrics vacation card - blue theme */
+        .context-menu-section.vacation-overall:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+            border: 2px solid rgba(59, 130, 246, 0.5);
+        }
+
+        /* Show action buttons on hover */
+        .context-menu-section:hover .vacation-actions {
+            opacity: 1 !important;
+        }
+
         .date-navigation button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -633,10 +655,10 @@ require_once 'auth_check.php';
                 </div>
 
                 <!-- On Vacation -->
-                <div class="metric-card bg-white rounded-xl shadow p-6"
+                <div class="metric-card bg-white rounded-xl shadow p-6 relative context-menu-section vacation-overall transition-all duration-200 cursor-pointer"
                      role="region"
                      aria-labelledby="metric-vacation-label"
-                     oncontextmenu="showVacationContextMenu(event, 'overall'); return false;">
+                     onclick="event.stopPropagation(); showVacationSubscriberList('overall');">
                     <div class="flex items-center justify-between mb-2">
                         <div id="metric-vacation-label" class="text-sm font-medium text-gray-600">Subscribers On Vacation</div>
                         <div class="text-2xl" aria-hidden="true">🏖️</div>
@@ -652,6 +674,11 @@ require_once 'auth_check.php';
                         <div id="longestVacationsOverall" class="space-y-1.5">
                             <div class="text-xs text-gray-400 italic">Loading...</div>
                         </div>
+                    </div>
+
+                    <!-- Hover Actions -->
+                    <div class="vacation-actions text-center" style="opacity: 0; transition: opacity 0.2s ease; margin-top: 12px; color: #3b82f6; font-weight: 600; font-size: 0.875rem;">
+                        👥 View All on Vacation
                     </div>
                 </div>
 
@@ -701,7 +728,7 @@ require_once 'auth_check.php';
             <h2 id="business-units-heading" class="text-lg font-semibold text-gray-900 mb-4">
                 <span aria-hidden="true">📍</span> By Business Unit
             </h2>
-            <div class="space-y-4" id="businessUnits" role="status" aria-live="polite">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="businessUnits" role="status" aria-live="polite">
                 <div class="text-center py-12">
                     <div class="loading mx-auto mb-4"></div>
                     <div class="text-gray-500">Loading business units...</div>

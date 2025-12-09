@@ -805,8 +805,12 @@ function renderBusinessUnits() {
                                 </div>
                             </div>
                             <!-- Vacation info below chart -->
-                            <div class="mt-3 text-center w-full"
-                                 oncontextmenu="showVacationContextMenu(event, '${unitName}'); return false;">
+                            <div class="mt-3 text-center w-full relative context-menu-section rounded-lg p-2 -m-2 vacation-section-${unitName.replace(/\s+/g, '-').toLowerCase()} cursor-pointer"
+                                 data-unit-color="${config.color}"
+                                 onclick="event.stopPropagation(); showVacationSubscriberList('${unitName}');"
+                                 onmouseenter="this.style.backgroundColor='${hexToRgba(config.color, 0.1)}'; this.style.border='2px solid ${hexToRgba(config.color, 0.5)}';"
+                                 onmouseleave="this.style.backgroundColor=''; this.style.border='';"
+                                 style="transition: all 0.2s ease;">
                                 <div class="text-sm text-gray-600">🏖️ On Vacation</div>
                                 <div class="text-lg font-semibold text-gray-900">${formatNumber(data.on_vacation)} <span class="text-sm text-gray-500">(${vacPercent}%)</span></div>
 
@@ -817,31 +821,27 @@ function renderBusinessUnits() {
                                         <div class="text-xs text-gray-300 italic">Loading...</div>
                                     </div>
                                 </div>
+
+                                <!-- Hover Actions -->
+                                <div class="vacation-actions text-center" style="opacity: 0; transition: opacity 0.2s ease; margin-top: 12px; color: ${config.color}; font-weight: 600; font-size: 0.875rem;">
+                                    👥 View ${unitName} Vacations
+                                </div>
                             </div>
                         </div>
 
                         <!-- Legend and Comparisons -->
-                        <div class="flex-1 ml-6 space-y-2">
-                            <div class="flex items-center justify-between text-sm">
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-block w-3 h-3 rounded-full bg-blue-500"></span>
-                                    <span class="text-gray-600">Mail</span>
-                                </div>
-                                <span class="font-medium text-gray-900">${formatNumber(data.mail)} <span class="text-xs text-gray-500">(${(data.mail/data.total*100).toFixed(1)}%)</span></span>
+                        <div class="ml-4 flex flex-col gap-1.5" style="height: 160px; min-width: 144px; max-width: 176px;">
+                            <div class="flex-1 bg-blue-500 text-white flex flex-col items-center justify-center px-4 py-1">
+                                <div class="font-semibold text-xs">Mail</div>
+                                <div class="font-bold text-sm whitespace-nowrap">${formatNumber(data.mail)} <span class="opacity-90 text-xs">(${(data.mail/data.total*100).toFixed(1)}%)</span></div>
                             </div>
-                            <div class="flex items-center justify-between text-sm">
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-block w-3 h-3 rounded-full bg-green-500"></span>
-                                    <span class="text-gray-600">Digital</span>
-                                </div>
-                                <span class="font-medium text-gray-900">${formatNumber(data.digital)} <span class="text-xs text-gray-500">(${(data.digital/data.total*100).toFixed(1)}%)</span></span>
+                            <div class="flex-1 bg-green-500 text-white flex flex-col items-center justify-center px-4 py-1">
+                                <div class="font-semibold text-xs">Digital</div>
+                                <div class="font-bold text-sm whitespace-nowrap">${formatNumber(data.digital)} <span class="opacity-90 text-xs">(${(data.digital/data.total*100).toFixed(1)}%)</span></div>
                             </div>
-                            <div class="flex items-center justify-between text-sm">
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-block w-3 h-3 rounded-full bg-amber-500"></span>
-                                    <span class="text-gray-600">Carrier</span>
-                                </div>
-                                <span class="font-medium text-gray-900">${formatNumber(data.carrier)} <span class="text-xs text-gray-500">(${(data.carrier/data.total*100).toFixed(1)}%)</span></span>
+                            <div class="flex-1 bg-amber-500 text-white flex flex-col items-center justify-center px-4 py-1">
+                                <div class="font-semibold text-xs">Carrier</div>
+                                <div class="font-bold text-sm whitespace-nowrap">${formatNumber(data.carrier)} <span class="opacity-90 text-xs">(${(data.carrier/data.total*100).toFixed(1)}%)</span></div>
                             </div>
                         </div>
                     </div>
@@ -1006,6 +1006,16 @@ function formatChange(num) {
     if (num > 0) return `+${formatNumber(num)}`;
     if (num < 0) return formatNumber(num);
     return '0';
+}
+
+/**
+ * Convert hex color to rgba with opacity
+ */
+function hexToRgba(hex, opacity) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
 function exportToCSV() {

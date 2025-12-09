@@ -230,7 +230,6 @@ function formatSubscriberDataForExport(subscribers) {
         'Current Rate': sub.current_rate,
         'Rate Amount': `$${sub.rate_amount}`,
         'Last Payment': `$${sub.last_payment_amount}`,
-        'Payment Method': sub.payment_method,
         'Expiration Date': sub.expiration_date,
         'Delivery Type': sub.delivery_type
     }));

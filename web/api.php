@@ -1713,6 +1713,120 @@ function sendResponse($data)
     ], JSON_PRETTY_PRINT);
 }
 
+/**
+ * Get longest vacations (overall and by business unit)
+ *
+ * @param PDO $pdo Database connection
+ * @param string $snapshotDate Snapshot date to query
+ * @return array Longest vacations data
+ */
+function getLongestVacations($pdo, $snapshotDate)
+{
+    // Get top 3 longest vacations overall
+    $stmtOverall = $pdo->prepare("
+        SELECT
+            sub_num,
+            name as subscriber_name,
+            paper_code,
+            business_unit,
+            vacation_start,
+            vacation_end,
+            vacation_weeks
+        FROM subscriber_snapshots
+        WHERE snapshot_date = :snapshot_date
+          AND on_vacation = 1
+          AND vacation_start IS NOT NULL
+          AND vacation_end IS NOT NULL
+        ORDER BY vacation_weeks DESC
+        LIMIT 3
+    ");
+    $stmtOverall->execute([':snapshot_date' => $snapshotDate]);
+    $overall = $stmtOverall->fetchAll(PDO::FETCH_ASSOC);
+
+    // Get top 3 longest vacations per business unit
+    $byUnit = [];
+    $units = ['South Carolina', 'Wyoming', 'Michigan'];
+
+    foreach ($units as $unit) {
+        $stmtUnit = $pdo->prepare("
+            SELECT
+                sub_num,
+                name as subscriber_name,
+                paper_code,
+                business_unit,
+                vacation_start,
+                vacation_end,
+                vacation_weeks
+            FROM subscriber_snapshots
+            WHERE snapshot_date = :snapshot_date
+              AND business_unit = :business_unit
+              AND on_vacation = 1
+              AND vacation_start IS NOT NULL
+              AND vacation_end IS NOT NULL
+            ORDER BY vacation_weeks DESC
+            LIMIT 3
+        ");
+        $stmtUnit->execute([
+            ':snapshot_date' => $snapshotDate,
+            ':business_unit' => $unit
+        ]);
+        $byUnit[$unit] = $stmtUnit->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    return [
+        'snapshot_date' => $snapshotDate,
+        'overall' => $overall,
+        'by_unit' => $byUnit
+    ];
+}
+
+/**
+ * Get all subscribers currently on vacation with full details
+ */
+function getVacationSubscribers($pdo, $snapshotDate, $businessUnit = null)
+{
+    // Standard subscriber query pattern - matches getRateSubscribers, getExpirationSubscribers, etc.
+    $query = "
+        SELECT
+            sub_num as account_id,
+            name as subscriber_name,
+            phone,
+            email,
+            CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+            paper_code,
+            paper_name,
+            rate_name as current_rate,
+            last_payment_amount as rate_amount,
+            last_payment_amount,
+            payment_status as payment_method,
+            paid_thru as expiration_date,
+            delivery_type
+        FROM subscriber_snapshots
+        WHERE snapshot_date = :snapshot_date
+          AND on_vacation = 1
+    ";
+
+    $params = [':snapshot_date' => $snapshotDate];
+
+    if ($businessUnit) {
+        $query .= " AND business_unit = :business_unit";
+        $params[':business_unit'] = $businessUnit;
+    }
+
+    $query .= " ORDER BY name ASC LIMIT 1000";
+
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
+    $subscribers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    return [
+        'subscribers' => $subscribers,
+        'count' => count($subscribers),
+        'snapshot_date' => $snapshotDate,
+        'business_unit' => $businessUnit
+    ];
+}
+
 function sendError($message)
 {
 
@@ -1797,6 +1911,19 @@ try {
                                                                                                                                                                                                                                                                  sendResponse($data);
 
             break;
+        case 'get_longest_vacations':
+            $snapshotDate = $_GET['snapshot_date'] ?? date('Y-m-d');
+            $data = getLongestVacations($pdo, $snapshotDate);
+            sendResponse($data);
+            break;
+
+        case 'vacation_subscribers':
+            $snapshotDate = $_GET['snapshot_date'] ?? date('Y-m-d');
+            $businessUnit = $_GET['business_unit'] ?? null;
+            $data = getVacationSubscribers($pdo, $snapshotDate, $businessUnit);
+            sendResponse($data);
+            break;
+
         default:
                                                                                                                                                                                                                                                                  sendError('Invalid action: ' . $action);
 

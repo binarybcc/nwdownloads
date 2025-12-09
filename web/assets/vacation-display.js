@@ -30,8 +30,7 @@ function displayLongestVacationsOverall(vacations) {
     }
 
     const html = vacations.slice(0, 3).map((vac, index) => `
-        <div class="flex items-center justify-between text-xs hover:bg-gray-50 p-1.5 rounded cursor-pointer"
-             onclick="showVacationDetails(${vac.sub_num})">
+        <div class="flex items-center justify-between text-xs hover:bg-gray-50 p-1.5 rounded">
             <div class="flex items-center gap-2 flex-1 min-w-0">
                 <span class="flex-shrink-0 w-4 h-4 rounded-full bg-amber-100 text-amber-600 text-[10px] font-bold flex items-center justify-center">
                     ${index + 1}
@@ -69,8 +68,7 @@ function displayLongestVacationsForUnit(businessUnit, vacations) {
     }
 
     const html = vacations.slice(0, 3).map((vac, index) => `
-        <div class="flex items-center justify-between text-xs hover:bg-teal-50 p-1.5 rounded cursor-pointer"
-             onclick="showVacationDetails(${vac.sub_num})">
+        <div class="flex items-center justify-between text-xs hover:bg-teal-50 p-1.5 rounded">
             <div class="flex items-center gap-2 flex-1 min-w-0">
                 <span class="flex-shrink-0 w-4 h-4 rounded-full bg-amber-100 text-amber-600 text-[10px] font-bold flex items-center justify-center">
                     ${index + 1}
@@ -95,14 +93,20 @@ function displayLongestVacationsForUnit(businessUnit, vacations) {
  */
 function showVacationContextMenu(event, context) {
     event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
     console.log('showVacationContextMenu called with context:', context);
 
     // Create context menu HTML
     const menu = document.createElement('div');
     menu.id = 'vacationContextMenu';
-    menu.className = 'fixed bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50';
-    menu.style.left = `${event.pageX}px`;
-    menu.style.top = `${event.pageY}px`;
+    menu.className = 'fixed bg-white rounded-lg shadow-lg border border-gray-200 py-1';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+    menu.style.zIndex = '99999';
+    menu.style.minWidth = '200px';
+    menu.style.display = 'block';
+    menu.style.visibility = 'visible';
 
     menu.innerHTML = `
         <div class="px-4 py-2 text-xs font-semibold text-gray-500 border-b border-gray-200">
@@ -121,24 +125,34 @@ function showVacationContextMenu(event, context) {
     document.body.appendChild(menu);
 
     // Add event listeners with stopPropagation to prevent close handler from firing
-    document.getElementById('vacationListBtn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        console.log('Subscriber list button clicked for context:', context);
-        menu.remove();
-        showVacationSubscriberList(context);
-    });
+    const listBtn = document.getElementById('vacationListBtn');
+    if (listBtn) {
+        listBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            console.log('Subscriber list button clicked for context:', context);
+            menu.remove();
+            showVacationSubscriberList(context);
+        });
+    }
 
-    // Close menu on click outside
+    console.log('Menu created and appended to body. Position:', menu.style.left, menu.style.top);
+    console.log('Menu element:', menu);
+
+    // Close menu on click outside - longer delay to prevent immediate closure
     const closeMenu = (e) => {
+        console.log('closeMenu triggered, target:', e.target);
         if (!menu.contains(e.target)) {
+            console.log('Closing menu');
             menu.remove();
             document.removeEventListener('click', closeMenu);
+            document.removeEventListener('contextmenu', closeMenu);
         }
     };
 
     setTimeout(() => {
-        document.addEventListener('click', closeMenu);
-    }, 10);
+        document.addEventListener('click', closeMenu, true);
+        console.log('Close handlers added after timeout');
+    }, 100);
 }
 
 /**

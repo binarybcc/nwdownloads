@@ -1,5 +1,26 @@
 # NWDownloads Project - Circulation Dashboard
 
+## 🚨 CRITICAL: PRODUCTION IS NOT DOCKER 🚨
+
+# ⛔ PRODUCTION DOES NOT USE DOCKER ⛔
+# ⛔ PRODUCTION DOES NOT USE DOCKER ⛔
+# ⛔ PRODUCTION DOES NOT USE DOCKER ⛔
+
+**PRODUCTION ENVIRONMENT:**
+- **Native Synology Apache + PHP + MariaDB**
+- **NO Docker containers**
+- **NO docker-compose**
+- **Files served directly from `/volume1/web/circulation/`**
+- **Deployment via file copy ONLY**
+
+**DEVELOPMENT ENVIRONMENT:**
+- Uses Docker for local testing
+- Runs at http://localhost:8081
+
+**NEVER run Docker commands on production NAS!**
+
+---
+
 ## Project Overview
 Newspaper circulation dashboard for tracking subscriber metrics across multiple business units and publications.
 
@@ -85,10 +106,12 @@ direnv allow
 - `.claude/CLAUDE.md` - This file (quick reference and protocols)
 
 **Critical production details:**
-- Database hostname from web container: `database` (Docker Compose service name, NOT IP address)
-- Database credentials: `root` / `RootPassword456!`
-- All Docker commands require sudo via SSH
-- File transfer uses SSH cat method (SCP disabled)
+- Production uses **native Synology services** (NOT Docker)
+- Database: MariaDB 10 via Unix socket `/run/mysqld/mysqld10.sock`
+- Database credentials: `root` / `P@ta675N0id`
+- Web directory: `/volume1/web/circulation/`
+- Deployment: Git clone at `/volume1/homes/it/circulation-deploy` → rsync to production
+- SSH access: `sshpass -p 'Mojave48ice' ssh it@192.168.1.254`
 
 **If you see Claude:**
 - Trying multiple connection attempts (3+)
@@ -99,19 +122,21 @@ direnv allow
 ## Environment Naming Convention
 
 **PRODUCTION**: Synology NAS deployment
-- **Location**: `/volume1/docker/nwdownloads/` on Synology NAS (192.168.1.254)
-- **Access URL**: `http://192.168.1.254:8081/`
+- **Location**: `/volume1/web/circulation/` on Synology NAS (192.168.1.254)
+- **Access URL**: `https://cdash.upstatetoday.com`
 - **Purpose**: Live, stable deployment for actual use
-- **Database**: MariaDB 10.11 container (`circulation_db`)
-- **Web Server**: PHP 8.2 + Apache container (`circulation_web`)
-- **Deployment Method**: Docker Compose via SSH
+- **Database**: Native Synology MariaDB 10 via Unix socket (`/run/mysqld/mysqld10.sock`)
+  - Credentials: `root` / `P@ta675N0id`
+- **Web Server**: Native Synology Web Station (PHP 8.2 + Apache)
+- **Deployment Method**: Git pull from GitHub → rsync to production directory
+- **Deployment Script**: `/volume1/homes/it/deploy-circulation.sh`
 
 **DEVELOPMENT**: OrbStack/Local deployment
 - **Location**: `$PROJECT_ROOT` (see Multi-Workstation Setup above for your specific path)
 - **Access URL**: `http://localhost:8081/`
 - **Purpose**: Testing, development, and experimentation
 - **Database**: Local MariaDB container
-- **Web Server**: Local PHP container
+- **Web Server**: Local PHP container via Docker
 - **Deployment Method**: Docker Compose on local machine
 
 ## 🔀 GIT WORKFLOW - PULL REQUEST PROTOCOL (MANDATORY)
@@ -395,44 +420,67 @@ gh pr merge --squash
 3. Test thoroughly locally (http://localhost:8081)
 4. Create Pull Request
 5. Review (manual or `@claude` review)
-6. Merge to master
-7. Build and push to Docker Hub
-8. Deploy to Production via Docker Hub image pull
-9. Verify Production deployment
+6. Merge to master on GitHub
+7. Deploy to Production via Git deployment script
+8. Verify Production deployment at https://cdash.upstatetoday.com
 
 **Never make changes directly in Production** - always test in Development first.
 **Never commit directly to master** - always use Pull Requests.
 
-### Docker Hub Hybrid Approach
+### Git-Based Deployment to Production
 
-**Repository**: `binarybcc/nwdownloads-circ`
-**URL**: https://hub.docker.com/repository/docker/binarybcc/nwdownloads-circ/
+**GitHub Repository**: `binarybcc/nwdownloads`
+**URL**: https://github.com/binarybcc/nwdownloads
+
+**Production Deployment Architecture:**
+- Native Synology Web Station (NO Docker)
+- Git clone at: `/volume1/homes/it/circulation-deploy`
+- Production directory: `/volume1/web/circulation/`
+- Deployment: Git pull → rsync to production
+- SSH deploy key: `~/.ssh/github_circulation_deploy` (read-only)
 
 **Development Environment** (`docker-compose.yml`):
 - Uses **volume mounts** for live code editing
 - Changes to `./web/` directory reflect immediately in browser
 - No rebuilding required - fast iteration
-- Files: `docker-compose.yml` (default config)
+- Database: Docker container
 
-**Production Environment** (`docker-compose.prod.yml`):
-- Uses **pre-built images** from Docker Hub
-- Application code **baked into image** (no volume mounts)
-- Fully containerized and portable
-- Files: `docker-compose.prod.yml` (production config)
+**Production Environment:**
+- Native Synology services (Apache + PHP 8.2 + MariaDB 10)
+- Files served from `/volume1/web/circulation/`
+- Database via Unix socket: `/run/mysqld/mysqld10.sock`
+- Web Service Portal: `https://cdash.upstatetoday.com`
 
 **Development → Production Flow:**
 1. Make changes in Development environment (with volume mounts)
 2. Test thoroughly locally at http://localhost:8081/
-3. Build and push to Docker Hub: `./build-and-push.sh`
-4. Deploy to Production by pulling latest image
-5. Verify Production deployment at http://192.168.1.254:8081/
+3. Create PR and merge to master on GitHub
+4. SSH into NAS: `sshpass -p 'Mojave48ice' ssh it@192.168.1.254`
+5. Run deployment script: `~/deploy-circulation.sh`
+6. Verify Production deployment at https://cdash.upstatetoday.com
+
+**Deployment Script Details:**
+```bash
+# Location: /volume1/homes/it/deploy-circulation.sh
+# What it does:
+1. Pulls latest code from GitHub master branch
+2. Syncs web/ directory to /volume1/web/circulation/
+3. Preserves production-specific files (.htaccess, .build_number)
+4. Fixes file permissions automatically (644 for files, 755 for directories)
+```
 
 **Critical Rules:**
+- **GitHub is the single source of truth** - never push from NAS
 - **Never make changes directly in Production** - always test in Development first
-- **Never copy code files to Production** - deploy via Docker Hub only
-- **Configuration files only** via SSH (docker-compose.prod.yml, db_init scripts)
+- **Deploy via deployment script only** - preserves production configuration
+- **Production-specific files** (`.htaccess`, `.build_number`) are never overwritten
 
-**Documentation**: See `/docs/KNOWLEDGE-BASE.md` (Docker & Deployment section) for complete workflow details
+**SSH Deploy Key Setup:**
+- Public key added to GitHub as read-only deploy key
+- Private key: `/volume1/homes/it/.ssh/github_circulation_deploy`
+- SSH config at: `~/.ssh/config` (uses deploy key for github.com)
+
+**Documentation**: See `/docs/KNOWLEDGE-BASE.md` (Deployment section) for complete workflow details
 
 ## Key Technical Notes
 
@@ -444,45 +492,47 @@ gh pr merge --squash
 
 ### Database Connection:
 - **Development**: Uses hostname `db` (Docker DNS works on OrbStack)
-- **Production**: Uses Docker Compose service name `database` (Docker network DNS works correctly)
-  - From web container: `mysql -h database -p` or `PDO("mysql:host=database;...")`
-  - Credentials: root / RootPassword456!
+  - Credentials: `circ_dash` / `Barnaby358@Jones!`
+- **Production**: Uses Unix socket `/run/mysqld/mysqld10.sock` (native Synology MariaDB 10)
+  - Credentials: `root` / `P@ta675N0id`
+  - Connection from PHP: `PDO("mysql:unix_socket=/run/mysqld/mysqld10.sock;dbname=circulation_dashboard")`
+  - CLI access: `mysql -uroot -pP@ta675N0id -S /run/mysqld/mysqld10.sock circulation_dashboard`
 
-## Docker Management Commands
+## Production Management Commands
 
-### Production (via SSH):
+### Production (Native Synology Services):
 ```bash
 # SSH into NAS
-sshpass -p 'Mojave48ice' ssh -o StrictHostKeyChecking=no -p 22 it@192.168.1.254
+sshpass -p 'Mojave48ice' ssh it@192.168.1.254
 
-# Navigate to project
-cd /volume1/docker/nwdownloads
+# Deploy code updates from GitHub
+~/deploy-circulation.sh
 
-# IMPORTANT: Always use docker-compose.prod.yml in production
-# View running containers
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps
+# Check MariaDB status
+sudo systemctl status mariadb10
 
-# Pull latest image from Docker Hub
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull
+# Access database directly
+mysql -uroot -pP@ta675N0id -S /run/mysqld/mysqld10.sock circulation_dashboard
 
-# Deploy with latest image
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d
+# Check Web Station status (via GUI only)
+# Navigate to: DSM Control Panel > Web Station
 
-# View logs
-sudo /usr/local/bin/docker logs circulation_web
-sudo /usr/local/bin/docker logs circulation_db
+# View PHP error logs
+tail -f /volume1/web/circulation/error.log
 
-# Restart containers (without rebuilding)
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml restart
+# Check file permissions
+ls -la /volume1/web/circulation/
 
-# Stop containers
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml down
+# Fix permissions if needed
+find /volume1/web/circulation/ -type f -name '*.php' -exec chmod 644 {} \;
+find /volume1/web/circulation/ -type d -exec chmod 755 {} \;
 
-# Force recreate (useful after image update)
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate
+# View recent changes
+cd /volume1/homes/it/circulation-deploy
+git log --oneline -10
 ```
 
-### Development (local):
+### Development (Docker, local):
 ```bash
 # Navigate to project
 cd $PROJECT_ROOT
@@ -673,38 +723,59 @@ PRIMARY KEY (snapshot_date, paper_code)  -- Enables UPSERT
 
 ## Common Tasks
 
-### Deploy Code Updates to Production (Image-Based Deployment):
+### Deploy Code Updates to Production (Git-Based Deployment):
 ```bash
-# Step 1: Build and push to Docker Hub (from either workstation)
-cd $PROJECT_ROOT
-./build-and-push.sh
+# Step 1: Merge changes to master on GitHub (via PR workflow)
+# See "GIT WORKFLOW - PULL REQUEST PROTOCOL" section above
 
-# Step 2: Deploy to Production (SSH into NAS)
+# Step 2: Deploy to Production
 sshpass -p 'Mojave48ice' ssh it@192.168.1.254
-cd /volume1/docker/nwdownloads
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d
+~/deploy-circulation.sh
 
 # Step 3: Verify deployment
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps
-# Open: http://192.168.1.254:8081/
+# Open: https://cdash.upstatetoday.com
+# Check version number in footer
+# Verify new features/fixes are live
 ```
 
-**Note:** Code files are deployed via Docker Hub images ONLY. Never copy .php or .html files directly to production.
+**Deployment Script Output:**
+```
+==> Circulation Dashboard Deployment
+==> Pulling latest code from GitHub...
+Already up to date.
+==> Syncing files to production...
+[rsync output showing changed files]
+==> Fixing file permissions...
+==> Deployment complete!
+==> Dashboard: https://cdash.upstatetoday.com
+```
 
-### Deploy Configuration Files to Production:
+**What the deployment script does:**
+1. Pulls latest code from GitHub master branch to `/volume1/homes/it/circulation-deploy`
+2. Syncs `web/` subdirectory to `/volume1/web/circulation/` via rsync
+3. Preserves production-specific files (`.htaccess`, `.build_number`)
+4. Fixes file permissions automatically (644 for files, 755 for directories)
+
+**Note:** Code files are deployed via Git deployment script ONLY. Never copy .php or .html files directly to production directory.
+
+### Manual File Copy to Production (Emergency Only):
 ```bash
-# For docker-compose.prod.yml, db_init scripts, or other config files
-# (NOT application code - that goes via Docker Hub)
-sshpass -p 'Mojave48ice' ssh it@192.168.1.254 "cat > /volume1/docker/nwdownloads/docker-compose.prod.yml" < docker-compose.prod.yml
+# ONLY for emergency hotfixes when Git deployment can't be used
+# Always follow up by committing to GitHub and running proper deployment
+
+# Copy single file
+sshpass -p 'Mojave48ice' ssh it@192.168.1.254 "cat > /volume1/web/circulation/api.php" < web/api.php
+
+# Fix permissions after manual copy
+sshpass -p 'Mojave48ice' ssh it@192.168.1.254 "chmod 644 /volume1/web/circulation/api.php"
 ```
 
 ### Check Database:
 ```bash
-# Production (using root credentials)
-sudo /usr/local/bin/docker exec circulation_db mariadb -uroot -pRootPassword456! -D circulation_dashboard -e "SHOW TABLES;"
+# Production (native MariaDB via Unix socket)
+sshpass -p 'Mojave48ice' ssh it@192.168.1.254 "mysql -uroot -pP@ta675N0id -S /run/mysqld/mysqld10.sock circulation_dashboard -e 'SHOW TABLES;'"
 
-# Development (using application user credentials)
+# Development (Docker container)
 docker exec circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' -D circulation_dashboard -e "SHOW TABLES;"
 ```
 

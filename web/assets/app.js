@@ -478,6 +478,9 @@ function renderKeyMetrics() {
         (current.on_vacation / current.total_active * 100).toFixed(2) : '0.00';
     document.getElementById('vacationPercent').textContent = `${vacPercent}%`;
 
+    // Load longest vacations
+    loadLongestVacations();
+
     // Deliverable
     document.getElementById('deliverable').textContent = formatNumber(current.deliverable);
 
@@ -1555,6 +1558,41 @@ function renderComparisonWithTrend(comparison, trendDirection) {
  */
 function capitalizeFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Load longest vacations from API
+ */
+function loadLongestVacations() {
+    const snapshotDate = dashboardData.current.snapshot_date;
+
+    fetch(`api.php?action=get_longest_vacations&snapshot_date=${snapshotDate}`)
+        .then(response => response.json())
+        .then(response => {
+            if (response.success && response.data) {
+                const data = response.data;
+
+                // Display overall longest vacations
+                displayLongestVacationsOverall(data.overall);
+
+                // Display per-unit longest vacations
+                if (data.by_unit) {
+                    Object.entries(data.by_unit).forEach(([unit, vacations]) => {
+                        displayLongestVacationsForUnit(unit, vacations);
+                    });
+                }
+            } else {
+                console.error('Failed to load vacation data:', response.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading vacation data:', error);
+            // Show friendly error message in UI
+            const container = document.getElementById('longestVacationsOverall');
+            if (container) {
+                container.innerHTML = '<div class="text-xs text-gray-400 italic">Unable to load vacation data</div>';
+            }
+        });
 }
 
 console.log('App.js loaded - Phase 2 consolidated successfully!');

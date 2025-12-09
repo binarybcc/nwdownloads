@@ -38,8 +38,20 @@ INNER JOIN (
     AND s1.id < s2.keep_id;
 
 -- Step 3: Add unique constraint to prevent future duplicates
-ALTER TABLE subscriber_snapshots
-ADD UNIQUE KEY unique_snapshot_subscriber (snapshot_date, sub_num, paper_code);
+-- Check if constraint already exists before adding
+SET @index_exists = (SELECT COUNT(1)
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE table_schema = DATABASE()
+    AND table_name = 'subscriber_snapshots'
+    AND index_name = 'unique_snapshot_subscriber');
+
+SET @sql = IF(@index_exists = 0,
+    'ALTER TABLE subscriber_snapshots ADD UNIQUE KEY unique_snapshot_subscriber (snapshot_date, sub_num, paper_code)',
+    'SELECT "Index unique_snapshot_subscriber already exists" AS status');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- Verify cleanup
 SELECT

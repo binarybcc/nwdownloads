@@ -65,12 +65,37 @@ require_once 'auth_check.php';
         }
 
         .metric-card {
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s, border 0.2s;
         }
 
         .metric-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        /* Colored card variants with heat map hover effects - full border glow */
+        .metric-card.card-red:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 2px solid rgba(239, 68, 68, 0.5);
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.2);
+        }
+
+        .metric-card.card-orange:hover {
+            background-color: rgba(249, 115, 22, 0.1);
+            border: 2px solid rgba(249, 115, 22, 0.5);
+            box-shadow: 0 10px 25px rgba(249, 115, 22, 0.2);
+        }
+
+        .metric-card.card-yellow:hover {
+            background-color: rgba(234, 179, 8, 0.1);
+            border: 2px solid rgba(234, 179, 8, 0.5);
+            box-shadow: 0 10px 25px rgba(234, 179, 8, 0.2);
+        }
+
+        .metric-card.card-green:hover {
+            background-color: rgba(34, 197, 94, 0.1);
+            border: 2px solid rgba(34, 197, 94, 0.5);
+            box-shadow: 0 10px 25px rgba(34, 197, 94, 0.2);
         }
 
         .paper-card {
@@ -723,6 +748,166 @@ require_once 'auth_check.php';
             </div>
         </section>
 
+        <!-- Revenue Intelligence -->
+        <section class="mb-8" aria-labelledby="revenue-intelligence-heading">
+            <h2 id="revenue-intelligence-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                <span aria-hidden="true">💰</span> Revenue Intelligence
+            </h2>
+
+            <!-- Expiration Risk Cards -->
+            <div class="mb-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                    <span class="mr-2" aria-hidden="true">⏰</span>
+                    <span>Expiration Risk</span>
+                    <span class="ml-2 text-xs font-normal text-gray-500">(subscribers by time to renewal)</span>
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Expired -->
+                    <div class="metric-card card-red bg-white rounded-xl shadow p-6 cursor-pointer"
+                         onclick="showExpirationSubscribers('Expired')"
+                         role="region"
+                         aria-labelledby="expiration-expired-label">
+                        <div class="flex items-center justify-between mb-2">
+                            <div id="expiration-expired-label" class="text-sm font-medium text-gray-600">Expired</div>
+                            <div class="text-2xl" aria-hidden="true">🚨</div>
+                        </div>
+                        <div class="text-3xl font-bold text-gray-900" id="expiredCount">--</div>
+                        <div class="text-sm mt-2">
+                            <span class="text-red-600 font-semibold" id="expiredRevenue">$--</span>
+                            <span class="text-gray-500"> at risk</span>
+                        </div>
+                    </div>
+
+                    <!-- 0-4 Weeks -->
+                    <div class="metric-card card-orange bg-white rounded-xl shadow p-6 cursor-pointer"
+                         onclick="showExpirationSubscribers('0-4 weeks')"
+                         role="region"
+                         aria-labelledby="expiration-04-label">
+                        <div class="flex items-center justify-between mb-2">
+                            <div id="expiration-04-label" class="text-sm font-medium text-gray-600">Expiring 0-4 Weeks</div>
+                            <div class="text-2xl" aria-hidden="true">⚠️</div>
+                        </div>
+                        <div class="text-3xl font-bold text-gray-900" id="risk04Count">--</div>
+                        <div class="text-sm mt-2">
+                            <span class="text-orange-600 font-semibold" id="risk04Revenue">$--</span>
+                            <span class="text-gray-500"> at risk</span>
+                        </div>
+                    </div>
+
+                    <!-- 5-8 Weeks -->
+                    <div class="metric-card card-yellow bg-white rounded-xl shadow p-6 cursor-pointer"
+                         onclick="showExpirationSubscribers('5-8 weeks')"
+                         role="region"
+                         aria-labelledby="expiration-58-label">
+                        <div class="flex items-center justify-between mb-2">
+                            <div id="expiration-58-label" class="text-sm font-medium text-gray-600">Expiring 5-8 Weeks</div>
+                            <div class="text-2xl" aria-hidden="true">⏳</div>
+                        </div>
+                        <div class="text-3xl font-bold text-gray-900" id="risk58Count">--</div>
+                        <div class="text-sm mt-2">
+                            <span class="text-yellow-600 font-semibold" id="risk58Revenue">$--</span>
+                            <span class="text-gray-500"> at risk</span>
+                        </div>
+                    </div>
+
+                    <!-- 9-12 Weeks -->
+                    <div class="metric-card card-green bg-white rounded-xl shadow p-6 cursor-pointer"
+                         onclick="showExpirationSubscribers('9-12 weeks')"
+                         role="region"
+                         aria-labelledby="expiration-912-label">
+                        <div class="flex items-center justify-between mb-2">
+                            <div id="expiration-912-label" class="text-sm font-medium text-gray-600">Expiring 9-12 Weeks</div>
+                            <div class="text-2xl" aria-hidden="true">✅</div>
+                        </div>
+                        <div class="text-3xl font-bold text-gray-900" id="risk912Count">--</div>
+                        <div class="text-sm mt-2">
+                            <span class="text-green-600 font-semibold" id="risk912Revenue">$--</span>
+                            <span class="text-gray-500"> at risk</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Opportunities -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Legacy Rate Opportunity -->
+                <div class="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200 hover:shadow-xl transition-all">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-gray-700 flex items-center">
+                            <span class="mr-2" aria-hidden="true">🎯</span>
+                            <span>Legacy Rate Opportunity</span>
+                        </h3>
+                        <div class="text-2xl" aria-hidden="true">💎</div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <!-- Key Stats -->
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <div class="text-xs text-blue-700 mb-1">Subscribers on &lt;$100/year rates</div>
+                            <div class="text-3xl font-bold text-blue-900" id="legacyRateCount">--</div>
+                            <div class="text-xs text-blue-600 mt-1">
+                                Avg rate: <span id="legacyRateAvg" class="font-semibold">$--</span>/year
+                            </div>
+                        </div>
+
+                        <!-- Revenue Gap -->
+                        <div class="border-t border-gray-200 pt-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs text-gray-600">Current market rate:</span>
+                                <span class="text-sm font-bold text-gray-900">$169.99/year</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs text-gray-600">Monthly revenue gap:</span>
+                                <span class="text-lg font-bold text-orange-600" id="legacyRevenueGap">$--</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-semibold text-gray-700">Annual opportunity:</span>
+                                <span class="text-2xl font-bold text-green-600" id="legacyAnnualOpportunity">$--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Revenue Per Subscriber -->
+                <div class="bg-white rounded-xl shadow-lg p-6 border-2 border-purple-200 hover:shadow-xl transition-all">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-gray-700 flex items-center">
+                            <span class="mr-2" aria-hidden="true">📊</span>
+                            <span>Revenue Per Subscriber</span>
+                        </h3>
+                        <div class="text-2xl" aria-hidden="true">💵</div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <!-- Overall ARPU -->
+                        <div class="bg-purple-50 rounded-lg p-4">
+                            <div class="text-xs text-purple-700 mb-1">Average Revenue Per User (ARPU)</div>
+                            <div class="text-3xl font-bold text-purple-900" id="overallARPU">$--</div>
+                            <div class="text-xs text-purple-600 mt-1">
+                                MRR: <span id="overallMRR" class="font-semibold">$--</span>/month
+                            </div>
+                        </div>
+
+                        <!-- By Delivery Type -->
+                        <div class="space-y-2" id="arpuByDelivery">
+                            <div class="flex justify-between items-center text-sm py-2 border-b border-gray-100">
+                                <span class="text-gray-600">📮 Mail</span>
+                                <span class="font-semibold text-gray-900">$--</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm py-2 border-b border-gray-100">
+                                <span class="text-gray-600">🚗 Carrier</span>
+                                <span class="font-semibold text-gray-900">$--</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm py-2">
+                                <span class="text-gray-600">💻 Digital</span>
+                                <span class="font-semibold text-gray-900">$--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Business Units -->
         <section class="mb-8" aria-labelledby="business-units-heading">
             <h2 id="business-units-heading" class="text-lg font-semibold text-gray-900 mb-4">
@@ -959,6 +1144,7 @@ require_once 'auth_check.php';
     <script src="assets/trend-slider.js?v=20251207"></script>
     <script src="assets/chart-context-integration.js?v=20251207"></script>
     <script src="assets/vacation-display.js?v=20251208"></script>
+    <script src="assets/revenue-intelligence.js?v=20251209"></script>
     <script>
         // Initialize UI enhancements after dashboard is fully rendered
         // This listens for the 'DashboardRendered' event dispatched by renderDashboard()
@@ -971,6 +1157,11 @@ require_once 'auth_check.php';
             // Update backfill indicators if data is backfilled
             if (window.backfillIndicator && event.detail && event.detail.backfill) {
                 window.backfillIndicator.update(event.detail.backfill);
+            }
+
+            // Load revenue intelligence data
+            if (typeof loadRevenueIntelligence === 'function') {
+                loadRevenueIntelligence();
             }
         });
 

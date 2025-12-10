@@ -69,7 +69,7 @@ try {
     }
 
     // Parse CSV and process
-    $result = processAllSubscriberReport($pdo, $file['tmp_name']);
+    $result = processAllSubscriberReport($pdo, $file['tmp_name'], $file['name']);
 // Calculate processing time
     $processing_time = round(microtime(true) - $start_time, 2) . ' seconds';
 // Return success
@@ -133,9 +133,42 @@ function extractSnapshotDateFromFilename($filename)
  * - Actual data rows
  * - Footer section (starting with "Report Criteria")
  */
-function processAllSubscriberReport($pdo, $filepath)
+function processAllSubscriberReport($pdo, $filepath, $filename)
 {
+    // Step 1: Save raw CSV to raw_uploads table (source of truth)
+    $raw_csv_data = file_get_contents($filepath);
+    if ($raw_csv_data === false) {
+        throw new Exception('Could not read uploaded file');
+    }
 
+    $file_size = filesize($filepath);
+    $file_hash = hash('sha256', $raw_csv_data);
+
+    // We'll get snapshot_date later, so start with pending status
+    $stmt = $pdo->prepare("
+        INSERT INTO raw_uploads (
+            filename, file_size, file_hash, snapshot_date,
+            row_count, subscriber_count, raw_csv_data,
+            processing_status, uploaded_by, ip_address, user_agent
+        ) VALUES (
+            :filename, :file_size, :file_hash, '1970-01-01',
+            0, 0, :raw_csv_data,
+            'pending', 'web_interface', :ip, :user_agent
+        )
+    ");
+
+    $stmt->execute([
+        'filename' => $filename,
+        'file_size' => $file_size,
+        'file_hash' => $file_hash,
+        'raw_csv_data' => $raw_csv_data,
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+    ]);
+
+    $upload_id = $pdo->lastInsertId();
+
+    // Step 2: Process CSV as normal
     $handle = fopen($filepath, 'r');
     if (!$handle) {
         throw new Exception('Could not open uploaded file');
@@ -592,14 +625,14 @@ function processAllSubscriberReport($pdo, $filepath)
             if (!empty($subscriber_records)) {
                 $sub_stmt = $pdo->prepare("
                     INSERT INTO subscriber_snapshots (
-                        snapshot_date, week_num, year, sub_num, paper_code, paper_name, business_unit,
+                        upload_id, snapshot_date, week_num, year, sub_num, paper_code, paper_name, business_unit,
                         name, route, rate_name, subscription_length, delivery_type,
                         payment_status, begin_date, paid_thru, daily_rate, on_vacation,
                         address, city_state_postal, abc, issue_code, last_payment_amount,
                         phone, email, login_id, last_login,
                         source_filename, source_date, is_backfilled, backfill_weeks
                     ) VALUES (
-                        :snapshot_date, :week_num, :year, :sub_num, :paper_code, :paper_name, :business_unit,
+                        :upload_id, :snapshot_date, :week_num, :year, :sub_num, :paper_code, :paper_name, :business_unit,
                         :name, :route, :rate_name, :subscription_length, :delivery_type,
                         :payment_status, :begin_date, :paid_thru, :daily_rate, :on_vacation,
                         :address, :city_state_postal, :abc, :issue_code, :last_payment_amount,
@@ -609,6 +642,9 @@ function processAllSubscriberReport($pdo, $filepath)
                 ");
 
                 foreach ($subscriber_records as $sub) {
+                    // Link to raw upload
+                    $sub['upload_id'] = $upload_id;
+
                     // Use calculated snapshot_date for this week
                     $sub['snapshot_date'] = $target_snapshot_date;
 
@@ -632,10 +668,46 @@ function processAllSubscriberReport($pdo, $filepath)
         error_log("✅ SoftBackfill complete: $total_weeks_processed weeks processed ($total_real real, $total_backfilled backfilled)");
 
             $pdo->commit();
+
+        // Update raw_uploads with final metadata
+        $update_stmt = $pdo->prepare("
+            UPDATE raw_uploads SET
+                snapshot_date = :snapshot_date,
+                row_count = :row_count,
+                subscriber_count = :subscriber_count,
+                processed_at = NOW(),
+                processing_status = 'completed'
+            WHERE upload_id = :upload_id
+        ");
+
+        $update_stmt->execute([
+            'snapshot_date' => $stats['max_date'] ?? $stats['min_date'] ?? date('Y-m-d'),
+            'row_count' => $stats['total_processed'] ?? 0,
+            'subscriber_count' => $stats['subscriber_records_imported'] ?? 0,
+            'upload_id' => $upload_id
+        ]);
+
     } catch (Exception $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
+
+        // Mark raw upload as failed
+        try {
+            $fail_stmt = $pdo->prepare("
+                UPDATE raw_uploads SET
+                    processing_status = 'failed',
+                    processing_errors = :error
+                WHERE upload_id = :upload_id
+            ");
+            $fail_stmt->execute([
+                'error' => $e->getMessage(),
+                'upload_id' => $upload_id
+            ]);
+        } catch (Exception $ignored) {
+            // Ignore errors updating the error status
+        }
+
         throw $e;
     }
 

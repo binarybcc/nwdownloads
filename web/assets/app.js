@@ -213,11 +213,11 @@ function initDateNavigation() {
         flatpickrInstance.set('minDate', dataRange.min_date);
     }
 
-    // Update data range display
+    // Update data range display with full dates
     const minDate = new Date(dataRange.min_date);
     const maxDate = new Date(dataRange.max_date);
-    const minDateText = minDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    const maxDateText = maxDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const minDateText = minDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const maxDateText = maxDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     document.getElementById('dataRangeDisplay').textContent = `${minDateText} - ${maxDateText}`;
 }
 

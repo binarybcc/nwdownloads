@@ -51,7 +51,40 @@ try {
     ]);
     error_log("Vacation upload: DB connection successful");
 
-    // Read CSV file
+    // Step 1: Save raw CSV to raw_uploads table (source of truth)
+    $raw_csv_data = file_get_contents($file['tmp_name']);
+    if ($raw_csv_data === false) {
+        throw new Exception('Could not read uploaded file');
+    }
+
+    $file_size = filesize($file['tmp_name']);
+    $file_hash = hash('sha256', $raw_csv_data);
+
+    // Save to raw_uploads (snapshot_date determined later)
+    $stmt = $db->prepare("
+        INSERT INTO raw_uploads (
+            filename, file_size, file_hash, snapshot_date,
+            row_count, subscriber_count, raw_csv_data,
+            processing_status, uploaded_by, ip_address, user_agent
+        ) VALUES (
+            :filename, :file_size, :file_hash, '1970-01-01',
+            0, 0, :raw_csv_data,
+            'pending', 'web_interface_vacation', :ip, :user_agent
+        )
+    ");
+
+    $stmt->execute([
+        'filename' => $filename,
+        'file_size' => $file_size,
+        'file_hash' => $file_hash,
+        'raw_csv_data' => $raw_csv_data,
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+    ]);
+
+    $upload_id = $db->lastInsertId();
+
+    // Step 2: Process CSV as normal
     $handle = fopen($file['tmp_name'], 'r');
     if (!$handle) {
         throw new Exception('Could not read uploaded file');
@@ -216,16 +249,57 @@ try {
     $updateDaily->execute();
     $stats['daily_snapshots_updated'] = $updateDaily->rowCount();
 
+    // Step 3: Update raw_uploads with final metadata
+    $latestSnapshotStmt = $db->query("SELECT MAX(snapshot_date) as max_date FROM subscriber_snapshots");
+    $latestSnapshot = $latestSnapshotStmt->fetch();
+
+    $updateRawStmt = $db->prepare("
+        UPDATE raw_uploads SET
+            snapshot_date = :snapshot_date,
+            row_count = :row_count,
+            subscriber_count = :subscriber_count,
+            processed_at = NOW(),
+            processing_status = 'completed'
+        WHERE upload_id = :upload_id
+    ");
+
+    $updateRawStmt->execute([
+        'snapshot_date' => $latestSnapshot['max_date'] ?? date('Y-m-d'),
+        'row_count' => $stats['total_rows'],
+        'subscriber_count' => $stats['updated_rows'],
+        'upload_id' => $upload_id
+    ]);
+
     // Return success response
     echo json_encode([
         'success' => true,
         'message' => 'Vacation data imported successfully',
         'filename' => $filename,
+        'upload_id' => $upload_id,
         'stats' => $stats
     ]);
 
 } catch (Exception $e) {
     error_log("Vacation upload error: " . $e->getMessage());
+
+    // Mark raw upload as failed
+    if (isset($upload_id)) {
+        try {
+            $failStmt = $db->prepare("
+                UPDATE raw_uploads SET
+                    processing_status = 'failed',
+                    processing_errors = :error
+                WHERE upload_id = :upload_id
+            ");
+            $failStmt->execute([
+                'error' => $e->getMessage(),
+                'upload_id' => $upload_id
+            ]);
+        } catch (Exception $ignored) {
+            // Ignore errors updating the error status
+        }
+    }
+
     http_response_code(500);
     echo json_encode([
         'error' => $e->getMessage(),

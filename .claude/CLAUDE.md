@@ -26,7 +26,13 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 
 ## 📚 Documentation Reference
 
-**Primary Documentation** (Updated December 7, 2025):
+**Primary Documentation** (Updated December 10, 2025):
+- `/docs/DESIGN-SYSTEM.md` - **Component library and UI patterns** (READ FIRST when working on UI!)
+  - Metric card grid layouts
+  - Standard metric card pattern
+  - ContextMenu component
+  - SubscriberTablePanel component
+  - Anti-patterns to avoid
 - `/docs/KNOWLEDGE-BASE.md` - Comprehensive reference covering:
   - System architecture & database schemas
   - Frontend structure & API endpoints

@@ -540,6 +540,16 @@ require_once 'auth_check.php';
                         <span>Upload</span>
                     </a>
 
+                    <!-- Rate Management Button -->
+                    <a href="rates.php"
+                       class="px-4 py-2 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition flex items-center space-x-2"
+                       title="Manage rate classifications">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Rates</span>
+                    </a>
+
                     <!-- Logout Button -->
                     <a href="logout.php"
                        class="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition flex items-center space-x-2"
@@ -908,6 +918,141 @@ require_once 'auth_check.php';
             </div>
         </section>
 
+        <!-- Revenue Intelligence by Publication -->
+        <section class="mb-8" aria-labelledby="revenue-by-publication-heading">
+            <h2 id="revenue-by-publication-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                <span aria-hidden="true">💰</span> Revenue Intelligence by Publication
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="revenueByPublication" role="status" aria-live="polite">
+                <div class="text-center py-12">
+                    <div class="loading mx-auto mb-4"></div>
+                    <div class="text-gray-500">Loading publication metrics...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sweet Spot Optimizer -->
+        <section class="mb-8" aria-labelledby="sweet-spot-heading">
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-lg p-6 border-2 border-indigo-200">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 id="sweet-spot-heading" class="text-lg font-semibold text-gray-900">
+                        <span aria-hidden="true">🎯</span> Sweet Spot Optimizer
+                    </h2>
+                    <button onclick="toggleSweetSpotDetails()"
+                            class="text-sm text-indigo-600 hover:text-indigo-800 font-semibold"
+                            id="sweetSpotToggle">
+                        Show Details ↓
+                    </button>
+                </div>
+
+                <!-- Overall Score -->
+                <div class="mb-6 bg-white rounded-lg p-4 shadow">
+                    <div class="text-sm text-gray-600 mb-2">Overall Sweet Spot Score</div>
+                    <div class="flex items-end gap-4">
+                        <div class="text-4xl font-bold text-indigo-600" id="sweetSpotScore">--</div>
+                        <div class="text-sm text-gray-500 mb-1">/100</div>
+                    </div>
+                    <div class="mt-2">
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 rounded-full transition-all duration-500"
+                                 id="sweetSpotScoreBar"
+                                 style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Metrics (Collapsible) -->
+                <div id="sweetSpotDetails" class="hidden space-y-4">
+                    <!-- Cash Flow Score -->
+                    <div class="bg-white rounded-lg p-4 shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-semibold text-gray-700">💵 Cash Flow Score</span>
+                            <span class="text-lg font-bold text-green-600" id="cashFlowScore">--</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-500 h-2 rounded-full transition-all duration-500"
+                                 id="cashFlowBar"
+                                 style="width: 0%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Higher renewal frequency = better cash flow</div>
+                    </div>
+
+                    <!-- Profit Margin Score -->
+                    <div class="bg-white rounded-lg p-4 shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-semibold text-gray-700">📈 Profit Margin Score</span>
+                            <span class="text-lg font-bold text-blue-600" id="profitMarginScore">--</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                 id="profitMarginBar"
+                                 style="width: 0%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Higher annualized rates = better margins</div>
+                    </div>
+
+                    <!-- Stability Score -->
+                    <div class="bg-white rounded-lg p-4 shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-semibold text-gray-700">🔒 Stability Score</span>
+                            <span class="text-lg font-bold text-purple-600" id="stabilityScore">--</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-purple-500 h-2 rounded-full transition-all duration-500"
+                                 id="stabilityBar"
+                                 style="width: 0%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Longer commitments = more stability</div>
+                    </div>
+
+                    <!-- Admin Efficiency Score -->
+                    <div class="bg-white rounded-lg p-4 shadow">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-semibold text-gray-700">⚡ Admin Efficiency Score</span>
+                            <span class="text-lg font-bold text-orange-600" id="adminEfficiencyScore">--</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-orange-500 h-2 rounded-full transition-all duration-500"
+                                 id="adminEfficiencyBar"
+                                 style="width: 0%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Fewer renewals = less overhead</div>
+                    </div>
+
+                    <!-- Recommendations -->
+                    <div class="bg-white rounded-lg p-4 shadow border-l-4 border-indigo-500">
+                        <div class="text-sm font-semibold text-gray-700 mb-3">💡 Recommendations</div>
+                        <div id="sweetSpotRecommendations" class="space-y-2">
+                            <div class="text-center py-6 text-gray-400">Loading recommendations...</div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="bg-white rounded-lg p-4 shadow">
+                        <div class="text-sm font-semibold text-gray-700 mb-3">📊 Key Statistics</div>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <div class="text-gray-500">Avg Renewals/Year</div>
+                                <div class="font-bold text-gray-900" id="avgRenewals">--</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">Annualized Revenue</div>
+                                <div class="font-bold text-gray-900" id="annualizedRevenue">--</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">Min Rate (annualized)</div>
+                                <div class="font-bold text-gray-900" id="minRate">--</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">Max Rate (annualized)</div>
+                                <div class="font-bold text-gray-900" id="maxRate">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Business Units -->
         <section class="mb-8" aria-labelledby="business-units-heading">
             <h2 id="business-units-heading" class="text-lg font-semibold text-gray-900 mb-4">
@@ -1162,6 +1307,16 @@ require_once 'auth_check.php';
             // Load revenue intelligence data
             if (typeof loadRevenueIntelligence === 'function') {
                 loadRevenueIntelligence();
+            }
+
+            // Load per-paper revenue intelligence
+            if (typeof loadRevenueByPublication === 'function') {
+                loadRevenueByPublication();
+            }
+
+            // Load sweet spot analysis
+            if (typeof loadSweetSpotAnalysis === 'function') {
+                loadSweetSpotAnalysis();
             }
         });
 

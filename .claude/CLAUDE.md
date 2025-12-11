@@ -98,30 +98,79 @@ direnv allow
 - When you leave the directory, variables are unset automatically
 - No conflicts with other projects!
 
+## 🔐 CREDENTIAL SETUP (FIRST-TIME SETUP)
+
+**IMPORTANT: Before running ANY deployment or database commands, you must set up credential files.**
+
+### Quick Setup (30 seconds):
+
+```bash
+# 1. Copy the example file
+cp .env.credentials.example .env.credentials
+
+# 2. Edit with your actual credentials
+nano .env.credentials
+# (Replace all "your_*_here" values with real credentials)
+
+# 3. Test it works
+source .env.credentials && echo "SSH Host: $SSH_HOST"
+# Should output: SSH Host: 192.168.1.254
+
+# 4. Done! All commands in this file will now work.
+```
+
+### Credential File Locations:
+
+**For Deployment Scripts** (Project-Specific):
+- Template: `.env.credentials.example` (committed to git)
+- Your copy: `.env.credentials` (gitignored, contains real credentials)
+- Usage: `source .env.credentials` before running commands
+
+**For Reference** (Global, Human-Readable):
+- Location: `~/docs/CREDENTIALS.md`
+- **CONFIDENTIAL** - Complete credential reference
+- Never committed to git
+- Contains connection strings, setup instructions, rotation schedule
+
+### Error Handling:
+
+**If commands fail with "command not found" or empty variables:**
+```bash
+# Check if credential file exists
+ls -la .env.credentials
+
+# Verify file is sourced
+source .env.credentials
+echo "Test: SSH_HOST=$SSH_HOST"
+
+# If empty, check for syntax errors in .env.credentials
+cat .env.credentials | grep -v "^#" | grep "="
+```
+
+---
+
 ## ⚠️ PRODUCTION OPERATIONS PROTOCOL (MANDATORY)
 
 **Before ANY production database, deployment, or infrastructure operation, Claude MUST:**
 
-1. **Read the documentation** - Contains all connection details, credentials, and workflows
-2. **Check KNOWLEDGE-BASE.md** - Complete deployment workflows with commands
-3. **Follow the 3-attempt rule** - If it takes more than 3 attempts, you didn't read the docs
+1. **Set up credentials** - Source `.env.credentials` file (see setup section above)
+2. **Read the documentation** - Contains all connection details and workflows
+3. **Check KNOWLEDGE-BASE.md** - Complete deployment workflows with commands
+4. **Follow the 3-attempt rule** - If it takes more than 3 attempts, you didn't read the docs
 
 **Key files to check BEFORE executing:**
-- `/docs/KNOWLEDGE-BASE.md` - Complete system reference (deployment, configuration)
+- `.env.credentials` - **MUST be sourced first:** `source .env.credentials`
+- `~/docs/CREDENTIALS.md` - Complete credential reference (SSH, DB, Docker Hub)
+- `/docs/KNOWLEDGE-BASE.md` - System reference (deployment, configuration)
 - `/docs/TROUBLESHOOTING.md` - Decision trees for common issues
-- `~/docs/CREDENTIALS.md` - Production credentials (SSH, database, Docker Hub)
-- `.env.credentials` - Environment variables for deployment scripts
 - `.claude/CLAUDE.md` - This file (quick reference and protocols)
 
 **Critical production details:**
 - Production uses **native Synology services** (NOT Docker)
-- Database: MariaDB 10 via Unix socket `/run/mysqld/mysqld10.sock`
+- Database: MariaDB 10 via Unix socket (path in `$PROD_DB_SOCKET`)
+- Credentials: Stored in `.env.credentials` (must source before use)
 - Web directory: `/volume1/web/circulation/`
 - Deployment: Git clone at `/volume1/homes/it/circulation-deploy` → rsync to production
-
-**For credentials (SSH, database passwords), see:**
-- `~/docs/CREDENTIALS.md` - Complete credential reference
-- `.env.credentials` - Sourceable environment file for scripts
 
 **If you see Claude:**
 - Trying multiple connection attempts (3+)
@@ -780,10 +829,10 @@ Already up to date.
 source .env.credentials
 
 # Copy single file
-sshpass -p "$SSH_PASSWORD" ssh $SSH_USER@$SSH_HOST "cat > /volume1/web/circulation/api.php" < web/api.php
+sshpass -p "$SSH_PASSWORD" ssh "$SSH_USER@$SSH_HOST" "cat > /volume1/web/circulation/api.php" < web/api.php
 
 # Fix permissions after manual copy
-sshpass -p "$SSH_PASSWORD" ssh $SSH_USER@$SSH_HOST "chmod 644 /volume1/web/circulation/api.php"
+sshpass -p "$SSH_PASSWORD" ssh "$SSH_USER@$SSH_HOST" "chmod 644 /volume1/web/circulation/api.php"
 ```
 
 ### Check Database:
@@ -792,10 +841,12 @@ sshpass -p "$SSH_PASSWORD" ssh $SSH_USER@$SSH_HOST "chmod 644 /volume1/web/circu
 source .env.credentials
 
 # Production (native MariaDB via Unix socket)
-sshpass -p "$SSH_PASSWORD" ssh $SSH_USER@$SSH_HOST "mysql -u$PROD_DB_USERNAME -p$PROD_DB_PASSWORD -S $PROD_DB_SOCKET $PROD_DB_DATABASE -e 'SHOW TABLES;'"
+sshpass -p "$SSH_PASSWORD" ssh "$SSH_USER@$SSH_HOST" \
+  "mysql -u'$PROD_DB_USERNAME' -p'$PROD_DB_PASSWORD' -S '$PROD_DB_SOCKET' '$PROD_DB_DATABASE' -e 'SHOW TABLES;'"
 
 # Development (Docker container)
-docker exec circulation_db mariadb -u$DEV_DB_USERNAME -p"$DEV_DB_PASSWORD" -D $DEV_DB_DATABASE -e "SHOW TABLES;"
+docker exec circulation_db mariadb \
+  -u"$DEV_DB_USERNAME" -p"$DEV_DB_PASSWORD" -D "$DEV_DB_DATABASE" -e "SHOW TABLES;"
 ```
 
 ### Verify Upload Data:
@@ -804,7 +855,8 @@ docker exec circulation_db mariadb -u$DEV_DB_USERNAME -p"$DEV_DB_PASSWORD" -D $D
 source .env.credentials
 
 # Check latest snapshots
-docker exec circulation_db mariadb -u$DEV_DB_USERNAME -p"$DEV_DB_PASSWORD" -D $DEV_DB_DATABASE -e "
+docker exec circulation_db mariadb \
+  -u"$DEV_DB_USERNAME" -p"$DEV_DB_PASSWORD" -D "$DEV_DB_DATABASE" -e "
   SELECT snapshot_date, paper_code, paper_name, total_active, deliverable
   FROM daily_snapshots
   ORDER BY snapshot_date DESC, paper_code
@@ -812,7 +864,8 @@ docker exec circulation_db mariadb -u$DEV_DB_USERNAME -p"$DEV_DB_PASSWORD" -D $D
 "
 
 # Check date range
-docker exec circulation_db mariadb -u$DEV_DB_USERNAME -p"$DEV_DB_PASSWORD" -D $DEV_DB_DATABASE -e "
+docker exec circulation_db mariadb \
+  -u"$DEV_DB_USERNAME" -p"$DEV_DB_PASSWORD" -D "$DEV_DB_DATABASE" -e "
   SELECT
     MIN(snapshot_date) as earliest,
     MAX(snapshot_date) as latest,

@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 
     try {
-        if ($db_socket && $db_socket !== '') {
+        if ($db_socket) {
             $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
         } else {
             $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";
@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Connect to database for reading
 try {
-    if ($db_socket && $db_socket !== '') {
+    if ($db_socket) {
         $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
     } else {
         $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";
@@ -189,7 +189,10 @@ if (file_exists($csv_path)) {
                     'subscription_length' => $sub_length,
                     'zone' => $zone,
                     'rate' => $rate,
-                    'subscriber_count' => isset($subscriber_counts[$zone]) ? $subscriber_counts[$zone]['subscriber_count'] : 0
+                    'subscriber_count' => isset($subscriber_counts[$zone]) ? $subscriber_counts[$zone]['subscriber_count'] : 0,
+                    'is_legacy' => false,
+                    'is_ignored' => false,
+                    'is_special' => false
                 ];
             }
         }

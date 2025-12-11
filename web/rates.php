@@ -8,6 +8,12 @@
 require_once 'config.php';
 require_once 'auth_check.php';
 
+// Generate CSRF token if not exists
+session_start();
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Database configuration
 $db_host = getenv('DB_HOST') ?: 'database';
 $db_port = getenv('DB_PORT') ?: '3306';
@@ -26,6 +32,13 @@ $error_message = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_flags') {
     header('Content-Type: application/json');
 
+    // Verify CSRF token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
+        exit;
+    }
+
     try {
         if ($db_socket && $db_socket !== '') {
             $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
@@ -38,11 +51,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
         ]);
 
-        $paper_code = $_POST['paper_code'];
-        $zone = $_POST['zone'];
-        $rate_name = $_POST['rate_name'];
-        $subscription_length = $_POST['subscription_length'];
+        // Validate required POST parameters
+        $required_params = ['paper_code', 'zone', 'rate_name', 'subscription_length', 'rate_amount'];
+        foreach ($required_params as $param) {
+            if (!isset($_POST[$param]) || trim($_POST[$param]) === '') {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => "Missing required parameter: $param"]);
+                exit;
+            }
+        }
+
+        // Sanitize and validate inputs
+        $paper_code = trim($_POST['paper_code']);
+        $zone = trim($_POST['zone']);
+        $rate_name = trim($_POST['rate_name']);
+        $subscription_length = trim($_POST['subscription_length']);
         $rate_amount = floatval($_POST['rate_amount']);
+
+        // Validate paper_code format (2-3 uppercase letters)
+        if (!preg_match('/^[A-Z]{2,3}$/', $paper_code)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid paper code format']);
+            exit;
+        }
+
+        // Validate rate amount is positive
+        if ($rate_amount <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Rate amount must be positive']);
+            exit;
+        }
+
         $is_legacy = isset($_POST['is_legacy']) && $_POST['is_legacy'] === 'true';
         $is_ignored = isset($_POST['is_ignored']) && $_POST['is_ignored'] === 'true';
         $is_special = isset($_POST['is_special']) && $_POST['is_special'] === 'true';
@@ -109,17 +148,18 @@ try {
 
     // Get subscriber counts by zone from latest snapshot
     // Note: subscriber_snapshots.rate_name actually contains the zone code
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT
             rate_name as zone,
             COUNT(*) as subscriber_count,
             AVG(ABS(last_payment_amount)) as avg_rate
         FROM subscriber_snapshots
-        WHERE snapshot_date = '$snapshot_date'
+        WHERE snapshot_date = :snapshot_date
           AND rate_name IS NOT NULL
           AND rate_name != ''
         GROUP BY rate_name
     ");
+    $stmt->execute(['snapshot_date' => $snapshot_date]);
     $subscriber_counts = [];
     while ($row = $stmt->fetch()) {
         $subscriber_counts[$row['zone']] = $row;
@@ -245,7 +285,7 @@ foreach ($rates as &$rate) {
             $legacy_rates = count(array_filter($rates, function($r) { return $r['is_legacy']; }));
             $ignored_rates = count(array_filter($rates, function($r) { return $r['is_ignored']; }));
             $special_rates = count(array_filter($rates, function($r) { return $r['is_special']; }));
-            $market_rate_count = count($market_rates)
+            $market_rate_count = count($market_rates);
             ?>
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="text-sm text-gray-600">Total Rates</div>
@@ -481,6 +521,7 @@ foreach ($rates as &$rate) {
             },
             body: new URLSearchParams({
                 action: 'save_flags',
+                csrf_token: '<?= $_SESSION['csrf_token'] ?>',
                 paper_code: paper_code,
                 zone: zone,
                 rate_name: rate_name,

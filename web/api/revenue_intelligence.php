@@ -46,7 +46,7 @@ $db_pass = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
 $db_socket = getenv('DB_SOCKET') ?: '';
 try {
 // Connect to database
-    if ($db_socket && $db_socket !== '') {
+    if ($db_socket) {
         $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
     } else {
         $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";

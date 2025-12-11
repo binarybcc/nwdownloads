@@ -478,8 +478,10 @@ function processAllSubscriberReport($pdo, $filepath, $filename)
 
         while (true) {
             // Check if we've reached the minimum date
-            if ($current_year < $min_backfill_year ||
-                ($current_year == $min_backfill_year && $current_week < $min_backfill_week)) {
+            if (
+                $current_year < $min_backfill_year ||
+                ($current_year == $min_backfill_year && $current_week < $min_backfill_week)
+            ) {
                 error_log("🛑 Backfill stopped at minimum date (Oct 1, 2025)");
                 break; // Hit Oct 1, 2025 limit
             }
@@ -686,7 +688,6 @@ function processAllSubscriberReport($pdo, $filepath, $filename)
             'subscriber_count' => $stats['subscriber_records_imported'] ?? 0,
             'upload_id' => $upload_id
         ]);
-
     } catch (Exception $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();

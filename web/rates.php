@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Rate Management System
  * Allows users to classify rates as Market, Legacy, or Ignored
@@ -7,7 +8,6 @@
 
 require_once 'config.php';
 require_once 'auth_check.php';
-
 // Generate CSRF token if not exists
 session_start();
 if (!isset($_SESSION['csrf_token'])) {
@@ -21,18 +21,15 @@ $db_name = getenv('DB_NAME') ?: 'circulation_dashboard';
 $db_user = getenv('DB_USER') ?: 'circ_dash';
 $db_pass = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
 $db_socket = getenv('DB_SOCKET') ?: '';
-
 // Initialize variables before try-catch
 $rate_flags = [];
 $subscriber_counts = [];
 $snapshot_date = null;
 $error_message = null;
-
 // Handle AJAX save requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_flags') {
     header('Content-Type: application/json');
-
-    // Verify CSRF token
+// Verify CSRF token
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
@@ -50,8 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
         ]);
-
-        // Validate required POST parameters
+// Validate required POST parameters
         $required_params = ['paper_code', 'zone', 'rate_name', 'subscription_length', 'rate_amount'];
         foreach ($required_params as $param) {
             if (!isset($_POST[$param]) || trim($_POST[$param]) === '') {
@@ -67,8 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $rate_name = trim($_POST['rate_name']);
         $subscription_length = trim($_POST['subscription_length']);
         $rate_amount = floatval($_POST['rate_amount']);
-
-        // Validate paper_code format (2-3 uppercase letters)
+// Validate paper_code format (2-3 uppercase letters)
         if (!preg_match('/^[A-Z]{2,3}$/', $paper_code)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid paper code format']);
@@ -85,8 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $is_legacy = isset($_POST['is_legacy']) && $_POST['is_legacy'] === 'true';
         $is_ignored = isset($_POST['is_ignored']) && $_POST['is_ignored'] === 'true';
         $is_special = isset($_POST['is_special']) && $_POST['is_special'] === 'true';
-
-        // Upsert rate flag
+// Upsert rate flag
         $sql = "INSERT INTO rate_flags
                 (paper_code, zone, rate_name, subscription_length, rate_amount, is_legacy, is_ignored, is_special)
                 VALUES (:paper_code, :zone, :rate_name, :subscription_length, :rate_amount, :is_legacy, :is_ignored, :is_special)
@@ -95,7 +89,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     is_ignored = VALUES(is_ignored),
                     is_special = VALUES(is_special),
                     updated_at = CURRENT_TIMESTAMP";
-
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             'paper_code' => $paper_code,
@@ -107,8 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             'is_ignored' => $is_ignored ? 1 : 0,
             'is_special' => $is_special ? 1 : 0
         ]);
-
-        // Debug: Return what was saved
+// Debug: Return what was saved
         echo json_encode([
             'success' => true,
             'debug' => [
@@ -120,7 +112,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             ]
         ]);
         exit;
-
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -140,13 +131,11 @@ try {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
-
-    // Get latest snapshot date
+// Get latest snapshot date
     $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
     $latest = $stmt->fetch();
     $snapshot_date = $latest['latest_date'];
-
-    // Get subscriber counts by zone from latest snapshot
+// Get subscriber counts by zone from latest snapshot
     // Note: subscriber_snapshots.rate_name actually contains the zone code
     $stmt = $pdo->prepare("
         SELECT
@@ -169,12 +158,11 @@ try {
     $stmt = $pdo->query("SELECT * FROM rate_flags");
     $rate_flags = [];
     while ($row = $stmt->fetch()) {
-        // Format rate_amount to 2 decimals for consistent key matching
+    // Format rate_amount to 2 decimals for consistent key matching
         $formatted_rate = number_format((float)$row['rate_amount'], 2, '.', '');
         $key = $row['paper_code'] . '_' . $row['zone'] . '_' . $row['subscription_length'] . '_' . $formatted_rate;
         $rate_flags[$key] = $row;
     }
-
 } catch (Exception $e) {
     $error_message = "Database error: " . $e->getMessage();
 }
@@ -182,11 +170,9 @@ try {
 // Read and parse rates.csv
 $csv_path = __DIR__ . '/rates.csv';
 $rates = [];
-
 if (file_exists($csv_path)) {
     $handle = fopen($csv_path, 'r');
     $headers = fgetcsv($handle);
-
     while (($row = fgetcsv($handle)) !== false) {
         if (count($row) >= 9) {
             $paper = trim($row[1]);
@@ -194,11 +180,9 @@ if (file_exists($csv_path)) {
             $len_type = trim($row[4]);
             $zone = trim($row[5]);
             $rate = floatval(trim($row[8]));
-
-            // Skip $0 rates
+        // Skip $0 rates
             if ($rate > 0) {
                 $sub_length = $length . ' ' . $len_type;
-
                 $rates[] = [
                     'description' => trim($row[0]),
                     'paper_code' => $paper,
@@ -234,19 +218,16 @@ foreach ($rates as &$rate) {
     $market_key = $rate['paper_code'] . '_' . $rate['subscription_length'];
     $is_market = ($rate['rate'] == $market_rates[$market_key]);
     $auto_legacy = !$is_market && ($rate['rate'] < $market_rates[$market_key]);
-
-    // Check for existing flags - format rate to 2 decimals for consistent matching
+// Check for existing flags - format rate to 2 decimals for consistent matching
     $formatted_rate = number_format((float)$rate['rate'], 2, '.', '');
     $flag_key = $rate['paper_code'] . '_' . $rate['zone'] . '_' . $rate['subscription_length'] . '_' . $formatted_rate;
     $has_flags = isset($rate_flags[$flag_key]);
-
     $rate['is_market'] = $is_market;
     $rate['auto_legacy'] = $auto_legacy;
     $rate['is_legacy'] = $has_flags ? (bool)$rate_flags[$flag_key]['is_legacy'] : $auto_legacy;
     $rate['is_ignored'] = $has_flags ? (bool)$rate_flags[$flag_key]['is_ignored'] : false;
     $rate['is_special'] = $has_flags ? (bool)$rate_flags[$flag_key]['is_special'] : false;
     $rate['market_rate'] = $market_rates[$market_key];
-
     $by_paper[$paper][] = $rate;
 }
 ?>
@@ -281,10 +262,18 @@ foreach ($rates as &$rate) {
         <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
             <?php
             $total_rates = count($rates);
-            $active_rates = count(array_filter($rates, function($r) { return $r['subscriber_count'] > 0; }));
-            $legacy_rates = count(array_filter($rates, function($r) { return $r['is_legacy']; }));
-            $ignored_rates = count(array_filter($rates, function($r) { return $r['is_ignored']; }));
-            $special_rates = count(array_filter($rates, function($r) { return $r['is_special']; }));
+            $active_rates = count(array_filter($rates, function ($r) {
+                return $r['subscriber_count'] > 0;
+            }));
+            $legacy_rates = count(array_filter($rates, function ($r) {
+                return $r['is_legacy'];
+            }));
+            $ignored_rates = count(array_filter($rates, function ($r) {
+                return $r['is_ignored'];
+            }));
+            $special_rates = count(array_filter($rates, function ($r) {
+                return $r['is_special'];
+            }));
             $market_rate_count = count($market_rates);
             ?>
             <div class="bg-white rounded-lg shadow p-4">
@@ -315,12 +304,13 @@ foreach ($rates as &$rate) {
 
         <!-- Alerts for Ignored Rates with Subscribers -->
         <?php
-        $ignored_with_subs = array_filter($rates, function($r) {
+        $ignored_with_subs = array_filter($rates, function ($r) {
+
             return $r['is_ignored'] && $r['subscriber_count'] > 0;
         });
 
-        if (count($ignored_with_subs) > 0):
-        ?>
+        if (count($ignored_with_subs) > 0) :
+            ?>
         <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
             <div class="flex">
                 <div class="flex-shrink-0">
@@ -334,40 +324,55 @@ foreach ($rates as &$rate) {
                     </p>
                     <div class="mt-2 text-sm text-yellow-700">
                         <ul class="list-disc list-inside space-y-1">
-                            <?php foreach (array_slice($ignored_with_subs, 0, 5) as $rate): ?>
+                            <?php foreach (array_slice($ignored_with_subs, 0, 5) as $rate) :
+                                ?>
                             <li><?= htmlspecialchars($rate['description']) ?> (<?= $rate['zone'] ?>) - <?= $rate['subscriber_count'] ?> subscribers</li>
-                            <?php endforeach; ?>
+                                <?php
+                            endforeach; ?>
                         </ul>
                     </div>
                 </div>
             </div>
         </div>
-        <?php endif; ?>
+            <?php
+        endif; ?>
 
         <!-- Debug Info (remove after testing) -->
-        <?php if (isset($_GET['debug'])): ?>
+        <?php if (isset($_GET['debug'])) :
+            ?>
         <div class="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-6">
             <h3 class="font-semibold text-gray-900 mb-2">Debug Info</h3>
             <div class="text-xs font-mono">
-                <?php if ($error_message): ?>
+                <?php if ($error_message) :
+                    ?>
                     <div class="text-red-600"><strong>Error:</strong> <?= htmlspecialchars($error_message) ?></div>
-                <?php else: ?>
+                    <?php
+                else :
+                    ?>
                     <strong>Total flags in database:</strong> <?= count($rate_flags) ?><br>
                     <strong>Snapshot date:</strong> <?= htmlspecialchars($snapshot_date) ?><br>
                     <strong>Flag keys (all <?= count($rate_flags) ?>):</strong>
                     <ul class="list-disc list-inside mt-2 max-h-64 overflow-y-auto">
-                    <?php if (count($rate_flags) > 0): ?>
-                        <?php foreach (array_keys($rate_flags) as $key): ?>
+                    <?php if (count($rate_flags) > 0) :
+                        ?>
+                        <?php foreach (array_keys($rate_flags) as $key) :
+                            ?>
                             <li><?= htmlspecialchars($key) ?> → Legacy: <?= $rate_flags[$key]['is_legacy'] ?>, Ignored: <?= $rate_flags[$key]['is_ignored'] ?></li>
-                        <?php endforeach; ?>
-                    <?php else: ?>
+                            <?php
+                        endforeach; ?>
+                        <?php
+                    else :
+                        ?>
                         <li>No flags saved yet</li>
-                    <?php endif; ?>
+                        <?php
+                    endif; ?>
                     </ul>
-                <?php endif; ?>
+                    <?php
+                endif; ?>
             </div>
         </div>
-        <?php endif; ?>
+            <?php
+        endif; ?>
 
         <!-- Legend -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -383,15 +388,16 @@ foreach ($rates as &$rate) {
         </div>
 
         <!-- Rates by Paper -->
-        <?php foreach ($by_paper as $paper => $paper_rates):
-            // Sort by subscription length then rate descending
-            usort($paper_rates, function($a, $b) {
+        <?php foreach ($by_paper as $paper => $paper_rates) :
+// Sort by subscription length then rate descending
+            usort($paper_rates, function ($a, $b) {
+
                 if ($a['subscription_length'] === $b['subscription_length']) {
                     return $b['rate'] <=> $a['rate'];
                 }
                 return strcmp($a['subscription_length'], $b['subscription_length']);
             });
-        ?>
+            ?>
         <div class="bg-white rounded-lg shadow mb-6">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h2 class="text-xl font-bold text-gray-900"><?= htmlspecialchars($paper) ?></h2>
@@ -415,14 +421,14 @@ foreach ($rates as &$rate) {
                     <tbody class="bg-white divide-y divide-gray-200">
                         <?php
                         $current_length = null;
-                        $row_index = 0; // Use counter for truly unique IDs
-                        foreach ($paper_rates as $rate):
-                            // Visual separator between subscription lengths
+                        $row_index = 0;
+// Use counter for truly unique IDs
+                        foreach ($paper_rates as $rate) :
+// Visual separator between subscription lengths
                             if ($current_length !== null && $current_length !== $rate['subscription_length']) {
                                 echo '<tr class="bg-gray-50"><td colspan="7" class="h-2"></td></tr>';
                             }
                             $current_length = $rate['subscription_length'];
-
                             $row_class = '';
                             if ($rate['is_ignored']) {
                                 $row_class = 'bg-gray-100';
@@ -436,7 +442,7 @@ foreach ($rates as &$rate) {
 
                             // Use paper code + row index for truly unique IDs
                             $unique_id = $paper . '_' . $row_index++;
-                        ?>
+                            ?>
                         <tr class="rate-row <?= $row_class ?>"
                             data-paper="<?= htmlspecialchars($rate['paper_code']) ?>"
                             data-zone="<?= htmlspecialchars($rate['zone']) ?>"
@@ -448,16 +454,22 @@ foreach ($rates as &$rate) {
                             <td class="px-6 py-3 text-sm text-gray-700 font-mono"><?= htmlspecialchars($rate['zone']) ?></td>
                             <td class="px-6 py-3 text-sm text-right font-semibold text-gray-900">
                                 $<?= number_format($rate['rate'], 2) ?>
-                                <?php if ($rate['is_market']): ?>
+                                <?php if ($rate['is_market']) :
+                                    ?>
                                 <span class="ml-2 text-xs text-green-600">(Market)</span>
-                                <?php endif; ?>
+                                    <?php
+                                endif; ?>
                             </td>
                             <td class="px-6 py-3 text-sm text-center">
-                                <?php if ($rate['subscriber_count'] > 0): ?>
+                                <?php if ($rate['subscriber_count'] > 0) :
+                                    ?>
                                 <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold"><?= $rate['subscriber_count'] ?></span>
-                                <?php else: ?>
+                                    <?php
+                                else :
+                                    ?>
                                 <span class="text-gray-400">0</span>
-                                <?php endif; ?>
+                                    <?php
+                                endif; ?>
                             </td>
                             <td class="px-6 py-3 text-center checkbox-cell">
                                 <input type="checkbox"
@@ -481,12 +493,14 @@ foreach ($rates as &$rate) {
                                        onchange="saveRateFlag(this, 'ignore')">
                             </td>
                         </tr>
-                        <?php endforeach; ?>
+                            <?php
+                        endforeach; ?>
                     </tbody>
                 </table>
             </div>
         </div>
-        <?php endforeach; ?>
+            <?php
+        endforeach; ?>
     </div>
 
     <script>

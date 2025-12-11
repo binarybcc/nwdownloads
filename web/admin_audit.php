@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Admin Audit Endpoint - Data Provenance Viewer
  * Shows which uploads own which weeks
@@ -6,7 +7,6 @@
  */
 
 require_once 'auth_check.php';
-
 // Database configuration
 $db_config = [
     'host' => getenv('DB_HOST') ?: 'database',
@@ -15,15 +15,13 @@ $db_config = [
     'username' => getenv('DB_USER') ?: 'circ_dash',
     'password' => getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!',
 ];
-
 try {
     $dsn = "mysql:host={$db_config['host']};port={$db_config['port']};dbname={$db_config['database']};charset=utf8mb4";
     $pdo = new PDO($dsn, $db_config['username'], $db_config['password'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
-
-    // Get audit summary grouped by week
+// Get audit summary grouped by week
     $stmt = $pdo->query("
         SELECT
             week_num,
@@ -41,8 +39,7 @@ try {
         ORDER BY year DESC, week_num DESC
     ");
     $weeks = $stmt->fetchAll();
-
-    // Get unique sources
+// Get unique sources
     $source_stmt = $pdo->query("
         SELECT DISTINCT
             source_filename,
@@ -56,7 +53,6 @@ try {
         ORDER BY source_date DESC
     ");
     $sources = $source_stmt->fetchAll();
-
 } catch (PDOException $e) {
     die("Database error: " . htmlspecialchars($e->getMessage()));
 }
@@ -96,14 +92,16 @@ try {
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        <?php foreach ($sources as $source): ?>
+                        <?php foreach ($sources as $source) :
+                            ?>
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900"><?= htmlspecialchars($source['source_filename']) ?></td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600"><?= date('M j, Y', strtotime($source['source_date'])) ?></td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?= $source['weeks_owned'] ?> weeks</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Week <?= $source['first_week'] ?> - <?= $source['last_week'] ?></td>
                         </tr>
-                        <?php endforeach; ?>
+                            <?php
+                        endforeach; ?>
                     </tbody>
                 </table>
             </div>
@@ -126,7 +124,8 @@ try {
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        <?php foreach ($weeks as $week): ?>
+                        <?php foreach ($weeks as $week) :
+                            ?>
                         <tr class="<?= $week['is_backfilled'] ? 'bg-amber-50' : '' ?>">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 Week <?= $week['week_num'] ?>, <?= $week['year'] ?>
@@ -136,27 +135,37 @@ try {
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-600">
                                 <?= $week['source_filename'] ? htmlspecialchars(substr($week['source_filename'], 0, 30)) . '...' : 'N/A' ?>
-                                <?php if ($week['source_date']): ?>
+                                <?php if ($week['source_date']) :
+                                    ?>
                                 <div class="text-xs text-gray-500 mt-1">from <?= date('M j', strtotime($week['source_date'])) ?></div>
-                                <?php endif; ?>
+                                    <?php
+                                endif; ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <?php if ($week['is_backfilled']): ?>
+                                <?php if ($week['is_backfilled']) :
+                                    ?>
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                     Backfilled
                                 </span>
-                                <?php else: ?>
+                                    <?php
+                                else :
+                                    ?>
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                     Real Data
                                 </span>
-                                <?php endif; ?>
+                                    <?php
+                                endif; ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                <?php if ($week['is_backfilled']): ?>
-                                <?= $week['backfill_weeks'] ?> weeks
-                                <?php else: ?>
+                                <?php if ($week['is_backfilled']) :
+                                    ?>
+                                    <?= $week['backfill_weeks'] ?> weeks
+                                    <?php
+                                else :
+                                    ?>
                                 -
-                                <?php endif; ?>
+                                    <?php
+                                endif; ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 <?= $week['num_papers'] ?>
@@ -165,7 +174,8 @@ try {
                                 <?= number_format($week['total_subscribers']) ?>
                             </td>
                         </tr>
-                        <?php endforeach; ?>
+                            <?php
+                        endforeach; ?>
                     </tbody>
                 </table>
             </div>

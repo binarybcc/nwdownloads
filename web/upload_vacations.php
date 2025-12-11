@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Vacation Data Upload Handler
  * Processes "Subscribers On Vacation" CSV exports from Newzware
@@ -7,7 +8,6 @@
 
 header('Content-Type: application/json');
 require_once 'config.php';
-
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -31,7 +31,6 @@ if ($_FILES['csv_file']['size'] > 10 * 1024 * 1024) {
 
 $file = $_FILES['csv_file'];
 $filename = basename($file['name']);
-
 // Database configuration
 $db_config = [
     'host' => getenv('DB_HOST') ?: 'database',
@@ -40,9 +39,8 @@ $db_config = [
     'username' => getenv('DB_USER') ?: 'circ_dash',
     'password' => getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!',
 ];
-
 try {
-    // Connect to database
+// Connect to database
     $dsn = "mysql:host={$db_config['host']};port={$db_config['port']};dbname={$db_config['database']};charset=utf8mb4";
     error_log("Vacation upload: Attempting DB connection with DSN: $dsn");
     $db = new PDO($dsn, $db_config['username'], $db_config['password'], [
@@ -50,8 +48,7 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
     error_log("Vacation upload: DB connection successful");
-
-    // Step 1: Save raw CSV to raw_uploads table (source of truth)
+// Step 1: Save raw CSV to raw_uploads table (source of truth)
     $raw_csv_data = file_get_contents($file['tmp_name']);
     if ($raw_csv_data === false) {
         throw new Exception('Could not read uploaded file');
@@ -59,8 +56,7 @@ try {
 
     $file_size = filesize($file['tmp_name']);
     $file_hash = hash('sha256', $raw_csv_data);
-
-    // Save to raw_uploads (snapshot_date determined later)
+// Save to raw_uploads (snapshot_date determined later)
     $stmt = $db->prepare("
         INSERT INTO raw_uploads (
             filename, file_size, file_hash, snapshot_date,
@@ -72,7 +68,6 @@ try {
             'pending', 'web_interface_vacation', :ip, :user_agent
         )
     ");
-
     $stmt->execute([
         'filename' => $filename,
         'file_size' => $file_size,
@@ -81,10 +76,8 @@ try {
         'ip' => $_SERVER['REMOTE_ADDR'] ?? null,
         'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
     ]);
-
     $upload_id = $db->lastInsertId();
-
-    // Step 2: Process CSV as normal
+// Step 2: Process CSV as normal
     $handle = fopen($file['tmp_name'], 'r');
     if (!$handle) {
         throw new Exception('Could not read uploaded file');
@@ -97,15 +90,12 @@ try {
         'errors' => [],
         'by_paper' => []
     ];
-
     $lineNumber = 0;
     $headerFound = false;
     $headerRow = null;
-
     while (($row = fgetcsv($handle)) !== false) {
         $lineNumber++;
-
-        // Skip empty rows
+    // Skip empty rows
         if (empty(array_filter($row))) {
             continue;
         }
@@ -116,17 +106,17 @@ try {
             if (stripos($firstCell, 'SUB NUM') !== false) {
                 $headerFound = true;
                 $headerRow = array_map('trim', $row);
-
-                // Validate required columns
+            // Validate required columns
                 $requiredColumns = ['SUB NUM', 'VAC BEG.', 'VAC END', 'Ed'];
                 foreach ($requiredColumns as $col) {
                     if (!in_array($col, $headerRow)) {
-                        throw new Exception("Missing required column: $col. This doesn't appear to be a Subscribers On Vacation report.");
+                            throw new Exception("Missing required column: $col. This doesn't appear to be a Subscribers On Vacation report.");
                     }
                 }
                 continue;
             }
-            continue; // Skip header rows
+            continue;
+// Skip header rows
         }
 
         // Skip separator rows (all dashes)
@@ -136,21 +126,22 @@ try {
 
         // Skip footer rows (starts with "Total Vacations" or "Report")
         $firstCell = trim($row[0] ?? '');
-        if (stripos($firstCell, 'Total Vacations') !== false ||
+        if (
+            stripos($firstCell, 'Total Vacations') !== false ||
             stripos($firstCell, 'Report') !== false ||
-            empty($firstCell)) {
-            break; // End of data
+            empty($firstCell)
+        ) {
+            break;
+// End of data
         }
 
         $stats['total_rows']++;
-
-        // Extract data using header positions
+    // Extract data using header positions
         $subNum = trim($row[array_search('SUB NUM', $headerRow)] ?? '');
         $vacBeg = trim($row[array_search('VAC BEG.', $headerRow)] ?? '');
         $vacEnd = trim($row[array_search('VAC END', $headerRow)] ?? '');
         $paperCode = trim($row[array_search('Ed', $headerRow)] ?? '');
-
-        // Validate required fields
+    // Validate required fields
         if (empty($subNum) || empty($vacBeg) || empty($vacEnd) || empty($paperCode)) {
             $stats['skipped_rows']++;
             $stats['errors'][] = "Line $lineNumber: Missing required fields (sub_num, dates, or paper)";
@@ -161,7 +152,6 @@ try {
         // Handle 2-digit year: assume 00-50 = 2000-2050, 51-99 = 1951-1999
         $vacStart = parseNewzwareDate($vacBeg);
         $vacEnd = parseNewzwareDate($vacEnd);
-
         if (!$vacStart || !$vacEnd) {
             $stats['skipped_rows']++;
             $stats['errors'][] = "Line $lineNumber: Invalid date format (sub: $subNum, start: $vacBeg, end: $vacEnd)";
@@ -178,8 +168,7 @@ try {
         // Calculate weeks on vacation (calendar weeks)
         $vacationDays = $vacStart->diff($vacEnd)->days;
         $vacationWeeks = round($vacationDays / 7, 1);
-
-        // Update subscriber_snapshots for this subscriber
+    // Update subscriber_snapshots for this subscriber
         // SubscribersOnVacation CSV is the AUTHORITATIVE source for vacation status
         // Any subscriber in this CSV is considered on vacation, regardless of AllSubscriberReport
         // Find most recent snapshot for this subscriber and mark as on vacation with dates
@@ -198,7 +187,6 @@ try {
                     AND ss2.paper_code = :paper_code
               )
         ");
-
         $stmt->execute([
             ':sub_num' => $subNum,
             ':paper_code' => $paperCode,
@@ -206,10 +194,8 @@ try {
             ':vac_end' => $vacEnd->format('Y-m-d'),
             ':vac_weeks' => $vacationWeeks
         ]);
-
         if ($stmt->rowCount() > 0) {
             $stats['updated_rows']++;
-
             // Track by paper
             if (!isset($stats['by_paper'][$paperCode])) {
                 $stats['by_paper'][$paperCode] = 0;
@@ -222,7 +208,6 @@ try {
     }
 
     fclose($handle);
-
     if (!$headerFound) {
         throw new Exception('CSV does not appear to be a Subscribers On Vacation report (header row not found)');
     }
@@ -248,11 +233,9 @@ try {
     ");
     $updateDaily->execute();
     $stats['daily_snapshots_updated'] = $updateDaily->rowCount();
-
-    // Step 3: Update raw_uploads with final metadata
+// Step 3: Update raw_uploads with final metadata
     $latestSnapshotStmt = $db->query("SELECT MAX(snapshot_date) as max_date FROM subscriber_snapshots");
     $latestSnapshot = $latestSnapshotStmt->fetch();
-
     $updateRawStmt = $db->prepare("
         UPDATE raw_uploads SET
             snapshot_date = :snapshot_date,
@@ -262,15 +245,13 @@ try {
             processing_status = 'completed'
         WHERE upload_id = :upload_id
     ");
-
     $updateRawStmt->execute([
         'snapshot_date' => $latestSnapshot['max_date'] ?? date('Y-m-d'),
         'row_count' => $stats['total_rows'],
         'subscriber_count' => $stats['updated_rows'],
         'upload_id' => $upload_id
     ]);
-
-    // Return success response
+// Return success response
     echo json_encode([
         'success' => true,
         'message' => 'Vacation data imported successfully',
@@ -278,11 +259,9 @@ try {
         'upload_id' => $upload_id,
         'stats' => $stats
     ]);
-
 } catch (Exception $e) {
     error_log("Vacation upload error: " . $e->getMessage());
-
-    // Mark raw upload as failed
+// Mark raw upload as failed
     if (isset($upload_id)) {
         try {
             $failStmt = $db->prepare("
@@ -292,11 +271,11 @@ try {
                 WHERE upload_id = :upload_id
             ");
             $failStmt->execute([
-                'error' => $e->getMessage(),
-                'upload_id' => $upload_id
+                        'error' => $e->getMessage(),
+                        'upload_id' => $upload_id
             ]);
         } catch (Exception $ignored) {
-            // Ignore errors updating the error status
+        // Ignore errors updating the error status
         }
     }
 
@@ -312,7 +291,9 @@ try {
  * Handles 2-digit years: ALL values treated as 2000-2099 for business logic
  * Examples: 24 = 2024, 55 = 2055, 99 = 2099
  */
-function parseNewzwareDate($dateStr) {
+function parseNewzwareDate($dateStr)
+{
+
     if (empty($dateStr)) {
         return null;
     }
@@ -322,12 +303,10 @@ function parseNewzwareDate($dateStr) {
         $month = (int)$matches[1];
         $day = (int)$matches[2];
         $year = (int)$matches[3];
-
-        // Convert 2-digit year to 4-digit
+// Convert 2-digit year to 4-digit
         // All 2-digit years are treated as 2000-2099 (business logic requirement)
         $year = 2000 + $year;
-
-        // Validate date components
+// Validate date components
         if (!checkdate($month, $day, $year)) {
             return null;
         }
@@ -340,7 +319,6 @@ function parseNewzwareDate($dateStr) {
         $month = (int)$matches[1];
         $day = (int)$matches[2];
         $year = (int)$matches[3];
-
         if (!checkdate($month, $day, $year)) {
             return null;
         }

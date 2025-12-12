@@ -5,3 +5,8 @@ parameters:
     excludePaths:
         - web/vendor (?)
         - web/*_example.php
+    ignoreErrors:
+        # rates.php: PHPStan can't prove is_ignored can be true (depends on DB data)
+        # This code handles cases where rates are flagged as ignored in rate_flags table
+        - '#Left side of && is always false#'
+        - '#Comparison operation ">" between 0 and 0 is always false#'

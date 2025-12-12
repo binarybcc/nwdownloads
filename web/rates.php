@@ -287,7 +287,6 @@ foreach ($rates as &$rate) {
         <!-- Alerts for Ignored Rates with Subscribers -->
         <?php
         $ignored_with_subs = array_filter($rates, function ($r) {
-
             return $r['is_ignored'] && $r['subscriber_count'] > 0;
         });
 

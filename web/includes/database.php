@@ -29,7 +29,10 @@ function getDatabase()
         $db_port = getenv('DB_PORT') ?: '3306';
         $db_name = getenv('DB_NAME') ?: 'circulation_dashboard';
         $db_user = getenv('DB_USER') ?: 'circ_dash';
-        $db_pass = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
+        $db_pass = getenv('DB_PASSWORD');
+        if (!$db_pass) {
+            throw new PDOException('DB_PASSWORD environment variable must be set');
+        }
         $db_socket = getenv('DB_SOCKET') ?: '';
 
         // Determine DSN based on socket vs TCP connection

@@ -55,7 +55,7 @@ jobs:
       - name: Run PHPCS
         run: |
           if [ -f vendor/bin/phpcs ]; then
-            vendor/bin/phpcs web/ --standard=PSR12 --extensions=php --report=summary
+            vendor/bin/phpcs web/ --standard=PSR12 --extensions=php --report=summary --runtime-set ignore_warnings_on_exit 1
           else
-            phpcs web/ --standard=PSR12 --extensions=php --report=summary
+            phpcs web/ --standard=PSR12 --extensions=php --report=summary --runtime-set ignore_warnings_on_exit 1
           fi

@@ -4,9 +4,12 @@
 
 set -e
 
+# Get project root directory (parent of scripts/)
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 # Load credentials
-source .env.credentials 2>/dev/null || {
-  echo "❌ Error: .env.credentials not found"
+source "$PROJECT_ROOT/.env.credentials" 2>/dev/null || {
+  echo "❌ Error: .env.credentials not found in $PROJECT_ROOT"
   echo "💡 Run: cp .env.credentials.example .env.credentials"
   exit 1
 }

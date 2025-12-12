@@ -3,5 +3,5 @@ parameters:
     paths:
         - web
     excludePaths:
-        - web/vendor
+        - web/vendor (?)
         - web/*_example.php

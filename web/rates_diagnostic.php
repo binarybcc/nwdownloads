@@ -106,7 +106,7 @@
         // Display rates by paper
         foreach ($by_paper as $paper => $paper_rates) {
             // Sort by subscription length then rate descending
-            usort($paper_rates, function($a, $b) {
+            usort($paper_rates, function ($a, $b) {
                 if ($a['subscription_length'] === $b['subscription_length']) {
                     return $b['rate'] <=> $a['rate'];
                 }

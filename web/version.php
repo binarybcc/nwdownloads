@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Auto-versioning system for Circulation Dashboard
  *
@@ -13,10 +14,8 @@
 // Current version
 define('VERSION_MAJOR', 2);
 define('VERSION_MINOR', 0);
-
 // Build number file location
 $buildFile = __DIR__ . '/.build_number';
-
 // Initialize build number if file doesn't exist
 if (!file_exists($buildFile)) {
     file_put_contents($buildFile, '1');
@@ -24,7 +23,6 @@ if (!file_exists($buildFile)) {
 
 // Read current build number
 $buildNumber = (int) file_get_contents($buildFile);
-
 // Full version string
 define('VERSION_BUILD', $buildNumber);
 define('VERSION_FULL', VERSION_MAJOR . '.' . VERSION_MINOR . '.' . VERSION_BUILD);
@@ -33,7 +31,9 @@ define('VERSION_STRING', 'v' . VERSION_FULL);
 /**
  * Increment build number (call this on deployment)
  */
-function incrementBuildNumber() {
+function incrementBuildNumber()
+{
+
     global $buildFile;
     $current = (int) file_get_contents($buildFile);
     $new = $current + 1;
@@ -44,7 +44,9 @@ function incrementBuildNumber() {
 /**
  * Get version info array
  */
-function getVersionInfo() {
+function getVersionInfo()
+{
+
     return [
         'major' => VERSION_MAJOR,
         'minor' => VERSION_MINOR,

@@ -356,7 +356,7 @@ function getBusinessUnitDetail($pdo, $unitName, $date = null)
 function forecastNextWeek($trend)
 {
     // Filter out NULL weeks (weeks with no data)
-    $validWeeks = array_filter($trend, function($week) {
+    $validWeeks = array_filter($trend, function ($week) {
         return $week['total_active'] !== null;
     });
 
@@ -416,7 +416,7 @@ function forecastNextWeek($trend)
 function detectAnomalies($trend)
 {
     // Filter out NULL weeks (weeks with no data)
-    $validWeeks = array_filter($trend, function($week) {
+    $validWeeks = array_filter($trend, function ($week) {
         return $week['total_active'] !== null;
     });
 
@@ -1584,7 +1584,6 @@ function getMetricCount($pdo, $businessUnit, $metricType, $metricValue, $snapsho
         }
 
         $stmt->execute($params);
-
     } elseif ($metricType === 'rate') {
         // Query subscriber_snapshots for rate distribution
         $stmt = $pdo->prepare("

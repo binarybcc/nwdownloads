@@ -99,7 +99,6 @@ try {
         'table' => $result['table'],
         'processing_time' => $processing_time
     ]);
-
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
@@ -172,8 +171,10 @@ function processDimensionCsv($pdo, $filepath)
         }
 
         // Stop at footer
-        if (stripos($row[0] ?? '', 'Report Criteria') !== false ||
-            stripos($row[0] ?? '', 'Total') !== false) {
+        if (
+            stripos($row[0] ?? '', 'Report Criteria') !== false ||
+            stripos($row[0] ?? '', 'Total') !== false
+        ) {
             break;
         }
 
@@ -236,7 +237,6 @@ function processDimensionCsv($pdo, $filepath)
                 ]);
 
                 $records_loaded++;
-
             } catch (Exception $e) {
                 // Roll back and re-throw on any error
                 $pdo->rollBack();
@@ -251,7 +251,6 @@ function processDimensionCsv($pdo, $filepath)
             'records_loaded' => $records_loaded,
             'table' => $table_name
         ];
-
     } catch (Exception $e) {
         // Roll back on any error
         $pdo->rollBack();

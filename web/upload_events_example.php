@@ -98,7 +98,6 @@ try {
         'date_range' => $result['date_range'],
         'processing_time' => $processing_time
     ]);
-
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
@@ -193,8 +192,10 @@ function processEventCsv($pdo, $filepath, $filename)
         }
 
         // Stop at footer section (if present)
-        if (stripos($row[0] ?? '', 'Report Criteria') !== false ||
-            stripos($row[0] ?? '', 'Total') !== false) {
+        if (
+            stripos($row[0] ?? '', 'Report Criteria') !== false ||
+            stripos($row[0] ?? '', 'Total') !== false
+        ) {
             break;
         }
 
@@ -283,7 +284,6 @@ function processEventRow($row, $col_map, $stmt, $filename, &$stats)
                 $stats['duplicates_skipped']++;
             }
         }
-
     } catch (Exception $e) {
         error_log("Error processing event row: " . $e->getMessage());
         // Continue processing other rows

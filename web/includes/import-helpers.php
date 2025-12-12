@@ -130,8 +130,10 @@ function determineBackfillRange($pdo, $table, $upload_week, $upload_year, $file_
 
     while (true) {
         // Check if we've reached the minimum date
-        if ($current_year < $min_backfill_year ||
-            ($current_year == $min_backfill_year && $current_week < $min_backfill_week)) {
+        if (
+            $current_year < $min_backfill_year ||
+            ($current_year == $min_backfill_year && $current_week < $min_backfill_week)
+        ) {
             error_log("🛑 Backfill stopped at minimum date ($min_backfill_date)");
             break;
         }

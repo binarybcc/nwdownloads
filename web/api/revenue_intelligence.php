@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Revenue Intelligence API
  * Provides expiration risk, legacy rate analysis, and revenue per subscriber metrics
@@ -13,7 +14,6 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
-
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
@@ -44,10 +44,9 @@ $db_name = getenv('DB_NAME') ?: 'circulation_dashboard';
 $db_user = getenv('DB_USER') ?: 'circ_dash';
 $db_pass = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
 $db_socket = getenv('DB_SOCKET') ?: '';
-
 try {
-    // Connect to database
-    if ($db_socket && $db_socket !== '') {
+// Connect to database
+    if ($db_socket) {
         $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
     } else {
         $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";
@@ -57,22 +56,17 @@ try {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
-
-    // Get latest snapshot date
+// Get latest snapshot date
     $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
     $latest = $stmt->fetch();
     $snapshot_date = $latest['latest_date'];
-
-    // Get expiration risk data
+// Get expiration risk data
     $expiration_risk = getExpirationRisk($pdo, $snapshot_date);
-
-    // Get legacy rate analysis
+// Get legacy rate analysis
     $legacy_rate_analysis = getLegacyRateAnalysis($pdo, $snapshot_date);
-
-    // Get revenue per subscriber metrics
+// Get revenue per subscriber metrics
     $revenue_metrics = getRevenueMetrics($pdo, $snapshot_date);
-
-    // Return combined response
+// Return combined response
     echo json_encode([
         'success' => true,
         'snapshot_date' => $snapshot_date,
@@ -81,7 +75,6 @@ try {
         'revenue_metrics' => $revenue_metrics,
         'generated_at' => date('Y-m-d H:i:s')
     ], JSON_PRETTY_PRINT);
-
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode([
@@ -94,7 +87,9 @@ try {
  * Calculate expiration risk buckets
  * Returns subscribers and revenue at risk for each time period
  */
-function getExpirationRisk($pdo, $snapshot_date) {
+function getExpirationRisk($pdo, $snapshot_date)
+{
+
     $sql = "
         SELECT
           CASE
@@ -122,12 +117,10 @@ function getExpirationRisk($pdo, $snapshot_date) {
             ELSE 4
           END
     ";
-
     $stmt = $pdo->prepare($sql);
     $stmt->execute(['snapshot_date' => $snapshot_date]);
     $results = $stmt->fetchAll();
-
-    // Organize by risk bucket with business unit breakdown
+// Organize by risk bucket with business unit breakdown
     $buckets = [
         'Expired' => [],
         '0-4 weeks' => [],
@@ -135,7 +128,6 @@ function getExpirationRisk($pdo, $snapshot_date) {
         '9-12 weeks' => [],
         '13+ weeks' => []
     ];
-
     $totals = [
         'Expired' => ['subscribers' => 0, 'revenue' => 0],
         '0-4 weeks' => ['subscribers' => 0, 'revenue' => 0],
@@ -143,7 +135,6 @@ function getExpirationRisk($pdo, $snapshot_date) {
         '9-12 weeks' => ['subscribers' => 0, 'revenue' => 0],
         '13+ weeks' => ['subscribers' => 0, 'revenue' => 0]
     ];
-
     foreach ($results as $row) {
         $bucket = $row['risk_bucket'];
         $buckets[$bucket][] = [
@@ -152,7 +143,6 @@ function getExpirationRisk($pdo, $snapshot_date) {
             'revenue_at_risk' => (float)$row['revenue_at_risk'],
             'avg_payment' => (float)$row['avg_payment']
         ];
-
         $totals[$bucket]['subscribers'] += (int)$row['subscriber_count'];
         $totals[$bucket]['revenue'] += (float)$row['revenue_at_risk'];
     }
@@ -167,7 +157,9 @@ function getExpirationRisk($pdo, $snapshot_date) {
  * Analyze legacy rate opportunities
  * Identifies subscribers on rates < $100/year and calculates revenue gap
  */
-function getLegacyRateAnalysis($pdo, $snapshot_date) {
+function getLegacyRateAnalysis($pdo, $snapshot_date)
+{
+
     $sql = "
         SELECT
           business_unit,
@@ -184,11 +176,9 @@ function getLegacyRateAnalysis($pdo, $snapshot_date) {
         GROUP BY business_unit, paper_code
         ORDER BY business_unit, paper_code
     ";
-
     $stmt = $pdo->prepare($sql);
     $stmt->execute(['snapshot_date' => $snapshot_date]);
     $results = $stmt->fetchAll();
-
     $by_business_unit = [];
     $totals = [
         'legacy_rate_subs' => 0,
@@ -197,10 +187,8 @@ function getLegacyRateAnalysis($pdo, $snapshot_date) {
         'monthly_revenue_gap' => 0,
         'annual_opportunity' => 0
     ];
-
     $legacy_sum = 0;
     $legacy_count = 0;
-
     foreach ($results as $row) {
         $bu = $row['business_unit'];
         if (!isset($by_business_unit[$bu])) {
@@ -209,8 +197,7 @@ function getLegacyRateAnalysis($pdo, $snapshot_date) {
 
         $legacy_count_bu = (int)$row['legacy_rate_count'];
         $avg_legacy = (float)$row['avg_legacy_rate'];
-
-        // Calculate revenue gap for this paper
+    // Calculate revenue gap for this paper
         if ($legacy_count_bu > 0 && $avg_legacy > 0) {
             $monthly_gap = $legacy_count_bu * (($totals['market_rate'] - $avg_legacy) / 12);
             $annual_gap = $monthly_gap * 12;
@@ -229,7 +216,6 @@ function getLegacyRateAnalysis($pdo, $snapshot_date) {
             'monthly_revenue_gap' => $monthly_gap,
             'annual_opportunity' => $annual_gap
         ];
-
         $totals['legacy_rate_subs'] += $legacy_count_bu;
         $legacy_sum += $avg_legacy * $legacy_count_bu;
         $legacy_count += $legacy_count_bu;
@@ -242,7 +228,6 @@ function getLegacyRateAnalysis($pdo, $snapshot_date) {
     }
 
     $totals['annual_opportunity'] = $totals['monthly_revenue_gap'] * 12;
-
     return [
         'by_business_unit' => $by_business_unit,
         'totals' => $totals
@@ -253,7 +238,9 @@ function getLegacyRateAnalysis($pdo, $snapshot_date) {
  * Calculate revenue per subscriber metrics
  * ARPU (Average Revenue Per User) by delivery type and business unit
  */
-function getRevenueMetrics($pdo, $snapshot_date) {
+function getRevenueMetrics($pdo, $snapshot_date)
+{
+
     // By delivery type
     $sql_delivery = "
         SELECT
@@ -268,12 +255,10 @@ function getRevenueMetrics($pdo, $snapshot_date) {
         GROUP BY delivery_type
         ORDER BY subscriber_count DESC
     ";
-
     $stmt = $pdo->prepare($sql_delivery);
     $stmt->execute(['snapshot_date' => $snapshot_date]);
     $by_delivery = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // By business unit
+// By business unit
     $sql_bu = "
         SELECT
           business_unit,
@@ -288,15 +273,12 @@ function getRevenueMetrics($pdo, $snapshot_date) {
         GROUP BY business_unit
         ORDER BY business_unit
     ";
-
     $stmt = $pdo->prepare($sql_bu);
     $stmt->execute(['snapshot_date' => $snapshot_date]);
     $by_business_unit = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Calculate totals
+// Calculate totals
     $total_subs = 0;
     $total_revenue = 0;
-
     foreach ($by_business_unit as $row) {
         $total_subs += (int)$row['subscriber_count'];
         $total_revenue += (float)$row['total_annual_revenue'];
@@ -304,7 +286,6 @@ function getRevenueMetrics($pdo, $snapshot_date) {
 
     $overall_arpu = $total_subs > 0 ? $total_revenue / $total_subs : 0;
     $overall_mrr = $total_revenue / 12;
-
     return [
         'by_delivery_type' => $by_delivery,
         'by_business_unit' => $by_business_unit,
@@ -322,18 +303,18 @@ function getRevenueMetrics($pdo, $snapshot_date) {
  * Handle subscriber list request by expiration bucket
  * Returns detailed list of subscribers in a specific expiration risk category
  */
-function handleSubscriberListRequest() {
-    header('Content-Type: application/json');
+function handleSubscriberListRequest()
+{
 
+    header('Content-Type: application/json');
     try {
-        // Get bucket parameter
+    // Get bucket parameter
         if (!isset($_GET['bucket'])) {
             throw new Exception('Missing bucket parameter');
         }
 
         $bucket = $_GET['bucket'];
-
-        // Valid buckets
+    // Valid buckets
         $valid_buckets = ['Expired', '0-4 weeks', '5-8 weeks', '9-12 weeks'];
         if (!in_array($bucket, $valid_buckets)) {
             throw new Exception('Invalid bucket parameter');
@@ -346,9 +327,8 @@ function handleSubscriberListRequest() {
         $db_user = getenv('DB_USER') ?: 'circ_dash';
         $db_pass = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
         $db_socket = getenv('DB_SOCKET') ?: '';
-
-        // Connect to database
-        if ($db_socket && $db_socket !== '') {
+    // Connect to database
+        if ($db_socket) {
             $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
         } else {
             $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";
@@ -358,26 +338,28 @@ function handleSubscriberListRequest() {
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
         ]);
-
-        // Get latest snapshot date
-        $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
+    // Get latest snapshot date
+            $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
         $latest = $stmt->fetch();
         $snapshot_date = $latest['latest_date'];
-
-        // Build WHERE clause based on bucket
-        $where_clause = '';
+    // Build WHERE clause based on bucket
+            $where_clause = '';
         switch ($bucket) {
             case 'Expired':
-                $where_clause = 'DATEDIFF(paid_thru, CURDATE()) < 0';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(paid_thru, CURDATE()) < 0';
+
                 break;
             case '0-4 weeks':
-                $where_clause = 'DATEDIFF(paid_thru, CURDATE()) BETWEEN 0 AND 28';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(paid_thru, CURDATE()) BETWEEN 0 AND 28';
+
                 break;
             case '5-8 weeks':
-                $where_clause = 'DATEDIFF(paid_thru, CURDATE()) BETWEEN 29 AND 56';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(paid_thru, CURDATE()) BETWEEN 29 AND 56';
+
                 break;
             case '9-12 weeks':
-                $where_clause = 'DATEDIFF(paid_thru, CURDATE()) BETWEEN 57 AND 84';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(paid_thru, CURDATE()) BETWEEN 57 AND 84';
+
                 break;
         }
 
@@ -409,12 +391,10 @@ function handleSubscriberListRequest() {
               AND $where_clause
             ORDER BY paid_thru ASC, name ASC
         ";
-
         $stmt = $pdo->prepare($sql);
         $stmt->execute(['snapshot_date' => $snapshot_date]);
         $subscribers = $stmt->fetchAll();
-
-        // Return response
+    // Return response
         echo json_encode([
             'success' => true,
             'bucket' => $bucket,
@@ -422,7 +402,6 @@ function handleSubscriberListRequest() {
             'count' => count($subscribers),
             'subscribers' => $subscribers
         ], JSON_PRETTY_PRINT);
-
     } catch (Exception $e) {
         http_response_code(400);
         echo json_encode([
@@ -436,20 +415,20 @@ function handleSubscriberListRequest() {
  * Handle per-paper metrics request
  * Returns legacy rate opportunity and ARPU metrics grouped by paper
  */
-function handleByPaperRequest() {
-    header('Content-Type: application/json');
+function handleByPaperRequest()
+{
 
+    header('Content-Type: application/json');
     try {
-        // Database configuration
+    // Database configuration
         $db_host = getenv('DB_HOST') ?: 'database';
         $db_port = getenv('DB_PORT') ?: '3306';
         $db_name = getenv('DB_NAME') ?: 'circulation_dashboard';
         $db_user = getenv('DB_USER') ?: 'circ_dash';
         $db_pass = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
         $db_socket = getenv('DB_SOCKET') ?: '';
-
-        // Connect to database
-        if ($db_socket && $db_socket !== '') {
+    // Connect to database
+        if ($db_socket) {
             $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
         } else {
             $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";
@@ -459,14 +438,12 @@ function handleByPaperRequest() {
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
         ]);
-
-        // Get latest snapshot date
-        $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
+    // Get latest snapshot date
+            $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
         $latest = $stmt->fetch();
         $snapshot_date = $latest['latest_date'];
-
-        // Get per-paper metrics with same-length rate comparisons
-        $sql = "
+    // Get per-paper metrics with same-length rate comparisons
+            $sql = "
             SELECT
                 s.paper_code,
                 s.paper_name,
@@ -535,13 +512,11 @@ function handleByPaperRequest() {
             GROUP BY s.paper_code, s.paper_name, s.business_unit
             ORDER BY s.business_unit, s.paper_code
         ";
-
         $stmt = $pdo->prepare($sql);
         $stmt->execute(['snapshot_date' => $snapshot_date]);
         $papers = $stmt->fetchAll();
-
-        // Format response with proper data types and null handling
-        $formatted_papers = [];
+    // Format response with proper data types and null handling
+            $formatted_papers = [];
         foreach ($papers as $paper) {
             $formatted_papers[] = [
                 'paper_code' => $paper['paper_code'],
@@ -584,7 +559,6 @@ function handleByPaperRequest() {
             'papers' => $formatted_papers,
             'generated_at' => date('Y-m-d H:i:s')
         ], JSON_PRETTY_PRINT);
-
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode([
@@ -598,20 +572,20 @@ function handleByPaperRequest() {
  * Sweet Spot Analysis - Optimize subscription length mix
  * Calculates cash flow, profit margin, stability, and admin efficiency metrics
  */
-function handleSweetSpotAnalysis() {
-    header('Content-Type: application/json');
+function handleSweetSpotAnalysis()
+{
 
+    header('Content-Type: application/json');
     try {
-        // Database configuration
+    // Database configuration
         $db_host = getenv('DB_HOST') ?: 'database';
         $db_port = getenv('DB_PORT') ?: '3306';
         $db_name = getenv('DB_NAME') ?: 'circulation_dashboard';
         $db_user = getenv('DB_USER') ?: 'circ_dash';
         $db_pass = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
         $db_socket = getenv('DB_SOCKET') ?: '';
-
-        // Connect to database
-        if ($db_socket && $db_socket !== '') {
+    // Connect to database
+        if ($db_socket) {
             $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
         } else {
             $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";
@@ -621,14 +595,12 @@ function handleSweetSpotAnalysis() {
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
         ]);
-
-        // Get latest snapshot date
-        $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
+    // Get latest snapshot date
+            $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
         $latest = $stmt->fetch();
         $snapshot_date = $latest['latest_date'];
-
-        // Get detailed subscription length breakdown per paper
-        $sql = "
+    // Get detailed subscription length breakdown per paper
+            $sql = "
             SELECT
                 s.paper_code,
                 s.paper_name,
@@ -662,31 +634,27 @@ function handleSweetSpotAnalysis() {
             GROUP BY s.paper_code, s.paper_name, s.business_unit, s.subscription_length
             ORDER BY s.business_unit, s.paper_code, s.subscription_length
         ";
-
         $stmt = $pdo->prepare($sql);
         $stmt->execute(['snapshot_date' => $snapshot_date]);
         $length_data = $stmt->fetchAll();
-
-        // Organize by paper and calculate sweet spot metrics
-        $papers_analysis = [];
+    // Organize by paper and calculate sweet spot metrics
+            $papers_analysis = [];
         $current_paper = null;
         $paper_data = [];
-
         foreach ($length_data as $row) {
             $paper_code = $row['paper_code'];
-
             // Start new paper analysis
             if ($current_paper !== $paper_code) {
                 if ($current_paper !== null) {
                     $papers_analysis[] = calculateSweetSpotMetrics($paper_data);
                 }
-                $current_paper = $paper_code;
-                $paper_data = [
-                    'paper_code' => $row['paper_code'],
-                    'paper_name' => $row['paper_name'],
-                    'business_unit' => $row['business_unit'],
-                    'lengths' => []
-                ];
+                        $current_paper = $paper_code;
+                        $paper_data = [
+                        'paper_code' => $row['paper_code'],
+                        'paper_name' => $row['paper_name'],
+                        'business_unit' => $row['business_unit'],
+                        'lengths' => []
+                        ];
             }
 
             // Add length data
@@ -708,8 +676,7 @@ function handleSweetSpotAnalysis() {
 
         // Calculate overall metrics by aggregating all papers
         $overall_metrics = calculateOverallSweetSpotMetrics($length_data);
-
-        // Return response
+    // Return response
         echo json_encode([
             'success' => true,
             'snapshot_date' => $snapshot_date,
@@ -717,7 +684,6 @@ function handleSweetSpotAnalysis() {
             'papers' => $papers_analysis,
             'generated_at' => date('Y-m-d H:i:s')
         ], JSON_PRETTY_PRINT);
-
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode([
@@ -730,53 +696,51 @@ function handleSweetSpotAnalysis() {
 /**
  * Calculate sweet spot optimization metrics for a paper
  */
-function calculateSweetSpotMetrics($paper_data) {
+function calculateSweetSpotMetrics($paper_data)
+{
+
     $lengths = $paper_data['lengths'];
     $total_subscribers = array_sum(array_column($lengths, 'subscriber_count'));
-
-    // Initialize scores
+// Initialize scores
     $cash_flow_score = 0;
     $profit_margin_score = 0;
     $stability_score = 0;
     $admin_efficiency_score = 0;
-
-    // Calculate weighted metrics
+// Calculate weighted metrics
     $total_renewals_per_year = 0;
     $total_annualized_revenue = 0;
     $max_annualized_rate = 0;
     $min_annualized_rate = PHP_FLOAT_MAX;
-
     foreach ($lengths as $length) {
         $count = $length['subscriber_count'];
         $pct = $total_subscribers > 0 ? $count / $total_subscribers : 0;
         $renewals = $length['renewals_per_year'];
         $annualized = $length['avg_annualized_rate'];
-
-        // Cash flow: Higher renewal frequency = better cash flow
+    // Cash flow: Higher renewal frequency = better cash flow
         // Weight: renewals_per_year * subscriber_percentage
         $cash_flow_score += $renewals * $pct;
-
-        // Profit margin: Higher annualized rate = better margin
+    // Profit margin: Higher annualized rate = better margin
         $total_annualized_revenue += $length['total_annualized_revenue'];
         $max_annualized_rate = max($max_annualized_rate, $annualized);
         $min_annualized_rate = min($min_annualized_rate, $annualized);
-
-        // Stability: Longer commitments = more stable
+    // Stability: Longer commitments = more stable
         // Inverse of renewal frequency (yearly = stable, weekly = volatile)
         $commitment_months = 12.0 / $renewals;
         $stability_score += $commitment_months * $pct;
-
-        // Admin efficiency: Fewer renewals = less overhead
+    // Admin efficiency: Fewer renewals = less overhead
         $total_renewals_per_year += $count * $renewals;
     }
 
     // Normalize scores to 0-100 scale
-    $cash_flow_normalized = min(100, ($cash_flow_score / 52) * 100); // Max is 52 (all weekly)
+    $cash_flow_normalized = min(100, ($cash_flow_score / 52) * 100);
+// Max is 52 (all weekly)
     $profit_margin_normalized = $total_subscribers > 0
         ? ($total_annualized_revenue / $total_subscribers / 300) * 100  // Assume $300 is excellent ARPU
         : 0;
-    $stability_normalized = min(100, ($stability_score / 12) * 100); // Max is 12 (all yearly)
-    $admin_efficiency_normalized = max(0, 100 - ($total_renewals_per_year / $total_subscribers / 12) * 100); // Fewer renewals = higher score
+    $stability_normalized = min(100, ($stability_score / 12) * 100);
+// Max is 12 (all yearly)
+    $admin_efficiency_normalized = max(0, 100 - ($total_renewals_per_year / $total_subscribers / 12) * 100);
+// Fewer renewals = higher score
 
     // Calculate overall "Sweet Spot Score" (weighted average)
     // Weights: Cash Flow 30%, Profit Margin 40%, Stability 20%, Admin Efficiency 10%
@@ -786,17 +750,8 @@ function calculateSweetSpotMetrics($paper_data) {
         $stability_normalized * 0.20 +
         $admin_efficiency_normalized * 0.10
     );
-
-    // Generate recommendations
-    $recommendations = generateRecommendations(
-        $lengths,
-        $total_subscribers,
-        $cash_flow_normalized,
-        $profit_margin_normalized,
-        $stability_normalized,
-        $admin_efficiency_normalized
-    );
-
+// Generate recommendations
+    $recommendations = generateRecommendations($lengths, $total_subscribers, $cash_flow_normalized, $profit_margin_normalized, $stability_normalized, $admin_efficiency_normalized);
     return [
         'paper_code' => $paper_data['paper_code'],
         'paper_name' => $paper_data['paper_name'],
@@ -834,10 +789,11 @@ function calculateSweetSpotMetrics($paper_data) {
 /**
  * Generate actionable recommendations based on metrics
  */
-function generateRecommendations($lengths, $total_subscribers, $cash_flow, $profit, $stability, $admin) {
-    $recommendations = [];
+function generateRecommendations($lengths, $total_subscribers, $cash_flow, $profit, $stability, $admin)
+{
 
-    // Find dominant subscription length
+    $recommendations = [];
+// Find dominant subscription length
     $dominant = null;
     $dominant_pct = 0;
     foreach ($lengths as $length) {
@@ -853,10 +809,7 @@ function generateRecommendations($lengths, $total_subscribers, $cash_flow, $prof
         $recommendations[] = [
             'type' => 'cash_flow',
             'priority' => 'high',
-            'message' => sprintf(
-                'Cash flow can be improved by promoting shorter subscription lengths. Consider marketing %s subscriptions with auto-renewal.',
-                count($lengths) > 1 ? 'monthly' : 'shorter'
-            )
+            'message' => sprintf('Cash flow can be improved by promoting shorter subscription lengths. Consider marketing %s subscriptions with auto-renewal.', count($lengths) > 1 ? 'monthly' : 'shorter')
         ];
     }
 
@@ -889,10 +842,7 @@ function generateRecommendations($lengths, $total_subscribers, $cash_flow, $prof
         $recommendations[] = [
             'type' => 'admin_efficiency',
             'priority' => 'low',
-            'message' => sprintf(
-                'High renewal overhead detected (%.1f renewals/subscriber/year). Promote auto-renewal to reduce administrative burden.',
-                $lengths[0]['renewals_per_year'] ?? 0
-            )
+            'message' => sprintf('High renewal overhead detected (%.1f renewals/subscriber/year). Promote auto-renewal to reduce administrative burden.', $lengths[0]['renewals_per_year'] ?? 0)
         ];
     }
 
@@ -907,11 +857,7 @@ function generateRecommendations($lengths, $total_subscribers, $cash_flow, $prof
         $recommendations[] = [
             'type' => 'diversification',
             'priority' => 'low',
-            'message' => sprintf(
-                '%.0f%% of subscribers on %s subscriptions. Diversify by promoting alternative lengths.',
-                $dominant_pct,
-                $dominant['subscription_length']
-            )
+            'message' => sprintf('%.0f%% of subscribers on %s subscriptions. Diversify by promoting alternative lengths.', $dominant_pct, $dominant['subscription_length'])
         ];
     }
 
@@ -921,7 +867,9 @@ function generateRecommendations($lengths, $total_subscribers, $cash_flow, $prof
 /**
  * Calculate overall sweet spot metrics across all papers
  */
-function calculateOverallSweetSpotMetrics($length_data) {
+function calculateOverallSweetSpotMetrics($length_data)
+{
+
     if (empty($length_data)) {
         return [
             'sweet_spot_score' => 0,
@@ -945,17 +893,14 @@ function calculateOverallSweetSpotMetrics($length_data) {
     $stability_score = 0;
     $max_annualized_rate = 0;
     $min_annualized_rate = PHP_FLOAT_MAX;
-
     foreach ($length_data as $row) {
         $count = (int)$row['subscriber_count'];
         $renewals = (float)$row['renewals_per_year'];
         $annualized = (float)($row['avg_annualized_rate'] ?? 0);
-
         $total_subscribers += $count;
         $total_renewals += ($renewals * $count);
         $total_annualized_revenue += ($annualized * $count);
-
-        // Track min/max rates
+    // Track min/max rates
         if ($annualized > 0) {
             $max_annualized_rate = max($max_annualized_rate, $annualized);
             $min_annualized_rate = min($min_annualized_rate, $annualized);
@@ -969,12 +914,11 @@ function calculateOverallSweetSpotMetrics($length_data) {
             $pct = $count / $total_subscribers;
             $renewals = (float)$row['renewals_per_year'];
             $annualized = (float)($row['avg_annualized_rate'] ?? 0);
-
-            // Cash Flow Score: Higher renewal frequency = better cash flow
+        // Cash Flow Score: Higher renewal frequency = better cash flow
             $cash_flow_score += $renewals * $pct;
-
-            // Stability Score: Longer commitments = more stable
-            $commitment_months = 12.0 / max($renewals, 0.001); // Avoid division by zero
+        // Stability Score: Longer commitments = more stable
+            $commitment_months = 12.0 / max($renewals, 0.001);
+        // Avoid division by zero
             $stability_score += $commitment_months * $pct;
         }
     }
@@ -982,21 +926,17 @@ function calculateOverallSweetSpotMetrics($length_data) {
     // Normalize scores to 0-100 scale
     // Cash flow: 52 renewals/year (weekly) = 100, 1 renewal/year (annual) = ~2
     $cash_flow_normalized = min(100, ($cash_flow_score / 52) * 100);
-
-    // Stability: 12 months commitment = 100, 0.02 months (weekly) = ~0.2
+// Stability: 12 months commitment = 100, 0.02 months (weekly) = ~0.2
     $stability_normalized = min(100, ($stability_score / 12) * 100);
-
-    // Profit Margin: Higher annualized rates = better margins
+// Profit Margin: Higher annualized rates = better margins
     $avg_annualized_revenue_per_sub = $total_subscribers > 0 ? $total_annualized_revenue / $total_subscribers : 0;
     $profit_margin_normalized = $max_annualized_rate > 0
         ? min(100, ($avg_annualized_revenue_per_sub / $max_annualized_rate) * 100)
         : 0;
-
-    // Admin Efficiency: Fewer renewals = less overhead
+// Admin Efficiency: Fewer renewals = less overhead
     $avg_renewals_per_subscriber = $total_subscribers > 0 ? $total_renewals / $total_subscribers : 0;
     $admin_efficiency_normalized = max(0, min(100, ((52 - $avg_renewals_per_subscriber) / 51) * 100));
-
-    // Overall Sweet Spot Score (weighted average)
+// Overall Sweet Spot Score (weighted average)
     // Weights: Cash Flow 30%, Profit Margin 40%, Stability 20%, Admin Efficiency 10%
     $sweet_spot_score = (
         $cash_flow_normalized * 0.30 +
@@ -1004,17 +944,8 @@ function calculateOverallSweetSpotMetrics($length_data) {
         $stability_normalized * 0.20 +
         $admin_efficiency_normalized * 0.10
     );
-
-    // Generate recommendations based on overall metrics
-    $recommendations = generateOverallRecommendations(
-        $cash_flow_normalized,
-        $profit_margin_normalized,
-        $stability_normalized,
-        $admin_efficiency_normalized,
-        $length_data,
-        $total_subscribers
-    );
-
+// Generate recommendations based on overall metrics
+    $recommendations = generateOverallRecommendations($cash_flow_normalized, $profit_margin_normalized, $stability_normalized, $admin_efficiency_normalized, $length_data, $total_subscribers);
     return [
         'sweet_spot_score' => round($sweet_spot_score, 2),
         'cash_flow_score' => round($cash_flow_normalized, 2),
@@ -1032,10 +963,11 @@ function calculateOverallSweetSpotMetrics($length_data) {
 /**
  * Generate overall recommendations based on aggregate metrics
  */
-function generateOverallRecommendations($cash_flow, $profit_margin, $stability, $admin_efficiency, $length_data, $total_subscribers) {
-    $recommendations = [];
+function generateOverallRecommendations($cash_flow, $profit_margin, $stability, $admin_efficiency, $length_data, $total_subscribers)
+{
 
-    // Cash flow recommendations
+    $recommendations = [];
+// Cash flow recommendations
     if ($cash_flow < 40) {
         $recommendations[] = [
             'type' => 'cash_flow',
@@ -1092,11 +1024,7 @@ function generateOverallRecommendations($cash_flow, $profit_margin, $stability, 
             $recommendations[] = [
                 'type' => 'diversity',
                 'priority' => 'low',
-                'message' => sprintf(
-                    '%.0f%% of subscribers are on %s subscriptions. Consider diversifying subscription mix for balanced cash flow and stability.',
-                    $pct,
-                    $type
-                )
+                'message' => sprintf('%.0f%% of subscribers are on %s subscriptions. Consider diversifying subscription mix for balanced cash flow and stability.', $pct, $type)
             ];
             break;
         }

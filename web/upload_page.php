@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Upload Page - Requires Authentication
  *

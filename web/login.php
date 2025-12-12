@@ -32,9 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
         error_log('SECURITY: CSRF validation failed from IP: ' . $_SERVER['REMOTE_ADDR']);
-    }
-    // SECURITY: Check brute force protection
-    elseif (!empty($login_id) && !checkBruteForce($login_id)) {
+    } elseif (!empty($login_id) && !checkBruteForce($login_id)) {
+        // SECURITY: Check brute force protection
         $error = $_SESSION['lockout_message'] ?? 'Too many failed attempts. Please try again later.';
     } elseif (empty($login_id) || empty($password)) {
         $error = 'Please enter both username and password.';

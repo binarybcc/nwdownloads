@@ -242,6 +242,7 @@ function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData)
 
     // Get 12-week trend for trend direction
     $trendStart = date('Y-m-d', strtotime($currentDate . ' -84 days'));
+    $saturday = getSaturdayForWeek($currentDate);
     $stmt = $pdo->prepare("
         SELECT
             snapshot_date,
@@ -1535,6 +1536,10 @@ function getMetricCount($pdo, $businessUnit, $metricType, $metricValue, $snapsho
 
         // Calculate week boundaries based on metric value
         $whereClause = '';
+        $weekStart = null;
+        $weekEnd = null;
+        $laterStart = null;
+
         if ($metricValue === 'Past Due') {
             $whereClause = "ss.paid_thru < :snapshot_date";
         } elseif ($metricValue === 'This Week') {

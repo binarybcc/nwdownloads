@@ -262,7 +262,7 @@ try {
 } catch (Exception $e) {
     error_log("Vacation upload error: " . $e->getMessage());
 // Mark raw upload as failed
-    if (isset($upload_id)) {
+    if (isset($upload_id) && isset($db)) {
         try {
             $failStmt = $db->prepare("
                 UPDATE raw_uploads SET
@@ -282,7 +282,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'error' => $e->getMessage(),
-        'filename' => $filename ?? 'unknown'
+        'filename' => $filename
     ]);
 }
 

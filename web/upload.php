@@ -683,9 +683,9 @@ function processAllSubscriberReport($pdo, $filepath, $filename)
         ");
 
         $update_stmt->execute([
-            'snapshot_date' => $stats['max_date'] ?? $stats['min_date'] ?? date('Y-m-d'),
-            'row_count' => $stats['total_processed'] ?? 0,
-            'subscriber_count' => $stats['subscriber_records_imported'] ?? 0,
+            'snapshot_date' => $stats['max_date'],
+            'row_count' => $stats['total_processed'],
+            'subscriber_count' => $stats['subscriber_records_imported'],
             'upload_id' => $upload_id
         ]);
     } catch (Exception $e) {

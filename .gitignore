@@ -41,6 +41,9 @@ deployment.log
 # CSV data files (can be large)
 AllSubscriberReport*.csv
 
+# Query exports and data files
+queries/
+
 # Analysis scripts and temporary work files
 analyze_*.py
 test_*.php

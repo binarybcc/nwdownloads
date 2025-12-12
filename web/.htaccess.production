@@ -1,0 +1,25 @@
+# Circulation Dashboard - Environment Configuration
+# Native Synology MariaDB10 Connection
+
+# Set environment variables for PHP
+SetEnv DB_HOST localhost
+SetEnv DB_PORT 3307
+SetEnv DB_NAME circulation_dashboard
+SetEnv DB_USER root
+SetEnv DB_PASSWORD P@ta675N0id
+SetEnv DB_SOCKET /run/mysqld/mysqld10.sock
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Disable directory browsing
+Options -Indexes
+
+# Protect sensitive files (Apache 2.4 syntax)
+<FilesMatch "\.(env|log|sql|md)$">
+    Require all denied
+</FilesMatch>

@@ -1,0 +1,9 @@
+parameters:
+    level: 5
+    paths:
+        - web
+    excludePaths:
+        - web/vendor
+        - web/*_example.php
+    ignoreErrors:
+        - '#Variable \$argv might not be defined#'

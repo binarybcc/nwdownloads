@@ -43,12 +43,23 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   exit 1
 fi
 
+# Clear existing data first
+echo "🧹 Clearing existing data..."
+docker exec circulation_db sh -c "mariadb \
+  -uroot \
+  -p\"\$MYSQL_ROOT_PASSWORD\" \
+  $DEV_DB_DATABASE \
+  -e 'TRUNCATE TABLE IF EXISTS daily_snapshots;'"
+
+echo "✅ Existing data cleared"
+echo ""
+
 # Decompress and import
 echo "🔄 Importing data..."
-gunzip < "$INPUT_FILE" | docker exec -i circulation_db mariadb \
-  -u"$DEV_DB_USERNAME" \
-  -p"$DEV_DB_PASSWORD" \
-  "$DEV_DB_DATABASE"
+gunzip < "$INPUT_FILE" | docker exec -i circulation_db sh -c "mariadb \
+  -uroot \
+  -p\"\$MYSQL_ROOT_PASSWORD\" \
+  $DEV_DB_DATABASE"
 
 echo ""
 echo "✅ Database restored successfully!"

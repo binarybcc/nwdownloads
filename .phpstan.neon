@@ -5,5 +5,3 @@ parameters:
     excludePaths:
         - web/vendor
         - web/*_example.php
-    ignoreErrors:
-        - '#Variable \$argv might not be defined#'

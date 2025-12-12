@@ -8,19 +8,14 @@
 
 require_once 'config.php';
 require_once 'auth_check.php';
+require_once __DIR__ . '/includes/database.php';
+
 // Generate CSRF token if not exists
 session_start();
 if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Database configuration
-$db_host = getenv('DB_HOST') ?: 'database';
-$db_port = getenv('DB_PORT') ?: '3306';
-$db_name = getenv('DB_NAME') ?: 'circulation_dashboard';
-$db_user = getenv('DB_USER') ?: 'circ_dash';
-$db_pass = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
-$db_socket = getenv('DB_SOCKET') ?: '';
 // Initialize variables before try-catch
 $rate_flags = [];
 $subscriber_counts = [];
@@ -37,16 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 
     try {
-        if ($db_socket) {
-            $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
-        } else {
-            $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";
-        }
+        $pdo = getDatabase();
 
-        $pdo = new PDO($dsn, $db_user, $db_pass, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-        ]);
 // Validate required POST parameters
         $required_params = ['paper_code', 'zone', 'rate_name', 'subscription_length', 'rate_amount'];
         foreach ($required_params as $param) {
@@ -121,16 +108,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Connect to database for reading
 try {
-    if ($db_socket) {
-        $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
-    } else {
-        $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";
-    }
+    $pdo = getDatabase();
 
-    $pdo = new PDO($dsn, $db_user, $db_pass, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-    ]);
 // Get latest snapshot date
     $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
     $latest = $stmt->fetch();

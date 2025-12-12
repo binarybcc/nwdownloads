@@ -1,0 +1,61 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [ master ]
+  push:
+    branches: [ master ]
+
+jobs:
+  quality:
+    name: Quality Checks (PHPStan & PHPCS)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_mysql
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: |
+          if [ -f composer.json ]; then
+            composer install --prefer-dist --no-progress --no-suggest
+          else
+            echo "No composer.json found, using global tools"
+          fi
+
+      - name: Install global PHPStan and PHPCS
+        run: |
+          composer global require phpstan/phpstan:^1.10
+          composer global require squizlabs/php_codesniffer:^3.7
+          echo "$(composer config -g home)/vendor/bin" >> $GITHUB_PATH
+
+      - name: Run PHPStan
+        run: |
+          if [ -f vendor/bin/phpstan ]; then
+            vendor/bin/phpstan analyze --level=5 --memory-limit=512M
+          else
+            phpstan analyze --level=5 --memory-limit=512M
+          fi
+
+      - name: Run PHPCS
+        run: |
+          if [ -f vendor/bin/phpcs ]; then
+            vendor/bin/phpcs web/ --standard=PSR12 --extensions=php --report=summary
+          else
+            phpcs web/ --standard=PSR12 --extensions=php --report=summary
+          fi

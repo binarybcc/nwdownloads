@@ -537,9 +537,7 @@ require_once 'auth_check.php';
                 <!-- Left: Title + Status -->
                 <div class="flex items-center gap-4">
                     <h1 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                        </svg>
+                        <img src="assets/egh-logo-gold.webp" alt="Edwards Group Holdings" class="w-6 h-6 object-contain">
                         Circulation
                     </h1>
                     <div class="text-xs text-gray-500 flex items-center gap-2">
@@ -555,7 +553,7 @@ require_once 'auth_check.php';
                 <div class="flex items-center gap-2">
                     <a href="upload_page.php"
                        class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                       title="Upload weekly data"
+                       title="Upload Weekly Circulation Data"
                        aria-label="Upload data">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -568,7 +566,7 @@ require_once 'auth_check.php';
                                 aria-label="Export data"
                                 aria-expanded="false"
                                 aria-haspopup="true"
-                                title="Export data">
+                                title="Export Dashboard to CSV, Excel, or PDF">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
@@ -590,15 +588,25 @@ require_once 'auth_check.php';
                     <button onclick="refreshData()"
                             class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                             aria-label="Refresh dashboard data"
-                            title="Refresh data">
+                            title="Refresh Dashboard Data">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                         </svg>
                     </button>
 
+                    <a href="settings.php"
+                       class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                       title="Dashboard Settings"
+                       aria-label="Settings">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </a>
+
                     <a href="logout.php"
                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition ml-2"
-                       title="Sign out"
+                       title="Sign Out of Dashboard"
                        aria-label="Logout">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
@@ -680,6 +688,19 @@ require_once 'auth_check.php';
 
     <!-- Main Content -->
     <main id="mainContent" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" role="main" aria-label="Dashboard content">
+
+        <!-- Business Units -->
+        <section class="mb-8" aria-labelledby="business-units-heading">
+            <h2 id="business-units-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                <span aria-hidden="true">📍</span> By Business Unit
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="businessUnits" role="status" aria-live="polite">
+                <div class="text-center py-12">
+                    <div class="loading mx-auto mb-4"></div>
+                    <div class="text-gray-500">Loading business units...</div>
+                </div>
+            </div>
+        </section>
 
         <!-- Key Metrics -->
         <section id="overview" class="mb-8" aria-labelledby="key-metrics-heading">
@@ -850,8 +871,70 @@ require_once 'auth_check.php';
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Revenue Opportunities -->
+        <!-- Charts -->
+        <section class="mb-8" aria-labelledby="charts-heading">
+            <h2 id="charts-heading" class="sr-only">Data Visualizations</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- 12-Week Trend -->
+                <div class="bg-white rounded-xl shadow p-6" role="region" aria-labelledby="trend-chart-heading">
+                    <h3 id="trend-chart-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                        <span aria-hidden="true">📊</span> 12-Week Trend
+                    </h3>
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="trendChart" aria-label="Line chart showing subscriber trend over 12 weeks"></canvas>
+                    </div>
+                </div>
+
+                <!-- Delivery Type Breakdown -->
+                <div class="bg-white rounded-xl shadow p-6" role="region" aria-labelledby="delivery-chart-heading">
+                    <h3 id="delivery-chart-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                        <span aria-hidden="true">📦</span> Delivery Type Distribution
+                    </h3>
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="deliveryChart" aria-label="Donut chart showing distribution of delivery types"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Paper Breakdown -->
+        <section id="reports" class="mb-8" aria-labelledby="publications-heading">
+            <h2 id="publications-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                <span aria-hidden="true">📰</span> By Publication
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="paperCards" role="status" aria-live="polite">
+                <div class="text-center py-12 col-span-full">
+                    <div class="loading mx-auto mb-4" aria-hidden="true"></div>
+                    <div class="text-gray-500">Loading publications...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Revenue Opportunities -->
+        <section class="mb-8" aria-labelledby="revenue-opportunities-heading">
+            <!-- Caution Notice -->
+            <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4 rounded-r-lg" role="alert">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-amber-800">
+                            ⚠️ <strong>Notice:</strong> Data shown in this section is not yet adjusted per product. <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800 ml-2">COMING SOON</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <h2 id="revenue-opportunities-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                <span aria-hidden="true">💎</span> Revenue Opportunities
+            </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Legacy Rate Opportunity -->
                 <div class="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200 hover:shadow-xl transition-all">
@@ -927,60 +1010,6 @@ require_once 'auth_check.php';
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Business Units -->
-        <section class="mb-8" aria-labelledby="business-units-heading">
-            <h2 id="business-units-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                <span aria-hidden="true">📍</span> By Business Unit
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="businessUnits" role="status" aria-live="polite">
-                <div class="text-center py-12">
-                    <div class="loading mx-auto mb-4"></div>
-                    <div class="text-gray-500">Loading business units...</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Charts -->
-        <section class="mb-8" aria-labelledby="charts-heading">
-            <h2 id="charts-heading" class="sr-only">Data Visualizations</h2>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                <!-- 12-Week Trend -->
-                <div class="bg-white rounded-xl shadow p-6" role="region" aria-labelledby="trend-chart-heading">
-                    <h3 id="trend-chart-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                        <span aria-hidden="true">📊</span> 12-Week Trend
-                    </h3>
-                    <div style="position: relative; height: 250px;">
-                        <canvas id="trendChart" aria-label="Line chart showing subscriber trend over 12 weeks"></canvas>
-                    </div>
-                </div>
-
-                <!-- Delivery Type Breakdown -->
-                <div class="bg-white rounded-xl shadow p-6" role="region" aria-labelledby="delivery-chart-heading">
-                    <h3 id="delivery-chart-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                        <span aria-hidden="true">📦</span> Delivery Type Distribution
-                    </h3>
-                    <div style="position: relative; height: 250px;">
-                        <canvas id="deliveryChart" aria-label="Donut chart showing distribution of delivery types"></canvas>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- Paper Breakdown -->
-        <section id="reports" class="mb-8" aria-labelledby="publications-heading">
-            <h2 id="publications-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                <span aria-hidden="true">📰</span> By Publication
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="paperCards" role="status" aria-live="polite">
-                <div class="text-center py-12 col-span-full">
-                    <div class="loading mx-auto mb-4" aria-hidden="true"></div>
-                    <div class="text-gray-500">Loading publications...</div>
                 </div>
             </div>
         </section>

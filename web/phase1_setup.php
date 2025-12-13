@@ -19,7 +19,11 @@ $db_config = [
     'socket' => getenv('DB_SOCKET') !== false ? getenv('DB_SOCKET') : '/run/mysqld/mysqld10.sock',
 ];
 
-function connectDB($config)
+/**
+ * @param array<string, mixed> $config Database configuration array
+ * @return PDO Database connection
+ */
+function connectDB(array $config): PDO
 {
 
     try {

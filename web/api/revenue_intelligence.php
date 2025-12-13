@@ -130,8 +130,11 @@ try {
 /**
  * Calculate expiration risk buckets
  * Returns subscribers and revenue at risk for each time period
+ * @param PDO $pdo Database connection
+ * @param string $snapshot_date Snapshot date in Y-m-d format
+ * @return array<string, mixed> Expiration risk data
  */
-function getExpirationRisk($pdo, $snapshot_date)
+function getExpirationRisk(PDO $pdo, string $snapshot_date): array
 {
 
     $sql = "
@@ -201,8 +204,11 @@ function getExpirationRisk($pdo, $snapshot_date)
  * Analyze legacy rate opportunities
  * Identifies subscribers on rates < $100/year and calculates revenue gap
  * Excludes SPECIAL rates (out-of-state mail, etc.) and IGNORED rates from revenue opportunities
+ * @param PDO $pdo Database connection
+ * @param string $snapshot_date Snapshot date in Y-m-d format
+ * @return array<string, mixed> Legacy rate analysis data
  */
-function getLegacyRateAnalysis($pdo, $snapshot_date)
+function getLegacyRateAnalysis(PDO $pdo, string $snapshot_date): array
 {
 
     $sql = "
@@ -305,8 +311,11 @@ function getLegacyRateAnalysis($pdo, $snapshot_date)
 /**
  * Calculate revenue per subscriber metrics
  * ARPU (Average Revenue Per User) by delivery type and business unit
+ * @param PDO $pdo Database connection
+ * @param string $snapshot_date Snapshot date in Y-m-d format
+ * @return array<string, mixed> Revenue metrics data
  */
-function getRevenueMetrics($pdo, $snapshot_date)
+function getRevenueMetrics(PDO $pdo, string $snapshot_date): array
 {
 
     // By delivery type
@@ -375,7 +384,12 @@ function getRevenueMetrics($pdo, $snapshot_date)
  * @param string $snapshot_date Snapshot date
  * @return array Per-publication revenue metrics
  */
-function getRevenueOpportunityByPublication($pdo, $snapshot_date)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $snapshot_date Snapshot date in Y-m-d format
+ * @return array<string, mixed> Per-publication revenue opportunities
+ */
+function getRevenueOpportunityByPublication(PDO $pdo, string $snapshot_date): array
 {
     // Get market rates per publication (from rate_flags table)
     $marketRates = getMarketRates($pdo);
@@ -526,7 +540,11 @@ function getRevenueOpportunityByPublication($pdo, $snapshot_date)
  * @param PDO $pdo Database connection
  * @return array Associative array [paper_code => market_rate_amount]
  */
-function getMarketRates($pdo)
+/**
+ * @param PDO $pdo Database connection
+ * @return array<string, float> Market rates by paper code
+ */
+function getMarketRates(PDO $pdo): array
 {
     // Get the highest yearly subscription rate for each paper
     // Excludes daily/weekly rates which have inflated annualized values
@@ -563,8 +581,9 @@ function getMarketRates($pdo)
 /**
  * Handle subscriber list request by expiration bucket
  * Returns detailed list of subscribers in a specific expiration risk category
+ * @return void
  */
-function handleSubscriberListRequest()
+function handleSubscriberListRequest(): void
 {
 
     header('Content-Type: application/json');
@@ -675,8 +694,9 @@ function handleSubscriberListRequest()
 /**
  * Handle per-paper metrics request
  * Returns legacy rate opportunity and ARPU metrics grouped by paper
+ * @return void
  */
-function handleByPaperRequest()
+function handleByPaperRequest(): void
 {
 
     header('Content-Type: application/json');
@@ -861,8 +881,9 @@ function handleByPaperRequest()
 /**
  * Sweet Spot Analysis - Optimize subscription length mix
  * Calculates cash flow, profit margin, stability, and admin efficiency metrics
+ * @return void
  */
-function handleSweetSpotAnalysis()
+function handleSweetSpotAnalysis(): void
 {
 
     header('Content-Type: application/json');
@@ -986,8 +1007,10 @@ function handleSweetSpotAnalysis()
 
 /**
  * Calculate sweet spot optimization metrics for a paper
+ * @param array<string, mixed> $paper_data Paper subscription data
+ * @return array<string, mixed> Sweet spot metrics
  */
-function calculateSweetSpotMetrics($paper_data)
+function calculateSweetSpotMetrics(array $paper_data): array
 {
 
     $lengths = $paper_data['lengths'];
@@ -1079,8 +1102,15 @@ function calculateSweetSpotMetrics($paper_data)
 
 /**
  * Generate actionable recommendations based on metrics
+ * @param array<int, array<string, mixed>> $lengths Length distribution data (indexed array)
+ * @param int $total_subscribers Total number of subscribers
+ * @param float $cash_flow Cash flow score
+ * @param float $profit Profit score
+ * @param float $stability Stability score
+ * @param float $admin Administrative efficiency score
+ * @return array<int, array{type: string, priority: string, message: string}> List of recommendations
  */
-function generateRecommendations($lengths, $total_subscribers, $cash_flow, $profit, $stability, $admin)
+function generateRecommendations(array $lengths, int $total_subscribers, float $cash_flow, float $profit, float $stability, float $admin): array
 {
 
     $recommendations = [];
@@ -1157,8 +1187,10 @@ function generateRecommendations($lengths, $total_subscribers, $cash_flow, $prof
 
 /**
  * Calculate overall sweet spot metrics across all papers
+ * @param array<string, array<string, mixed>> $length_data Length distribution data
+ * @return array<string, mixed> Overall sweet spot metrics
  */
-function calculateOverallSweetSpotMetrics($length_data)
+function calculateOverallSweetSpotMetrics(array $length_data): array
 {
 
     if (empty($length_data)) {
@@ -1253,8 +1285,15 @@ function calculateOverallSweetSpotMetrics($length_data)
 
 /**
  * Generate overall recommendations based on aggregate metrics
+ * @param float $cash_flow Cash flow score
+ * @param float $profit_margin Profit margin score
+ * @param float $stability Stability score
+ * @param float $admin_efficiency Administrative efficiency score
+ * @param array<string, array<string, mixed>> $length_data Length distribution data
+ * @param int $total_subscribers Total number of subscribers
+ * @return array<int, array{type: string, priority: string, message: string}> List of recommendations
  */
-function generateOverallRecommendations($cash_flow, $profit_margin, $stability, $admin_efficiency, $length_data, $total_subscribers)
+function generateOverallRecommendations(float $cash_flow, float $profit_margin, float $stability, float $admin_efficiency, array $length_data, int $total_subscribers): array
 {
 
     $recommendations = [];
@@ -1327,8 +1366,9 @@ function generateOverallRecommendations($cash_flow, $profit_margin, $stability, 
 /**
  * Handle publication detail request
  * Returns current state and historical trend (last 12 weeks) for a specific publication
+ * @return void
  */
-function handlePublicationDetail()
+function handlePublicationDetail(): void
 {
     header('Content-Type: application/json');
 
@@ -1366,7 +1406,7 @@ function handlePublicationDetail()
         $historical = getRevenueHistoricalTrend($pdo, $paperCode, 12);
 
         // Calculate trend direction
-        $trend = calculateTrendDirection($historical);
+        $trend = calculateRevenueOpportunityTrend($historical);
 
         echo json_encode([
             'success' => true,
@@ -1389,8 +1429,11 @@ function handlePublicationDetail()
 
 /**
  * Get current state for a publication
+ * @param PDO $pdo Database connection
+ * @param string $paperCode Paper code (TJ, TA, TR, etc.)
+ * @return array<string, mixed> Current publication state
  */
-function getCurrentPublicationState($pdo, $paperCode)
+function getCurrentPublicationState(PDO $pdo, string $paperCode): array
 {
     // Get latest snapshot date
     $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
@@ -1464,8 +1507,12 @@ function getCurrentPublicationState($pdo, $paperCode)
 
 /**
  * Get historical trend data for revenue intelligence (last N weeks)
+ * @param PDO $pdo Database connection
+ * @param string $paperCode Paper code (TJ, TA, TR, etc.)
+ * @param int $weeks Number of weeks to retrieve
+ * @return array<int, array<string, mixed>> Historical trend data
  */
-function getRevenueHistoricalTrend($pdo, $paperCode, $weeks = 12)
+function getRevenueHistoricalTrend(PDO $pdo, string $paperCode, int $weeks = 12): array
 {
     $marketRates = getMarketRates($pdo);
     $marketRateAnnual = $marketRates[$paperCode] ?? 169.99;
@@ -1523,9 +1570,11 @@ function getRevenueHistoricalTrend($pdo, $paperCode, $weeks = 12)
 }
 
 /**
- * Calculate trend direction (is opportunity growing or shrinking?)
+ * Calculate revenue opportunity trend direction (is opportunity growing or shrinking?)
+ * @param array<int, array<string, mixed>> $historical Historical data
+ * @return array{direction: string, percent: float} Trend direction and percent change
  */
-function calculateTrendDirection($historical)
+function calculateRevenueOpportunityTrend(array $historical): array
 {
     if (count($historical) < 2) {
         return ['direction' => 'unknown', 'percent' => 0];

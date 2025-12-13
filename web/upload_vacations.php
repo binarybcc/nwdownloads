@@ -150,16 +150,20 @@ try {
 
         // Parse dates (MM/DD/YY format)
         // Handle 2-digit year: assume 00-50 = 2000-2050, 51-99 = 1951-1999
-        $vacStart = parseNewzwareDate($vacBeg);
-        $vacEnd = parseNewzwareDate($vacEnd);
-        if (!$vacStart || !$vacEnd) {
+        $vacStartStr = parseNewzwareDate($vacBeg);
+        $vacEndStr = parseNewzwareDate($vacEnd);
+        if (!$vacStartStr || !$vacEndStr) {
             $stats['skipped_rows']++;
             $stats['errors'][] = "Line $lineNumber: Invalid date format (sub: $subNum, start: $vacBeg, end: $vacEnd)";
             continue;
         }
 
+        // Convert to DateTime objects for date calculations
+        $vacStart = new DateTime($vacStartStr);
+        $vacEnd = new DateTime($vacEndStr);
+
         // Validate dates (technical checks only - no business logic)
-        if ($vacEnd < $vacStart) {
+        if ($vacEndStr < $vacStartStr) {
             $stats['skipped_rows']++;
             $stats['errors'][] = "Line $lineNumber: End date before start date (sub: $subNum)";
             continue;
@@ -291,7 +295,11 @@ try {
  * Handles 2-digit years: ALL values treated as 2000-2099 for business logic
  * Examples: 24 = 2024, 55 = 2055, 99 = 2099
  */
-function parseNewzwareDate($dateStr)
+/**
+ * @param string $dateStr Date string from Newzware
+ * @return string|null Parsed date in Y-m-d format or null
+ */
+function parseNewzwareDate(string $dateStr): ?string
 {
 
     if (empty($dateStr)) {
@@ -311,7 +319,8 @@ function parseNewzwareDate($dateStr)
             return null;
         }
 
-        return new DateTime("$year-$month-$day");
+        $dt = new DateTime("$year-$month-$day");
+        return $dt->format('Y-m-d');
     }
 
     // Try MM/DD/YYYY format (full year)
@@ -323,7 +332,8 @@ function parseNewzwareDate($dateStr)
             return null;
         }
 
-        return new DateTime("$year-$month-$day");
+        $dt = new DateTime("$year-$month-$day");
+        return $dt->format('Y-m-d');
     }
 
     return null;

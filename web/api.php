@@ -21,7 +21,7 @@ $db_config = [
     'port' => getenv('DB_PORT') ?: 3306,
     'database' => getenv('DB_NAME') ?: 'circulation_dashboard',
     'username' => getenv('DB_USER') ?: 'circ_dash',
-    'password' => getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!',
+    'password' => getenv('DB_PASSWORD'),
     'socket' => getenv('DB_SOCKET') !== false ? getenv('DB_SOCKET') : '/run/mysqld/mysqld10.sock',
 ];
 

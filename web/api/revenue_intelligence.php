@@ -1406,7 +1406,7 @@ function handlePublicationDetail(): void
         $historical = getRevenueHistoricalTrend($pdo, $paperCode, 12);
 
         // Calculate trend direction
-        $trend = calculateTrendDirection($historical);
+        $trend = calculateRevenueOpportunityTrend($historical);
 
         echo json_encode([
             'success' => true,
@@ -1570,11 +1570,11 @@ function getRevenueHistoricalTrend(PDO $pdo, string $paperCode, int $weeks = 12)
 }
 
 /**
- * Calculate trend direction (is opportunity growing or shrinking?)
+ * Calculate revenue opportunity trend direction (is opportunity growing or shrinking?)
  * @param array<int, array<string, mixed>> $historical Historical data
  * @return array{direction: string, percent: float} Trend direction and percent change
  */
-function calculateTrendDirection(array $historical): array
+function calculateRevenueOpportunityTrend(array $historical): array
 {
     if (count($historical) < 2) {
         return ['direction' => 'unknown', 'percent' => 0];

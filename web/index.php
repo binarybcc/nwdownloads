@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Circulation Dashboard - Main Interface
+ * Circulation Dashboard - Main Interface (TEST VERSION - HEADER REDESIGN)
  * Requires Newzware authentication to access
  */
 
@@ -137,13 +137,13 @@ require_once 'auth_check.php';
         /* Date Navigation Styles */
         .date-navigation {
             display: flex;
-            gap: 0.75rem;
+            gap: 0.5rem;
             align-items: center;
             flex-wrap: wrap;
         }
 
         .date-navigation button {
-            padding: 0.5rem 1rem;
+            padding: 0.375rem 0.75rem;
             border: 1px solid #e5e7eb;
             border-radius: 0.375rem;
             background: white;
@@ -186,11 +186,11 @@ require_once 'auth_check.php';
         }
 
         .date-navigation input[type="text"] {
-            padding: 0.5rem 1rem;
+            padding: 0.375rem 0.75rem;
             border: 1px solid #e5e7eb;
             border-radius: 0.375rem;
             font-size: 0.875rem;
-            width: 150px;
+            width: 120px;
         }
 
         .comparison-badge {
@@ -245,6 +245,28 @@ require_once 'auth_check.php';
             font-size: 0.875rem;
             background: white;
             cursor: pointer;
+        }
+
+        /* Smooth scroll for section navigation */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Section navigation active state */
+        .section-nav-link {
+            padding-bottom: 0.25rem;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .section-nav-link:hover {
+            color: #3b82f6;
+        }
+
+        .section-nav-link.active {
+            color: #1d4ed8;
+            font-weight: 600;
+            border-bottom-color: #1d4ed8;
         }
 
         /* Detail Panel Styles - Enhanced UX with State Navigation */
@@ -508,109 +530,113 @@ require_once 'auth_check.php';
 </head>
 <body class="bg-gray-50">
 
-    <!-- Sticky Header Container -->
-    <div class="sticky top-0 z-50 bg-white shadow-sm">
-
-    <!-- Header -->
-    <header class="bg-white" role="banner">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <!-- TIER 1: INFO BAR (Scrollable) -->
+    <header class="bg-white border-b border-gray-200" role="banner">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
             <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">
-                        <span aria-hidden="true">📊</span> Circulation Dashboard
+                <!-- Left: Title + Status -->
+                <div class="flex items-center gap-4">
+                    <h1 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <img src="assets/egh-logo-gold.webp" alt="Edwards Group Holdings" class="w-6 h-6 object-contain">
+                        Circulation
                     </h1>
-                    <p class="text-sm text-gray-500 mt-1">Historical data navigation • Week-based analysis • Year-over-year comparison</p>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm font-medium text-gray-900" id="currentDateTime">Loading...</div>
-                        <div class="text-xs text-gray-500">
-                            <span>Logged in as <strong><?php echo htmlspecialchars($_SESSION['user']); ?></strong></span> •
-                            Data: <span id="dataRangeDisplay">--</span>
-                        </div>
+                    <div class="text-xs text-gray-500 flex items-center gap-2">
+                        <span id="currentDateTime">Loading...</span>
+                        <span>•</span>
+                        <span>Logged in as <strong><?php echo htmlspecialchars($_SESSION['user']); ?></strong></span>
+                        <span>•</span>
+                        <span>Data: <span id="dataRangeDisplay">--</span></span>
                     </div>
+                </div>
 
-                    <!-- Upload Button -->
+                <!-- Right: Actions (Icon-only buttons) -->
+                <div class="flex items-center gap-2">
                     <a href="upload_page.php"
-                       class="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition flex items-center space-x-2"
-                       title="Upload weekly data">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                       class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                       title="Upload Weekly Circulation Data"
+                       aria-label="Upload data">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                         </svg>
-                        <span>Upload</span>
                     </a>
 
-                    <!-- Rate Management Button -->
-                    <a href="rates.php"
-                       class="px-4 py-2 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition flex items-center space-x-2"
-                       title="Manage rate classifications">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span>Rates</span>
-                    </a>
-
-                    <!-- Logout Button -->
-                    <a href="logout.php"
-                       class="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition flex items-center space-x-2"
-                       title="Sign out">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                        </svg>
-                        <span>Logout</span>
-                    </a>
-
-                    <!-- PHASE 2: Export Button -->
                     <div class="relative">
                         <button id="exportBtn" onclick="toggleExportMenu()"
-                                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition flex items-center space-x-2"
+                                class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                                 aria-label="Export data"
                                 aria-expanded="false"
-                                aria-haspopup="true">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                aria-haspopup="true"
+                                title="Export Dashboard to CSV, Excel, or PDF">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
-                            <span>Export</span>
                         </button>
 
                         <div id="exportMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                            <button onclick="exportToCSV()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 rounded-t-lg">
+                            <button onclick="exportToCSV()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 rounded-t-lg text-sm">
                                 <span>📊</span><span>Export to CSV</span>
                             </button>
-                            <button onclick="exportToPDF()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2">
+                            <button onclick="exportToPDF()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 text-sm">
                                 <span>📄</span><span>Export to PDF</span>
                             </button>
-                            <button onclick="exportToExcel()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 rounded-b-lg">
+                            <button onclick="exportToExcel()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 rounded-b-lg text-sm">
                                 <span>📗</span><span>Export to Excel</span>
                             </button>
                         </div>
                     </div>
 
                     <button onclick="refreshData()"
-                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center space-x-2"
-                            aria-label="Refresh dashboard data">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            aria-label="Refresh dashboard data"
+                            title="Refresh Dashboard Data">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                         </svg>
-                        <span>Refresh</span>
                     </button>
+
+                    <a href="rates.php"
+                       class="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition"
+                       title="Manage Rate Classifications"
+                       aria-label="Rate Management">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </a>
+
+                    <a href="settings.php"
+                       class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                       title="Dashboard Settings"
+                       aria-label="Settings">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </a>
+
+                    <a href="logout.php"
+                       class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition ml-2"
+                       title="Sign Out of Dashboard"
+                       aria-label="Logout">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </a>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Date Navigation Bar -->
-    <nav class="bg-white border-b border-gray-200" role="navigation" aria-label="Date navigation">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-
-                <!-- Navigation Controls -->
+    <!-- TIER 2: NAVIGATION BAR (Sticky) -->
+    <nav class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm" role="navigation" aria-label="Dashboard navigation">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <!-- Row 1: Week Controls + Comparison -->
+            <div class="flex justify-between items-center mb-3">
                 <div class="date-navigation">
                     <button id="prevWeek"
                             class="flex items-center space-x-1"
                             aria-label="Go to previous week">
-                        <span aria-hidden="true">⟨</span>
-                        <span>Previous Week</span>
+                        <span aria-hidden="true">‹</span>
+                        <span>Previous</span>
                     </button>
 
                     <input type="text"
@@ -624,8 +650,8 @@ require_once 'auth_check.php';
                     <button id="nextWeek"
                             class="flex items-center space-x-1"
                             aria-label="Go to next week">
-                        <span>Next Week</span>
-                        <span aria-hidden="true">⟩</span>
+                        <span>Next</span>
+                        <span aria-hidden="true">›</span>
                     </button>
 
                     <button id="thisWeek"
@@ -635,41 +661,58 @@ require_once 'auth_check.php';
                     </button>
                 </div>
 
-                <!-- Comparison Selector -->
-                <div class="flex items-center gap-3">
-                    <label for="compareMode" class="text-sm text-gray-600 font-medium">Compare to:</label>
+                <div class="flex items-center gap-2 text-sm">
+                    <label for="compareMode" class="text-gray-600 font-medium">Compare to:</label>
                     <select id="compareMode"
                             class="text-sm"
                             aria-label="Select comparison mode">
-                        <option value="yoy">Same Week Last Year</option>
                         <option value="previous">Previous Week</option>
+                        <option value="yoy">Same Week Last Year</option>
                         <option value="none">No Comparison</option>
                     </select>
                 </div>
             </div>
 
-            <!-- Period Display -->
-            <div class="mt-3 flex items-center justify-between">
+            <!-- Row 2: Section Navigation Links -->
+            <div class="flex items-center gap-6 text-sm border-t border-gray-100 pt-3 pb-2">
+                <a href="#overview" class="section-nav-link active">Overview</a>
+                <a href="#metrics" class="section-nav-link">Metrics</a>
+                <a href="#analytics" class="section-nav-link">Analytics</a>
+                <a href="#reports" class="section-nav-link">Reports</a>
+            </div>
+
+            <!-- Row 3: Week Info + Comparison -->
+            <div class="flex justify-between items-center text-sm pt-2 border-t border-gray-100">
                 <div>
-                    <div class="text-lg font-semibold text-gray-900">
-                        <span id="periodLabel">Loading...</span>
-                    </div>
-                    <div class="text-sm text-gray-500" id="dateRange">--</div>
+                    <span class="text-gray-600">Viewing:</span>
+                    <span class="font-semibold text-gray-900 ml-1" id="periodLabel">Loading...</span>
+                    <span class="text-gray-500 ml-2" id="dateRange">--</span>
                 </div>
-                <div id="comparisonDisplay" class="text-sm text-gray-600">
+                <div id="comparisonDisplay" class="text-gray-600">
                     <!-- Comparison info will be inserted here -->
                 </div>
             </div>
         </div>
     </nav>
 
-    </div><!-- End Sticky Header Container -->
-
     <!-- Main Content -->
     <main id="mainContent" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" role="main" aria-label="Dashboard content">
 
+        <!-- Business Units -->
+        <section class="mb-8" aria-labelledby="business-units-heading">
+            <h2 id="business-units-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                <span aria-hidden="true">📍</span> By Business Unit
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="businessUnits" role="status" aria-live="polite">
+                <div class="text-center py-12">
+                    <div class="loading mx-auto mb-4"></div>
+                    <div class="text-gray-500">Loading business units...</div>
+                </div>
+            </div>
+        </section>
+
         <!-- Key Metrics -->
-        <section class="mb-8" aria-labelledby="key-metrics-heading">
+        <section id="overview" class="mb-8" aria-labelledby="key-metrics-heading">
             <h2 id="key-metrics-heading" class="text-lg font-semibold text-gray-900 mb-4">
                 <span aria-hidden="true">📈</span> Key Metrics
             </h2>
@@ -749,7 +792,7 @@ require_once 'auth_check.php';
         </section>
 
         <!-- PHASE 2: Analytics Insights -->
-        <section class="mb-8" aria-labelledby="analytics-heading">
+        <section id="analytics" class="mb-8" aria-labelledby="analytics-heading">
             <h2 id="analytics-heading" class="text-lg font-semibold text-gray-900 mb-4">
                 <span aria-hidden="true">🔍</span> Analytics Insights
             </h2>
@@ -759,7 +802,7 @@ require_once 'auth_check.php';
         </section>
 
         <!-- Revenue Intelligence -->
-        <section class="mb-8" aria-labelledby="revenue-intelligence-heading">
+        <section id="metrics" class="mb-8" aria-labelledby="revenue-intelligence-heading">
             <h2 id="revenue-intelligence-heading" class="text-lg font-semibold text-gray-900 mb-4">
                 <span aria-hidden="true">💰</span> Revenue Intelligence
             </h2>
@@ -837,46 +880,100 @@ require_once 'auth_check.php';
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Revenue Opportunities -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Legacy Rate Opportunity -->
-                <div class="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200 hover:shadow-xl transition-all">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-sm font-semibold text-gray-700 flex items-center">
-                            <span class="mr-2" aria-hidden="true">🎯</span>
-                            <span>Legacy Rate Opportunity</span>
-                        </h3>
-                        <div class="text-2xl" aria-hidden="true">💎</div>
-                    </div>
+        <!-- Charts -->
+        <section class="mb-8" aria-labelledby="charts-heading">
+            <h2 id="charts-heading" class="sr-only">Data Visualizations</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                    <div class="space-y-4">
-                        <!-- Key Stats -->
-                        <div class="bg-blue-50 rounded-lg p-4">
-                            <div class="text-xs text-blue-700 mb-1">Subscribers on &lt;$100/year rates</div>
-                            <div class="text-3xl font-bold text-blue-900" id="legacyRateCount">--</div>
-                            <div class="text-xs text-blue-600 mt-1">
-                                Avg rate: <span id="legacyRateAvg" class="font-semibold">$--</span>/year
-                            </div>
-                        </div>
-
-                        <!-- Revenue Gap -->
-                        <div class="border-t border-gray-200 pt-4">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-xs text-gray-600">Current market rate:</span>
-                                <span class="text-sm font-bold text-gray-900">$169.99/year</span>
-                            </div>
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-xs text-gray-600">Monthly revenue gap:</span>
-                                <span class="text-lg font-bold text-orange-600" id="legacyRevenueGap">$--</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs font-semibold text-gray-700">Annual opportunity:</span>
-                                <span class="text-2xl font-bold text-green-600" id="legacyAnnualOpportunity">$--</span>
-                            </div>
-                        </div>
+                <!-- 12-Week Trend -->
+                <div class="bg-white rounded-xl shadow p-6" role="region" aria-labelledby="trend-chart-heading">
+                    <h3 id="trend-chart-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                        <span aria-hidden="true">📊</span> 12-Week Trend
+                    </h3>
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="trendChart" aria-label="Line chart showing subscriber trend over 12 weeks"></canvas>
                     </div>
                 </div>
+
+                <!-- Delivery Type Breakdown -->
+                <div class="bg-white rounded-xl shadow p-6" role="region" aria-labelledby="delivery-chart-heading">
+                    <h3 id="delivery-chart-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                        <span aria-hidden="true">📦</span> Delivery Type Distribution
+                    </h3>
+                    <div style="position: relative; height: 250px;">
+                        <canvas id="deliveryChart" aria-label="Donut chart showing distribution of delivery types"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Paper Breakdown -->
+        <section id="reports" class="mb-8" aria-labelledby="publications-heading">
+            <h2 id="publications-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                <span aria-hidden="true">📰</span> By Publication
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="paperCards" role="status" aria-live="polite">
+                <div class="text-center py-12 col-span-full">
+                    <div class="loading mx-auto mb-4" aria-hidden="true"></div>
+                    <div class="text-gray-500">Loading publications...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Revenue Opportunities -->
+        <section class="mb-8" aria-labelledby="revenue-opportunities-heading">
+            <!-- Caution Notice -->
+            <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4 rounded-r-lg" role="alert">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-amber-800">
+                            ⚠️ <strong>Notice:</strong> Data shown in this section is not yet adjusted per product. <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800 ml-2">COMING SOON</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <h2 id="revenue-opportunities-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                <span aria-hidden="true">💎</span> Revenue Opportunities
+            </h2>
+
+            <!-- Under Construction Notice -->
+            <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-amber-800">
+                            <strong class="font-semibold">Under Development:</strong> Revenue opportunity calculations are being refined.
+                            Numbers are approximate while we validate rate classifications and market rate detection.
+                            <a href="rates.php" class="underline hover:text-amber-900">Review and classify rates here</a>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Opportunity Table (replaces old card) -->
+            <div id="revenueOpportunityTable" class="mb-6">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="text-center py-12">
+                        <div class="loading mx-auto mb-4"></div>
+                        <div class="text-gray-500">Loading revenue opportunity data...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-1 gap-6">
 
                 <!-- Revenue Per Subscriber -->
                 <div class="bg-white rounded-xl shadow-lg p-6 border-2 border-purple-200 hover:shadow-xl transition-all">
@@ -914,195 +1011,6 @@ require_once 'auth_check.php';
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Revenue Intelligence by Publication -->
-        <section class="mb-8" aria-labelledby="revenue-by-publication-heading">
-            <h2 id="revenue-by-publication-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                <span aria-hidden="true">💰</span> Revenue Intelligence by Publication
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="revenueByPublication" role="status" aria-live="polite">
-                <div class="text-center py-12">
-                    <div class="loading mx-auto mb-4"></div>
-                    <div class="text-gray-500">Loading publication metrics...</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Sweet Spot Optimizer -->
-        <section class="mb-8" aria-labelledby="sweet-spot-heading">
-            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-lg p-6 border-2 border-indigo-200">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 id="sweet-spot-heading" class="text-lg font-semibold text-gray-900">
-                        <span aria-hidden="true">🎯</span> Sweet Spot Optimizer
-                    </h2>
-                    <button onclick="toggleSweetSpotDetails()"
-                            class="text-sm text-indigo-600 hover:text-indigo-800 font-semibold"
-                            id="sweetSpotToggle">
-                        Show Details ↓
-                    </button>
-                </div>
-
-                <!-- Overall Score -->
-                <div class="mb-6 bg-white rounded-lg p-4 shadow">
-                    <div class="text-sm text-gray-600 mb-2">Overall Sweet Spot Score</div>
-                    <div class="flex items-end gap-4">
-                        <div class="text-4xl font-bold text-indigo-600" id="sweetSpotScore">--</div>
-                        <div class="text-sm text-gray-500 mb-1">/100</div>
-                    </div>
-                    <div class="mt-2">
-                        <div class="w-full bg-gray-200 rounded-full h-3">
-                            <div class="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 rounded-full transition-all duration-500"
-                                 id="sweetSpotScoreBar"
-                                 style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detailed Metrics (Collapsible) -->
-                <div id="sweetSpotDetails" class="hidden space-y-4">
-                    <!-- Cash Flow Score -->
-                    <div class="bg-white rounded-lg p-4 shadow">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-semibold text-gray-700">💵 Cash Flow Score</span>
-                            <span class="text-lg font-bold text-green-600" id="cashFlowScore">--</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-green-500 h-2 rounded-full transition-all duration-500"
-                                 id="cashFlowBar"
-                                 style="width: 0%"></div>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-1">Higher renewal frequency = better cash flow</div>
-                    </div>
-
-                    <!-- Profit Margin Score -->
-                    <div class="bg-white rounded-lg p-4 shadow">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-semibold text-gray-700">📈 Profit Margin Score</span>
-                            <span class="text-lg font-bold text-blue-600" id="profitMarginScore">--</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                                 id="profitMarginBar"
-                                 style="width: 0%"></div>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-1">Higher annualized rates = better margins</div>
-                    </div>
-
-                    <!-- Stability Score -->
-                    <div class="bg-white rounded-lg p-4 shadow">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-semibold text-gray-700">🔒 Stability Score</span>
-                            <span class="text-lg font-bold text-purple-600" id="stabilityScore">--</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-purple-500 h-2 rounded-full transition-all duration-500"
-                                 id="stabilityBar"
-                                 style="width: 0%"></div>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-1">Longer commitments = more stability</div>
-                    </div>
-
-                    <!-- Admin Efficiency Score -->
-                    <div class="bg-white rounded-lg p-4 shadow">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-semibold text-gray-700">⚡ Admin Efficiency Score</span>
-                            <span class="text-lg font-bold text-orange-600" id="adminEfficiencyScore">--</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-orange-500 h-2 rounded-full transition-all duration-500"
-                                 id="adminEfficiencyBar"
-                                 style="width: 0%"></div>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-1">Fewer renewals = less overhead</div>
-                    </div>
-
-                    <!-- Recommendations -->
-                    <div class="bg-white rounded-lg p-4 shadow border-l-4 border-indigo-500">
-                        <div class="text-sm font-semibold text-gray-700 mb-3">💡 Recommendations</div>
-                        <div id="sweetSpotRecommendations" class="space-y-2">
-                            <div class="text-center py-6 text-gray-400">Loading recommendations...</div>
-                        </div>
-                    </div>
-
-                    <!-- Statistics -->
-                    <div class="bg-white rounded-lg p-4 shadow">
-                        <div class="text-sm font-semibold text-gray-700 mb-3">📊 Key Statistics</div>
-                        <div class="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <div class="text-gray-500">Avg Renewals/Year</div>
-                                <div class="font-bold text-gray-900" id="avgRenewals">--</div>
-                            </div>
-                            <div>
-                                <div class="text-gray-500">Annualized Revenue</div>
-                                <div class="font-bold text-gray-900" id="annualizedRevenue">--</div>
-                            </div>
-                            <div>
-                                <div class="text-gray-500">Min Rate (annualized)</div>
-                                <div class="font-bold text-gray-900" id="minRate">--</div>
-                            </div>
-                            <div>
-                                <div class="text-gray-500">Max Rate (annualized)</div>
-                                <div class="font-bold text-gray-900" id="maxRate">--</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Business Units -->
-        <section class="mb-8" aria-labelledby="business-units-heading">
-            <h2 id="business-units-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                <span aria-hidden="true">📍</span> By Business Unit
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="businessUnits" role="status" aria-live="polite">
-                <div class="text-center py-12">
-                    <div class="loading mx-auto mb-4"></div>
-                    <div class="text-gray-500">Loading business units...</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Charts -->
-        <section class="mb-8" aria-labelledby="charts-heading">
-            <h2 id="charts-heading" class="sr-only">Data Visualizations</h2>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                <!-- 12-Week Trend -->
-                <div class="bg-white rounded-xl shadow p-6" role="region" aria-labelledby="trend-chart-heading">
-                    <h3 id="trend-chart-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                        <span aria-hidden="true">📊</span> 12-Week Trend
-                    </h3>
-                    <div style="position: relative; height: 250px;">
-                        <canvas id="trendChart" aria-label="Line chart showing subscriber trend over 12 weeks"></canvas>
-                    </div>
-                </div>
-
-                <!-- Delivery Type Breakdown -->
-                <div class="bg-white rounded-xl shadow p-6" role="region" aria-labelledby="delivery-chart-heading">
-                    <h3 id="delivery-chart-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                        <span aria-hidden="true">📦</span> Delivery Type Distribution
-                    </h3>
-                    <div style="position: relative; height: 250px;">
-                        <canvas id="deliveryChart" aria-label="Donut chart showing distribution of delivery types"></canvas>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- Paper Breakdown -->
-        <section class="mb-8" aria-labelledby="publications-heading">
-            <h2 id="publications-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                <span aria-hidden="true">📰</span> By Publication
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="paperCards" role="status" aria-live="polite">
-                <div class="text-center py-12 col-span-full">
-                    <div class="loading mx-auto mb-4" aria-hidden="true"></div>
-                    <div class="text-gray-500">Loading publications...</div>
                 </div>
             </div>
         </section>
@@ -1289,7 +1197,9 @@ require_once 'auth_check.php';
     <script src="assets/trend-slider.js?v=20251207"></script>
     <script src="assets/chart-context-integration.js?v=20251207"></script>
     <script src="assets/vacation-display.js?v=20251208"></script>
-    <script src="assets/revenue-intelligence.js?v=20251209"></script>
+    <script src="assets/revenue-opportunity-table.js?v=20251213"></script>
+    <script src="assets/publication-revenue-detail.js?v=20251213"></script>
+    <script src="assets/revenue-intelligence.js?v=20251213"></script>
     <script>
         // Initialize UI enhancements after dashboard is fully rendered
         // This listens for the 'DashboardRendered' event dispatched by renderDashboard()
@@ -1308,16 +1218,6 @@ require_once 'auth_check.php';
             if (typeof loadRevenueIntelligence === 'function') {
                 loadRevenueIntelligence();
             }
-
-            // Load per-paper revenue intelligence
-            if (typeof loadRevenueByPublication === 'function') {
-                loadRevenueByPublication();
-            }
-
-            // Load sweet spot analysis
-            if (typeof loadSweetSpotAnalysis === 'function') {
-                loadSweetSpotAnalysis();
-            }
         });
 
         // Override the existing toggleExportMenu function to update ARIA state
@@ -1335,6 +1235,35 @@ require_once 'auth_check.php';
                 updateExportMenuAria(!isCurrentlyHidden);
             }
         };
+
+        // Section navigation active state tracking
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('section[id]');
+            const navLinks = document.querySelectorAll('.section-nav-link');
+
+            // Update active nav link on scroll
+            const observerOptions = {
+                root: null,
+                rootMargin: '-20% 0px -70% 0px',
+                threshold: 0
+            };
+
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        navLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href') === `#${id}`) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, observerOptions);
+
+            sections.forEach(section => observer.observe(section));
+        });
     </script>
 
 </body>

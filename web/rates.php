@@ -6,24 +6,21 @@
  * Integrates with rates.csv and AllSubscriberReport for active subscriber tracking
  */
 
-require_once 'config.php';
-require_once 'auth_check.php';
-require_once __DIR__ . '/includes/database.php';
-
-// Generate CSRF token if not exists
+// Start session FIRST before any output
 session_start();
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
 
-// Initialize variables before try-catch
-$rate_flags = [];
-$subscriber_counts = [];
-$snapshot_date = null;
-$error_message = null;
-// Handle AJAX save requests
+// Handle AJAX save requests BEFORE any includes to prevent output
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_flags') {
+    // Set JSON header immediately
     header('Content-Type: application/json');
+
+    // Suppress HTML error output for AJAX
+    ini_set('display_errors', '0');
+    error_reporting(E_ALL);
+
+    require_once 'config.php';
+    require_once 'auth_check.php';
+    require_once __DIR__ . '/includes/database.php';
 // Verify CSRF token
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         http_response_code(403);
@@ -106,6 +103,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// Load includes for normal page rendering (not AJAX)
+require_once 'config.php';
+require_once 'auth_check.php';
+require_once __DIR__ . '/includes/database.php';
+
+// Generate CSRF token if not exists
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Initialize variables before try-catch
+$rate_flags = [];
+$subscriber_counts = [];
+$snapshot_date = null;
+$error_message = null;
+
 // Connect to database for reading
 try {
     $pdo = getDatabase();
@@ -149,6 +162,7 @@ try {
 // Read and parse rates.csv
 $csv_path = __DIR__ . '/rates.csv';
 $rates = [];
+$seen_rates = []; // Track unique rate combinations to avoid duplicates
 if (file_exists($csv_path)) {
     $handle = fopen($csv_path, 'r');
     $headers = fgetcsv($handle);
@@ -162,17 +176,30 @@ if (file_exists($csv_path)) {
         // Skip $0 rates
             if ($rate > 0) {
                 $sub_length = $length . ' ' . $len_type;
-                $rates[] = [
-                    'description' => trim($row[0]),
-                    'paper_code' => $paper,
-                    'subscription_length' => $sub_length,
-                    'zone' => $zone,
-                    'rate' => $rate,
-                    'subscriber_count' => isset($subscriber_counts[$zone]) ? $subscriber_counts[$zone]['subscriber_count'] : 0,
-                    'is_legacy' => false,
-                    'is_ignored' => false,
-                    'is_special' => false
-                ];
+                $subscriber_count = isset($subscriber_counts[$zone]) ? $subscriber_counts[$zone]['subscriber_count'] : 0;
+
+                // Skip rates with zero subscribers - no need to manage unused rates
+                if ($subscriber_count > 0) {
+                    // Create unique key to prevent duplicates
+                    $formatted_rate = number_format($rate, 2, '.', '');
+                    $unique_key = $paper . '_' . $sub_length . '_' . $zone . '_' . $formatted_rate;
+
+                    // Only add if not already seen
+                    if (!isset($seen_rates[$unique_key])) {
+                        $seen_rates[$unique_key] = true;
+                        $rates[] = [
+                            'description' => trim($row[0]),
+                            'paper_code' => $paper,
+                            'subscription_length' => $sub_length,
+                            'zone' => $zone,
+                            'rate' => $rate,
+                            'subscriber_count' => $subscriber_count,
+                            'is_legacy' => false,
+                            'is_ignored' => false,
+                            'is_special' => false
+                        ];
+                    }
+                }
             }
         }
     }
@@ -196,19 +223,27 @@ foreach ($rates as &$rate) {
         $by_paper[$paper] = [];
     }
 
-    // Determine if auto-detected as legacy
-    $market_key = $rate['paper_code'] . '_' . $rate['subscription_length'];
-    $is_market = ($rate['rate'] == $market_rates[$market_key]);
-    $auto_legacy = !$is_market && ($rate['rate'] < $market_rates[$market_key]);
-// Check for existing flags - format rate to 2 decimals for consistent matching
+    // Check for existing manual flags first - format rate to 2 decimals for consistent matching
     $formatted_rate = number_format((float)$rate['rate'], 2, '.', '');
     $flag_key = $rate['paper_code'] . '_' . $rate['zone'] . '_' . $rate['subscription_length'] . '_' . $formatted_rate;
     $has_flags = isset($rate_flags[$flag_key]);
+
+    // Get manual flag values
+    $is_legacy_flagged = $has_flags ? (bool)$rate_flags[$flag_key]['is_legacy'] : false;
+    $is_ignored_flagged = $has_flags ? (bool)$rate_flags[$flag_key]['is_ignored'] : false;
+    $is_special_flagged = $has_flags ? (bool)$rate_flags[$flag_key]['is_special'] : false;
+
+    // Auto-detect market rate ONLY if not manually flagged
+    $market_key = $rate['paper_code'] . '_' . $rate['subscription_length'];
+    $is_highest_price = ($rate['rate'] == $market_rates[$market_key]);
+
+    // A rate is "market" only if it's highest price AND not manually flagged as anything else
+    $is_market = $is_highest_price && !$is_legacy_flagged && !$is_special_flagged && !$is_ignored_flagged;
+
     $rate['is_market'] = $is_market;
-    $rate['auto_legacy'] = $auto_legacy;
-    $rate['is_legacy'] = $has_flags ? (bool)$rate_flags[$flag_key]['is_legacy'] : $auto_legacy;
-    $rate['is_ignored'] = $has_flags ? (bool)$rate_flags[$flag_key]['is_ignored'] : false;
-    $rate['is_special'] = $has_flags ? (bool)$rate_flags[$flag_key]['is_special'] : false;
+    $rate['is_legacy'] = $is_legacy_flagged;
+    $rate['is_ignored'] = $is_ignored_flagged;
+    $rate['is_special'] = $is_special_flagged;
     $rate['market_rate'] = $market_rates[$market_key];
     $by_paper[$paper][] = $rate;
 }

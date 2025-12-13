@@ -28,8 +28,9 @@ async function loadRevenueIntelligence() {
 
         // Populate all sections
         populateExpirationRisk(data.expiration_risk);
-        populateLegacyRateAnalysis(data.legacy_rate_analysis);
+        // populateLegacyRateAnalysis(data.legacy_rate_analysis); // Replaced by populateRevenueOpportunityTable
         populateRevenueMetrics(data.revenue_metrics);
+        populateRevenueOpportunityTable(data.revenue_opportunity);
 
         console.log('Revenue Intelligence loaded successfully', data);
 
@@ -125,6 +126,25 @@ function populateRevenueMetrics(data) {
 }
 
 /**
+ * Populate revenue opportunity table
+ * Shows per-publication breakdown of market vs legacy rates
+ */
+function populateRevenueOpportunityTable(data) {
+    console.log('populateRevenueOpportunityTable called with data:', data);
+
+    if (!data || !data.by_publication) {
+        console.warn('Revenue opportunity data not available', data);
+        return;
+    }
+
+    console.log('Creating RevenueOpportunityTable...');
+    const table = new RevenueOpportunityTable('revenueOpportunityTable');
+    console.log('Rendering table with', data.by_publication.length, 'publications');
+    table.render(data);
+    console.log('Table rendered successfully');
+}
+
+/**
  * Display error message if revenue intelligence fails to load
  */
 function displayRevenueIntelligenceError(message) {
@@ -134,8 +154,8 @@ function displayRevenueIntelligenceError(message) {
     document.getElementById('risk58Count').textContent = 'Error';
     document.getElementById('risk912Count').textContent = 'Error';
 
-    // Display error in legacy rate section
-    document.getElementById('legacyRateCount').textContent = 'Error';
+    // Display error in legacy rate section (replaced by revenue opportunity table)
+    // document.getElementById('legacyRateCount').textContent = 'Error';
 
     // Display error in revenue metrics section
     document.getElementById('overallARPU').textContent = 'Error';

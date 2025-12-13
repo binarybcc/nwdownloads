@@ -1114,15 +1114,13 @@ function calculateSweetSpotMetrics(array $paper_data): array
 
 /**
  * Generate actionable recommendations based on metrics
- */
-/**
- * @param array<string, mixed> $lengths Length distribution data
+ * @param array<int, array<string, mixed>> $lengths Length distribution data (indexed array)
  * @param int $total_subscribers Total number of subscribers
  * @param float $cash_flow Cash flow score
  * @param float $profit Profit score
  * @param float $stability Stability score
  * @param float $admin Administrative efficiency score
- * @return array<int, string> List of recommendations
+ * @return array<int, array{type: string, priority: string, message: string}> List of recommendations
  */
 function generateRecommendations(array $lengths, int $total_subscribers, float $cash_flow, float $profit, float $stability, float $admin): array
 {
@@ -1301,15 +1299,13 @@ function calculateOverallSweetSpotMetrics(array $length_data): array
 
 /**
  * Generate overall recommendations based on aggregate metrics
- */
-/**
  * @param float $cash_flow Cash flow score
  * @param float $profit_margin Profit margin score
  * @param float $stability Stability score
  * @param float $admin_efficiency Administrative efficiency score
  * @param array<string, array<string, mixed>> $length_data Length distribution data
  * @param int $total_subscribers Total number of subscribers
- * @return array<int, string> List of recommendations
+ * @return array<int, array{type: string, priority: string, message: string}> List of recommendations
  */
 function generateOverallRecommendations(float $cash_flow, float $profit_margin, float $stability, float $admin_efficiency, array $length_data, int $total_subscribers): array
 {
@@ -1595,8 +1591,6 @@ function getRevenueHistoricalTrend(PDO $pdo, string $paperCode, int $weeks = 12)
 
 /**
  * Calculate trend direction (is opportunity growing or shrinking?)
- */
-/**
  * @param array<int, array<string, mixed>> $historical Historical data
  * @return array{direction: string, percent: float} Trend direction and percent change
  */

@@ -1,5 +1,7 @@
 <?php
 
+namespace CirculationDashboard;
+
 /**
  * Simple File-Based Cache for NAS Deployment
  *

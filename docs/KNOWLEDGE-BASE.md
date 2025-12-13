@@ -119,6 +119,145 @@ Chart click → Context menu → TrendSlider/DetailPanel → api.php → data
 
 ---
 
+## Database Migrations
+
+**Migration System** (Added: Dec 11, 2025)
+
+### Why Migrations?
+
+**Problem:** Active development creates new tables/columns across multiple workstations
+**Solution:** Version-controlled SQL migration files tracked in Git
+
+### Architecture
+
+```
+db_migrations/
+├── 000_create_migrations_table.sql  # Migration tracking system
+├── 001_initial_schema.sql           # Base schema (auto-generated)
+├── 002_add_feature.sql              # Future migrations
+└── ...
+```
+
+**Tracking Table:** `schema_migrations`
+- Records which migrations have been applied
+- Prevents duplicate application
+- Shows deployment history
+
+### Workflow
+
+**Creating a New Migration:**
+
+```bash
+# 1. Create numbered migration file (next number in sequence)
+nano db_migrations/002_add_analytics_table.sql
+
+# 2. Write SQL
+CREATE TABLE analytics_events (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  event_type VARCHAR(50),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+# 3. Test on development
+./scripts/run-migrations.sh
+
+# 4. Commit to Git
+git add db_migrations/002_add_analytics_table.sql
+git commit -m "Migration: Add analytics events table"
+git push
+```
+
+**On Other Workstation:**
+
+```bash
+git pull
+./scripts/run-migrations.sh  # Automatically applies new migration
+```
+
+**Deploy to Production:**
+
+```bash
+# Only from johncorbin workstation (has production access)
+./scripts/run-migrations-production.sh
+```
+
+### Migration Scripts
+
+**Development:** `./scripts/run-migrations.sh`
+- Runs on local Docker database
+- Uses root credentials from container environment
+- Colorized output with progress tracking
+- Shows migration history after completion
+
+**Production:** `./scripts/run-migrations-production.sh`
+- Runs on Synology NAS via SSH
+- Uses credentials from `.env.credentials`
+- Requires manual confirmation (`yes` to proceed)
+- Only run from johncorbin workstation
+
+### Best Practices
+
+**DO:**
+- ✅ Create separate migration for each logical change
+- ✅ Use descriptive migration names (`002_add_user_preferences.sql`)
+- ✅ Test on development before committing
+- ✅ Include rollback SQL in comments if needed
+- ✅ Run migrations on both workstations after git pull
+
+**DON'T:**
+- ❌ Edit existing migration files (create new ones instead)
+- ❌ Skip migration numbers (use sequential: 002, 003, 004...)
+- ❌ Put data changes in migrations (schema only)
+- ❌ Run production migrations without testing first
+
+### Migration File Template
+
+```sql
+-- Migration: [Description]
+-- Created: [Date]
+-- Author: [Your Name]
+
+-- Add new feature/table/column
+CREATE TABLE new_feature (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  ...
+);
+
+-- Rollback (commented out, for reference):
+-- DROP TABLE new_feature;
+```
+
+### Troubleshooting
+
+**"Migration already applied" error:**
+- Migration was run previously
+- Check: `SELECT * FROM schema_migrations;`
+- Fix: Create new migration instead of editing existing
+
+**"Table already exists" error:**
+- Use `CREATE TABLE IF NOT EXISTS` for safety
+- Or check schema_migrations table first
+
+**Different schema on workstations:**
+- Run `./scripts/run-migrations.sh` on both
+- Ensures both have same migrations applied
+- Check migration history: last step of script output
+
+### Integration with Data Sync
+
+**Schema (migrations)** and **Data (dump/restore)** are separate:
+
+- **Schema changes** → Migration files in Git
+- **Data sync** → `dump-db.sh` / `restore-db.sh`
+
+**Both workstations must:**
+1. Run migrations to sync schema (via Git)
+2. Optionally sync data (via Dropbox dumps)
+
+This keeps database structure consistent while allowing flexible data management.
+
+---
+
 ## Frontend Architecture
 
 ### State Management Pattern

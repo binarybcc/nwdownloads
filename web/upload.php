@@ -8,11 +8,18 @@
  * - Existing snapshots: UPDATE
  * - Only imports data from 2025-01-01 onwards
  *
+ * Cache Management:
+ * - Clears all dashboard caches after successful import
+ * - Forces fresh API responses with updated data
+ *
  * Date: 2025-12-02
  */
 
 // Require authentication
 require_once 'auth_check.php';
+require_once 'SimpleCache.php';
+
+use CirculationDashboard\SimpleCache;
 
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -70,9 +77,15 @@ try {
 
     // Parse CSV and process
     $result = processAllSubscriberReport($pdo, $file['tmp_name'], $file['name']);
-// Calculate processing time
+
+    // Clear all dashboard caches (new data uploaded!)
+    $cache = new SimpleCache();
+    $cleared_count = $cache->clear();
+
+    // Calculate processing time
     $processing_time = round(microtime(true) - $start_time, 2) . ' seconds';
-// Return success
+
+    // Return success
     echo json_encode([
         'success' => true,
         'date_range' => $result['date_range'],
@@ -80,7 +93,8 @@ try {
         'updated_records' => $result['updated_records'],
         'total_processed' => $result['total_processed'],
         'processing_time' => $processing_time,
-        'summary_html' => $result['summary_html']
+        'summary_html' => $result['summary_html'],
+        'cache_cleared' => $cleared_count
     ]);
 } catch (Exception $e) {
     http_response_code(400);

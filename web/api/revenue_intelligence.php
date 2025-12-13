@@ -8,7 +8,16 @@
  * - Expiration Risk Dashboard: Subscribers expiring in 0-4, 5-8, 9-12 weeks
  * - Legacy Rate Gap Analysis: Identify revenue opportunities from low-rate subscribers
  * - Revenue Per Subscriber: ARPU by delivery type and business unit
+ *
+ * Performance:
+ * - File-based caching for NAS optimization
+ * - Cache invalidated on data upload (weekly)
+ * - TTL: 7 days (safety net)
  */
+
+require_once __DIR__ . '/../SimpleCache.php';
+
+use CirculationDashboard\SimpleCache;
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -37,6 +46,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'sweet_spot') {
     exit();
 }
 
+// Check if requesting publication detail with historical trends
+if (isset($_GET['action']) && $_GET['action'] === 'publication_detail') {
+    handlePublicationDetail();
+    exit();
+}
+
 // Database configuration
 $db_host = getenv('DB_HOST') ?: 'database';
 $db_port = getenv('DB_PORT') ?: '3306';
@@ -56,25 +71,54 @@ try {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
-// Get latest snapshot date
-    $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
-    $latest = $stmt->fetch();
-    $snapshot_date = $latest['latest_date'];
-// Get expiration risk data
+
+    // Get latest snapshot date (cache this lookup to avoid subquery overhead)
+    $cache = new SimpleCache();
+    $snapshot_date = $cache->get('latest_snapshot_date');
+
+    if ($snapshot_date === null) {
+        $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
+        $latest = $stmt->fetch();
+        $snapshot_date = $latest['latest_date'];
+        $cache->set('latest_snapshot_date', $snapshot_date);
+    }
+
+    // Try to get cached response
+    $cacheKey = 'revenue_intelligence_' . $snapshot_date;
+    $cachedResponse = $cache->get($cacheKey);
+
+    if ($cachedResponse !== null) {
+        // Cache hit - return cached data with cache indicator
+        $cachedResponse['cached'] = true;
+        $cachedResponse['cache_generated_at'] = $cachedResponse['generated_at'];
+        $cachedResponse['served_at'] = date('Y-m-d H:i:s');
+        echo json_encode($cachedResponse, JSON_PRETTY_PRINT);
+        exit;
+    }
+
+    // Cache miss - run expensive queries
     $expiration_risk = getExpirationRisk($pdo, $snapshot_date);
-// Get legacy rate analysis
     $legacy_rate_analysis = getLegacyRateAnalysis($pdo, $snapshot_date);
-// Get revenue per subscriber metrics
     $revenue_metrics = getRevenueMetrics($pdo, $snapshot_date);
-// Return combined response
-    echo json_encode([
+    $revenue_opportunity = getRevenueOpportunityByPublication($pdo, $snapshot_date);
+
+    // Build response
+    $response = [
         'success' => true,
         'snapshot_date' => $snapshot_date,
         'expiration_risk' => $expiration_risk,
         'legacy_rate_analysis' => $legacy_rate_analysis,
         'revenue_metrics' => $revenue_metrics,
-        'generated_at' => date('Y-m-d H:i:s')
-    ], JSON_PRETTY_PRINT);
+        'revenue_opportunity' => $revenue_opportunity,
+        'generated_at' => date('Y-m-d H:i:s'),
+        'cached' => false
+    ];
+
+    // Cache for future requests (invalidated on next upload)
+    $cache->set($cacheKey, $response);
+
+    // Return response
+    echo json_encode($response, JSON_PRETTY_PRINT);
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode([
@@ -156,25 +200,49 @@ function getExpirationRisk($pdo, $snapshot_date)
 /**
  * Analyze legacy rate opportunities
  * Identifies subscribers on rates < $100/year and calculates revenue gap
+ * Excludes SPECIAL rates (out-of-state mail, etc.) and IGNORED rates from revenue opportunities
  */
 function getLegacyRateAnalysis($pdo, $snapshot_date)
 {
 
     $sql = "
         SELECT
-          business_unit,
-          paper_code,
+          s.business_unit,
+          s.paper_code,
           COUNT(*) as total_subscribers,
-          COUNT(CASE WHEN ABS(last_payment_amount) < 100 THEN 1 END) as legacy_rate_count,
-          AVG(CASE WHEN ABS(last_payment_amount) < 100 THEN ABS(last_payment_amount) END) as avg_legacy_rate,
-          COUNT(CASE WHEN ABS(last_payment_amount) >= 100 THEN 1 END) as market_rate_count,
-          AVG(CASE WHEN ABS(last_payment_amount) >= 100 THEN ABS(last_payment_amount) END) as avg_market_rate
-        FROM subscriber_snapshots
-        WHERE snapshot_date = :snapshot_date
-          AND last_payment_amount IS NOT NULL
-          AND last_payment_amount != 0
-        GROUP BY business_unit, paper_code
-        ORDER BY business_unit, paper_code
+          COUNT(CASE
+            WHEN ABS(s.last_payment_amount) < 100
+              AND (rf.is_special IS NULL OR rf.is_special = 0)
+              AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+            THEN 1
+          END) as legacy_rate_count,
+          AVG(CASE
+            WHEN ABS(s.last_payment_amount) < 100
+              AND (rf.is_special IS NULL OR rf.is_special = 0)
+              AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+            THEN ABS(s.last_payment_amount)
+          END) as avg_legacy_rate,
+          COUNT(CASE
+            WHEN ABS(s.last_payment_amount) >= 100
+              AND (rf.is_special IS NULL OR rf.is_special = 0)
+              AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+            THEN 1
+          END) as market_rate_count,
+          AVG(CASE
+            WHEN ABS(s.last_payment_amount) >= 100
+              AND (rf.is_special IS NULL OR rf.is_special = 0)
+              AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+            THEN ABS(s.last_payment_amount)
+          END) as avg_market_rate
+        FROM subscriber_snapshots s
+        LEFT JOIN rate_flags rf
+          ON s.rate_name = rf.zone
+          AND s.paper_code = rf.paper_code
+        WHERE s.snapshot_date = :snapshot_date
+          AND s.last_payment_amount IS NOT NULL
+          AND s.last_payment_amount != 0
+        GROUP BY s.business_unit, s.paper_code
+        ORDER BY s.business_unit, s.paper_code
     ";
     $stmt = $pdo->prepare($sql);
     $stmt->execute(['snapshot_date' => $snapshot_date]);
@@ -297,6 +365,199 @@ function getRevenueMetrics($pdo, $snapshot_date)
             'mrr_per_subscriber' => $overall_arpu / 12
         ]
     ];
+}
+
+/**
+ * Get revenue opportunity breakdown by publication
+ * Calculates what subscribers COULD pay at market rates vs what they ARE paying
+ *
+ * @param PDO $pdo Database connection
+ * @param string $snapshot_date Snapshot date
+ * @return array Per-publication revenue metrics
+ */
+function getRevenueOpportunityByPublication($pdo, $snapshot_date)
+{
+    // Get market rates per publication (from rate_flags table)
+    $marketRates = getMarketRates($pdo);
+
+    $sql = "
+        SELECT
+            s.business_unit,
+            s.paper_code,
+            s.paper_name,
+            COUNT(*) as total_subscribers,
+
+            -- TOTAL current annual revenue from ALL subscribers
+            SUM(ABS(s.last_payment_amount)) as total_current_revenue_annual,
+
+            -- Legacy rate subscribers (paying BELOW market rate for their subscription length)
+            -- Excludes: special rates (comps, government, etc.), ignored rates, and zero-payment subs
+            COUNT(CASE
+                WHEN r.market_rate IS NOT NULL
+                  AND ABS(s.last_payment_amount) < r.market_rate
+                  AND (rf.is_special IS NULL OR rf.is_special = 0)
+                  AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+                  AND s.rate_name NOT LIKE '%COMP%'
+                  AND s.rate_name NOT LIKE '%GOV%'
+                  AND s.rate_name NOT LIKE '%FREE%'
+                  AND s.rate_name NOT LIKE '%COMPLIM%'
+                  AND ABS(s.last_payment_amount) > 0
+                THEN 1
+            END) as legacy_rate_subscribers,
+
+            -- Current revenue from ONLY legacy rate subscribers
+            SUM(CASE
+                WHEN r.market_rate IS NOT NULL
+                  AND ABS(s.last_payment_amount) < r.market_rate
+                  AND (rf.is_special IS NULL OR rf.is_special = 0)
+                  AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+                  AND s.rate_name NOT LIKE '%COMP%'
+                  AND s.rate_name NOT LIKE '%GOV%'
+                  AND s.rate_name NOT LIKE '%FREE%'
+                  AND s.rate_name NOT LIKE '%COMPLIM%'
+                  AND ABS(s.last_payment_amount) > 0
+                THEN ABS(s.last_payment_amount)
+            END) as legacy_rate_revenue_annual,
+
+            -- Average legacy rate
+            AVG(CASE
+                WHEN r.market_rate IS NOT NULL
+                  AND ABS(s.last_payment_amount) < r.market_rate
+                  AND (rf.is_special IS NULL OR rf.is_special = 0)
+                  AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+                  AND s.rate_name NOT LIKE '%COMP%'
+                  AND s.rate_name NOT LIKE '%GOV%'
+                  AND s.rate_name NOT LIKE '%FREE%'
+                  AND s.rate_name NOT LIKE '%COMPLIM%'
+                  AND ABS(s.last_payment_amount) > 0
+                THEN ABS(s.last_payment_amount)
+            END) as avg_legacy_rate
+
+        FROM subscriber_snapshots s
+        LEFT JOIN rate_structure r
+            ON s.paper_code = r.paper_code
+            AND s.subscription_length = r.subscription_length
+        LEFT JOIN rate_flags rf
+            ON s.rate_name = rf.zone
+            AND s.paper_code = rf.paper_code
+        WHERE s.snapshot_date = :snapshot_date
+          AND s.last_payment_amount IS NOT NULL
+          AND s.last_payment_amount != 0
+        GROUP BY s.business_unit, s.paper_code, s.paper_name
+        ORDER BY s.business_unit, s.paper_code
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute(['snapshot_date' => $snapshot_date]);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Calculate market rate revenue for each publication
+    $publications = [];
+    $totals = [
+        'total_current_mrr' => 0,
+        'total_legacy_current_mrr' => 0,
+        'total_if_converted_mrr' => 0,
+        'total_opportunity_mrr' => 0
+    ];
+
+    foreach ($results as $row) {
+        $paperCode = $row['paper_code'];
+        $totalSubscribers = (int)$row['total_subscribers'];
+        $legacySubscribers = (int)$row['legacy_rate_subscribers'];
+
+        // TOTAL current revenue (all subscribers)
+        $totalCurrentRevenueAnnual = (float)($row['total_current_revenue_annual'] ?? 0);
+        $totalCurrentMRR = $totalCurrentRevenueAnnual / 12;
+
+        // Current revenue from ONLY legacy rate subscribers
+        $legacyRevenueAnnual = (float)($row['legacy_rate_revenue_annual'] ?? 0);
+        $legacyCurrentMRR = $legacyRevenueAnnual / 12;
+
+        // Get market rate for this publication (annual)
+        $marketRateAnnual = $marketRates[$paperCode] ?? 169.99;
+
+        // What legacy subscribers WOULD pay if converted to market rate
+        $marketRateMonthly = $marketRateAnnual / 12;
+        $legacyIfConvertedMRR = $legacySubscribers * $marketRateMonthly;
+
+        // Opportunity = What we'd gain by converting legacy subs to market rate
+        $opportunityMRR = $legacyIfConvertedMRR - $legacyCurrentMRR;
+
+        $publications[] = [
+            'business_unit' => $row['business_unit'],
+            'paper_code' => $paperCode,
+            'paper_name' => $row['paper_name'],
+            'total_subscribers' => $totalSubscribers,
+            'legacy_subscribers' => $legacySubscribers,
+
+            // Clear financial breakdown
+            'current_total_mrr' => round($totalCurrentMRR, 2),
+            'current_legacy_mrr' => round($legacyCurrentMRR, 2),
+            'if_converted_mrr' => round($legacyIfConvertedMRR, 2),
+            'opportunity_mrr' => round($opportunityMRR, 2),
+
+            // Supporting data
+            'avg_legacy_rate' => round((float)($row['avg_legacy_rate'] ?? 0), 2),
+            'market_rate_annual' => round($marketRateAnnual, 2)
+        ];
+
+        // Accumulate totals
+        $totals['total_current_mrr'] += $totalCurrentMRR;
+        $totals['total_legacy_current_mrr'] += $legacyCurrentMRR;
+        $totals['total_if_converted_mrr'] += $legacyIfConvertedMRR;
+        $totals['total_opportunity_mrr'] += $opportunityMRR;
+    }
+
+    return [
+        'by_publication' => $publications,
+        'totals' => [
+            'total_current_mrr' => round($totals['total_current_mrr'], 2),
+            'total_legacy_current_mrr' => round($totals['total_legacy_current_mrr'], 2),
+            'total_if_converted_mrr' => round($totals['total_if_converted_mrr'], 2),
+            'total_opportunity_mrr' => round($totals['total_opportunity_mrr'], 2)
+        ]
+    ];
+}
+
+/**
+ * Get market rates for each publication
+ * Looks up the rate marked as "market" in rate_flags table
+ *
+ * @param PDO $pdo Database connection
+ * @return array Associative array [paper_code => market_rate_amount]
+ */
+function getMarketRates($pdo)
+{
+    // Get the highest yearly subscription rate for each paper
+    // Excludes daily/weekly rates which have inflated annualized values
+    // Focuses on 1Y, 12M, or 52W subscriptions as "market rate"
+    $sql = "
+        SELECT
+            paper_code,
+            MAX(annualized_rate) as market_rate
+        FROM rate_structure
+        WHERE subscription_length IN ('1 Y', '12 M', '52 W')
+        GROUP BY paper_code
+        ORDER BY paper_code
+    ";
+
+    $stmt = $pdo->query($sql);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $marketRates = [];
+    foreach ($results as $row) {
+        $marketRates[$row['paper_code']] = (float)$row['market_rate'];
+    }
+
+    // Fallback to strategic plan rate if not found
+    $papers = ['TJ', 'TR', 'LJ', 'WRN', 'TA'];
+    foreach ($papers as $paper) {
+        if (!isset($marketRates[$paper])) {
+            $marketRates[$paper] = 169.99; // Default market rate from strategic plan
+        }
+    }
+
+    return $marketRates;
 }
 
 /**
@@ -438,12 +699,33 @@ function handleByPaperRequest()
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
         ]);
-    // Get latest snapshot date
+
+        // Get latest snapshot date (use cached value if available)
+        $cache = new SimpleCache();
+        $snapshot_date = $cache->get('latest_snapshot_date');
+
+        if ($snapshot_date === null) {
             $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
-        $latest = $stmt->fetch();
-        $snapshot_date = $latest['latest_date'];
-    // Get per-paper metrics with same-length rate comparisons
-            $sql = "
+            $latest = $stmt->fetch();
+            $snapshot_date = $latest['latest_date'];
+            $cache->set('latest_snapshot_date', $snapshot_date);
+        }
+
+        // Try to get cached response
+        $cacheKey = 'by_paper_metrics_' . $snapshot_date;
+        $cachedResponse = $cache->get($cacheKey);
+
+        if ($cachedResponse !== null) {
+            // Cache hit
+            $cachedResponse['cached'] = true;
+            $cachedResponse['cache_generated_at'] = $cachedResponse['generated_at'];
+            $cachedResponse['served_at'] = date('Y-m-d H:i:s');
+            echo json_encode($cachedResponse, JSON_PRETTY_PRINT);
+            exit;
+        }
+
+        // Cache miss - run expensive query
+        $sql = "
             SELECT
                 s.paper_code,
                 s.paper_name,
@@ -505,6 +787,7 @@ function handleByPaperRequest()
                 AND s.subscription_length = r.subscription_length
             LEFT JOIN rate_flags rf
                 ON s.rate_name = rf.zone
+                AND s.paper_code = rf.paper_code
             WHERE s.snapshot_date = :snapshot_date
               AND s.last_payment_amount IS NOT NULL
               AND s.last_payment_amount != 0
@@ -552,13 +835,20 @@ function handleByPaperRequest()
             ];
         }
 
-        // Return response
-        echo json_encode([
+        // Build response
+        $response = [
             'success' => true,
             'snapshot_date' => $snapshot_date,
             'papers' => $formatted_papers,
-            'generated_at' => date('Y-m-d H:i:s')
-        ], JSON_PRETTY_PRINT);
+            'generated_at' => date('Y-m-d H:i:s'),
+            'cached' => false
+        ];
+
+        // Cache for future requests
+        $cache->set($cacheKey, $response);
+
+        // Return response
+        echo json_encode($response, JSON_PRETTY_PRINT);
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode([
@@ -627,6 +917,7 @@ function handleSweetSpotAnalysis()
                 AND s.subscription_length = r.subscription_length
             LEFT JOIN rate_flags rf
                 ON s.rate_name = rf.zone
+                AND s.paper_code = rf.paper_code
             WHERE s.snapshot_date = :snapshot_date
               AND s.last_payment_amount IS NOT NULL
               AND s.last_payment_amount != 0
@@ -1031,4 +1322,226 @@ function generateOverallRecommendations($cash_flow, $profit_margin, $stability, 
     }
 
     return $recommendations;
+}
+
+/**
+ * Handle publication detail request
+ * Returns current state and historical trend (last 12 weeks) for a specific publication
+ */
+function handlePublicationDetail()
+{
+    header('Content-Type: application/json');
+
+    try {
+        $paperCode = $_GET['paper'] ?? '';
+
+        if (empty($paperCode)) {
+            throw new Exception('Paper code required');
+        }
+
+        // Database configuration
+        $db_host = getenv('DB_HOST') ?: 'database';
+        $db_port = getenv('DB_PORT') ?: '3306';
+        $db_name = getenv('DB_NAME') ?: 'circulation_dashboard';
+        $db_user = getenv('DB_USER') ?: 'circ_dash';
+        $db_pass = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
+        $db_socket = getenv('DB_SOCKET') ?: '';
+
+        // Connect to database
+        if ($db_socket) {
+            $dsn = "mysql:unix_socket=$db_socket;dbname=$db_name";
+        } else {
+            $dsn = "mysql:host=$db_host;port=$db_port;dbname=$db_name";
+        }
+
+        $pdo = new PDO($dsn, $db_user, $db_pass, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+        ]);
+
+        // Get current state
+        $current = getCurrentPublicationState($pdo, $paperCode);
+
+        // Get historical trend (last 12 weeks)
+        $historical = getRevenueHistoricalTrend($pdo, $paperCode, 12);
+
+        // Calculate trend direction
+        $trend = calculateTrendDirection($historical);
+
+        echo json_encode([
+            'success' => true,
+            'paper_code' => $paperCode,
+            'paper_name' => $current['paper_name'],
+            'business_unit' => $current['business_unit'],
+            'current' => $current,
+            'historical' => $historical,
+            'trend_direction' => $trend['direction'], // 'growing' or 'shrinking'
+            'trend_percent' => $trend['percent']
+        ], JSON_PRETTY_PRINT);
+    } catch (Exception $e) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+}
+
+/**
+ * Get current state for a publication
+ */
+function getCurrentPublicationState($pdo, $paperCode)
+{
+    // Get latest snapshot date
+    $stmt = $pdo->query("SELECT MAX(snapshot_date) as latest_date FROM subscriber_snapshots");
+    $latest = $stmt->fetch();
+    $snapshotDate = $latest['latest_date'];
+
+    // Get market rate
+    $marketRates = getMarketRates($pdo);
+    $marketRateAnnual = $marketRates[$paperCode] ?? 169.99;
+    $marketRateMonthly = $marketRateAnnual / 12;
+
+    // Query current metrics
+    $sql = "
+        SELECT
+            s.paper_name,
+            s.business_unit,
+            COUNT(CASE
+                WHEN ABS(s.last_payment_amount) < 100
+                  AND (rf.is_special IS NULL OR rf.is_special = 0)
+                  AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+                THEN 1
+            END) as legacy_subscribers,
+            SUM(CASE
+                WHEN ABS(s.last_payment_amount) < 100
+                  AND (rf.is_special IS NULL OR rf.is_special = 0)
+                  AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+                THEN ABS(s.last_payment_amount)
+            END) as legacy_revenue_annual,
+            AVG(CASE
+                WHEN ABS(s.last_payment_amount) < 100
+                  AND (rf.is_special IS NULL OR rf.is_special = 0)
+                  AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+                THEN ABS(s.last_payment_amount)
+            END) as avg_legacy_rate
+        FROM subscriber_snapshots s
+        LEFT JOIN rate_flags rf
+            ON s.rate_name = rf.zone
+            AND s.paper_code = rf.paper_code
+        WHERE s.snapshot_date = :snapshot_date
+          AND s.paper_code = :paper_code
+        GROUP BY s.paper_name, s.business_unit
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        'snapshot_date' => $snapshotDate,
+        'paper_code' => $paperCode
+    ]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        throw new Exception("No data found for paper code: $paperCode");
+    }
+
+    $legacySubscribers = (int)($row['legacy_subscribers'] ?? 0);
+    $legacyRevenueAnnual = (float)($row['legacy_revenue_annual'] ?? 0);
+    $legacyRevenueMonthly = $legacyRevenueAnnual / 12;
+    $marketRevenueMonthly = $legacySubscribers * $marketRateMonthly;
+
+    return [
+        'paper_name' => $row['paper_name'],
+        'business_unit' => $row['business_unit'],
+        'legacy_subscribers' => $legacySubscribers,
+        'avg_legacy_rate' => round((float)($row['avg_legacy_rate'] ?? 0), 2),
+        'market_rate' => round($marketRateAnnual, 2),
+        'legacy_revenue' => round($legacyRevenueMonthly, 2),
+        'market_revenue' => round($marketRevenueMonthly, 2),
+        'monthly_opportunity' => round($marketRevenueMonthly - $legacyRevenueMonthly, 2)
+    ];
+}
+
+/**
+ * Get historical trend data for revenue intelligence (last N weeks)
+ */
+function getRevenueHistoricalTrend($pdo, $paperCode, $weeks = 12)
+{
+    $marketRates = getMarketRates($pdo);
+    $marketRateAnnual = $marketRates[$paperCode] ?? 169.99;
+    $marketRateMonthly = $marketRateAnnual / 12;
+
+    $sql = "
+        SELECT
+            s.snapshot_date,
+            COUNT(CASE
+                WHEN ABS(s.last_payment_amount) < 100
+                  AND (rf.is_special IS NULL OR rf.is_special = 0)
+                  AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+                THEN 1
+            END) as legacy_subscribers,
+            SUM(CASE
+                WHEN ABS(s.last_payment_amount) < 100
+                  AND (rf.is_special IS NULL OR rf.is_special = 0)
+                  AND (rf.is_ignored IS NULL OR rf.is_ignored = 0)
+                THEN ABS(s.last_payment_amount)
+            END) as legacy_revenue_annual
+        FROM subscriber_snapshots s
+        LEFT JOIN rate_flags rf
+            ON s.rate_name = rf.zone
+            AND s.paper_code = rf.paper_code
+        WHERE s.paper_code = :paper_code
+          AND s.snapshot_date >= DATE_SUB(CURDATE(), INTERVAL :weeks WEEK)
+        GROUP BY s.snapshot_date
+        ORDER BY s.snapshot_date ASC
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        'paper_code' => $paperCode,
+        'weeks' => $weeks
+    ]);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Calculate market revenue for each week
+    $trend = [];
+    foreach ($results as $row) {
+        $legacySubscribers = (int)($row['legacy_subscribers'] ?? 0);
+        $legacyRevenueAnnual = (float)($row['legacy_revenue_annual'] ?? 0);
+        $legacyRevenueMonthly = $legacyRevenueAnnual / 12;
+        $marketRevenueMonthly = $legacySubscribers * $marketRateMonthly;
+
+        $trend[] = [
+            'snapshot_date' => $row['snapshot_date'],
+            'legacy_revenue' => round($legacyRevenueMonthly, 2),
+            'market_revenue' => round($marketRevenueMonthly, 2),
+            'opportunity' => round($marketRevenueMonthly - $legacyRevenueMonthly, 2)
+        ];
+    }
+
+    return $trend;
+}
+
+/**
+ * Calculate trend direction (is opportunity growing or shrinking?)
+ */
+function calculateTrendDirection($historical)
+{
+    if (count($historical) < 2) {
+        return ['direction' => 'unknown', 'percent' => 0];
+    }
+
+    $first = $historical[0]['opportunity'];
+    $last = $historical[count($historical) - 1]['opportunity'];
+
+    if ($first == 0) {
+        return ['direction' => 'unknown', 'percent' => 0];
+    }
+
+    $change = (($last - $first) / $first) * 100;
+
+    return [
+        'direction' => $change > 0 ? 'growing' : 'shrinking',
+        'percent' => round(abs($change), 1)
+    ];
 }

@@ -1361,7 +1361,7 @@ function handlePublicationDetail()
         $current = getCurrentPublicationState($pdo, $paperCode);
 
         // Get historical trend (last 12 weeks)
-        $historical = getHistoricalTrend($pdo, $paperCode, 12);
+        $historical = getRevenueHistoricalTrend($pdo, $paperCode, 12);
 
         // Calculate trend direction
         $trend = calculateTrendDirection($historical);
@@ -1461,9 +1461,9 @@ function getCurrentPublicationState($pdo, $paperCode)
 }
 
 /**
- * Get historical trend data (last N weeks)
+ * Get historical trend data for revenue intelligence (last N weeks)
  */
-function getHistoricalTrend($pdo, $paperCode, $weeks = 12)
+function getRevenueHistoricalTrend($pdo, $paperCode, $weeks = 12)
 {
     $marketRates = getMarketRates($pdo);
     $marketRateAnnual = $marketRates[$paperCode] ?? 169.99;

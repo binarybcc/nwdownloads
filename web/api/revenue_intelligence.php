@@ -204,8 +204,6 @@ function getExpirationRisk(PDO $pdo, string $snapshot_date): array
  * Analyze legacy rate opportunities
  * Identifies subscribers on rates < $100/year and calculates revenue gap
  * Excludes SPECIAL rates (out-of-state mail, etc.) and IGNORED rates from revenue opportunities
- */
-/**
  * @param PDO $pdo Database connection
  * @param string $snapshot_date Snapshot date in Y-m-d format
  * @return array<string, mixed> Legacy rate analysis data
@@ -313,8 +311,6 @@ function getLegacyRateAnalysis(PDO $pdo, string $snapshot_date): array
 /**
  * Calculate revenue per subscriber metrics
  * ARPU (Average Revenue Per User) by delivery type and business unit
- */
-/**
  * @param PDO $pdo Database connection
  * @param string $snapshot_date Snapshot date in Y-m-d format
  * @return array<string, mixed> Revenue metrics data
@@ -585,8 +581,6 @@ function getMarketRates(PDO $pdo): array
 /**
  * Handle subscriber list request by expiration bucket
  * Returns detailed list of subscribers in a specific expiration risk category
- */
-/**
  * @return void
  */
 function handleSubscriberListRequest(): void
@@ -700,8 +694,6 @@ function handleSubscriberListRequest(): void
 /**
  * Handle per-paper metrics request
  * Returns legacy rate opportunity and ARPU metrics grouped by paper
- */
-/**
  * @return void
  */
 function handleByPaperRequest(): void
@@ -889,8 +881,6 @@ function handleByPaperRequest(): void
 /**
  * Sweet Spot Analysis - Optimize subscription length mix
  * Calculates cash flow, profit margin, stability, and admin efficiency metrics
- */
-/**
  * @return void
  */
 function handleSweetSpotAnalysis(): void
@@ -1017,8 +1007,6 @@ function handleSweetSpotAnalysis(): void
 
 /**
  * Calculate sweet spot optimization metrics for a paper
- */
-/**
  * @param array<string, mixed> $paper_data Paper subscription data
  * @return array<string, mixed> Sweet spot metrics
  */
@@ -1199,8 +1187,6 @@ function generateRecommendations(array $lengths, int $total_subscribers, float $
 
 /**
  * Calculate overall sweet spot metrics across all papers
- */
-/**
  * @param array<string, array<string, mixed>> $length_data Length distribution data
  * @return array<string, mixed> Overall sweet spot metrics
  */
@@ -1380,8 +1366,6 @@ function generateOverallRecommendations(float $cash_flow, float $profit_margin, 
 /**
  * Handle publication detail request
  * Returns current state and historical trend (last 12 weeks) for a specific publication
- */
-/**
  * @return void
  */
 function handlePublicationDetail(): void
@@ -1445,8 +1429,6 @@ function handlePublicationDetail(): void
 
 /**
  * Get current state for a publication
- */
-/**
  * @param PDO $pdo Database connection
  * @param string $paperCode Paper code (TJ, TA, TR, etc.)
  * @return array<string, mixed> Current publication state
@@ -1525,8 +1507,6 @@ function getCurrentPublicationState(PDO $pdo, string $paperCode): array
 
 /**
  * Get historical trend data for revenue intelligence (last N weeks)
- */
-/**
  * @param PDO $pdo Database connection
  * @param string $paperCode Paper code (TJ, TA, TR, etc.)
  * @param int $weeks Number of weeks to retrieve

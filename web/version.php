@@ -30,8 +30,9 @@ define('VERSION_STRING', 'v' . VERSION_FULL);
 
 /**
  * Increment build number (call this on deployment)
+ * @return int New build number
  */
-function incrementBuildNumber()
+function incrementBuildNumber(): int
 {
 
     global $buildFile;
@@ -43,8 +44,9 @@ function incrementBuildNumber()
 
 /**
  * Get version info array
+ * @return array{major: int, minor: int, build: int, full: string, string: string, deployment_date: string|null} Version information
  */
-function getVersionInfo()
+function getVersionInfo(): array
 {
 
     return [

@@ -27,8 +27,10 @@ $db_config = [
 
 /**
  * Connect to database
+ * @param array<string, mixed> $config Database configuration array
+ * @return PDO Database connection
  */
-function connectDB($config)
+function connectDB(array $config): PDO
 {
 
     try {
@@ -48,8 +50,10 @@ function connectDB($config)
 
 /**
  * Get week boundaries (Sunday-Saturday) for a given date
+ * @param string $date Date in Y-m-d format
+ * @return array{start: string, end: string, week_num: int, year: int} Week boundaries
  */
-function getWeekBoundaries($date)
+function getWeekBoundaries(string $date): array
 {
 
     $dt = new DateTime($date);
@@ -76,8 +80,10 @@ function getWeekBoundaries($date)
 
 /**
  * Get Saturday date for a week (our snapshot day)
+ * @param string $date Date in Y-m-d format
+ * @return string Saturday date in Y-m-d format
  */
-function getSaturdayForWeek($date)
+function getSaturdayForWeek(string $date): string
 {
 
     $boundaries = getWeekBoundaries($date);
@@ -86,8 +92,10 @@ function getSaturdayForWeek($date)
 
 /**
  * Get data range available in database
+ * @param PDO $pdo Database connection
+ * @return array{min_date: string, max_date: string, total_snapshots: int} Data range information
  */
-function getDataRange($pdo)
+function getDataRange(PDO $pdo): array
 {
 
     $stmt = $pdo->query("
@@ -104,8 +112,10 @@ function getDataRange($pdo)
 /**
  * Get the most recent snapshot date (any day of week)
  * With week-based system, snapshots can be on any day (Monday, Saturday, etc.)
+ * @param PDO $pdo Database connection
+ * @return string Most recent snapshot date in Y-m-d format
  */
-function getMostRecentCompleteSaturday($pdo)
+function getMostRecentCompleteSaturday(PDO $pdo): string
 {
 
     // Get the most recent snapshot date (any day of week)
@@ -123,8 +133,10 @@ function getMostRecentCompleteSaturday($pdo)
 
 /**
  * Calculate trend direction from 12-week data
+ * @param array<int, array<string, mixed>> $trend Array of weekly trend data
+ * @return string Trend direction ('growing', 'declining', or 'stable')
  */
-function calculateTrendDirection($trend)
+function calculateTrendDirection(array $trend): string
 {
 
     if (count($trend) < 8) {
@@ -150,7 +162,14 @@ function calculateTrendDirection($trend)
  * Get business unit comparison data (YoY and Previous Week)
  * Updated to use week-based queries with fallback for missing weeks
  */
-function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $unitName Business unit name
+ * @param string $currentDate Current date in Y-m-d format
+ * @param array<string, mixed> $currentData Current week data
+ * @return array<string, mixed> Comparison data
+ */
+function getBusinessUnitComparison(PDO $pdo, string $unitName, string $currentDate, array $currentData): array
 {
     $boundaries = getWeekBoundaries($currentDate);
     $week_num = $boundaries['week_num'];
@@ -265,7 +284,13 @@ function getBusinessUnitComparison($pdo, $unitName, $currentDate, $currentData)
 /**
  * Get business unit detail with 12-week trend and paper breakdown
  */
-function getBusinessUnitDetail($pdo, $unitName, $date = null)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $unitName Business unit name
+ * @param string|null $date Optional date in Y-m-d format
+ * @return array<string, mixed> Business unit detail data
+ */
+function getBusinessUnitDetail(PDO $pdo, string $unitName, ?string $date = null): array
 {
 
     $saturday = getSaturdayForWeek($date ?? date('Y-m-d'));
@@ -354,7 +379,11 @@ function getBusinessUnitDetail($pdo, $unitName, $date = null)
 /**
  * Simple linear regression forecast for next week
  */
-function forecastNextWeek($trend)
+/**
+ * @param array<int, array<string, mixed>> $trend Weekly trend data
+ * @return array{value: float, change: float, change_percent: float, confidence: string}|null Forecast data
+ */
+function forecastNextWeek(array $trend): ?array
 {
     // Filter out NULL weeks (weeks with no data)
     $validWeeks = array_filter($trend, function ($week) {
@@ -414,7 +443,11 @@ function forecastNextWeek($trend)
 /**
  * Detect anomalies in trend data
  */
-function detectAnomalies($trend)
+/**
+ * @param array<int, array<string, mixed>> $trend Weekly trend data
+ * @return array<int, array<string, mixed>> Anomalies detected
+ */
+function detectAnomalies(array $trend): array
 {
     // Filter out NULL weeks (weeks with no data)
     $validWeeks = array_filter($trend, function ($week) {
@@ -451,7 +484,12 @@ function detectAnomalies($trend)
 /**
  * Find strongest/weakest performers
  */
-function findPerformers($by_business_unit, $comparisons)
+/**
+ * @param array<string, array<string, mixed>> $by_business_unit Business unit data
+ * @param array<string, array<string, mixed>> $comparisons Comparison data
+ * @return array{strongest: array{unit: string, change: mixed, change_percent: mixed}|null, weakest: array{unit: string, change: mixed, change_percent: mixed}|null} Performers data
+ */
+function findPerformers(array $by_business_unit, array $comparisons): array
 {
 
     $performers = [
@@ -491,7 +529,12 @@ function findPerformers($by_business_unit, $comparisons)
 /**
  * Get enhanced overview with Phase 2 features
  */
-function getOverviewEnhanced($pdo, $params)
+/**
+ * @param PDO $pdo Database connection
+ * @param array<string, mixed> $params Request parameters
+ * @return array<string, mixed> Enhanced overview data
+ */
+function getOverviewEnhanced(PDO $pdo, array $params): array
 {
 
     // Parse parameters
@@ -922,7 +965,12 @@ function getOverviewEnhanced($pdo, $params)
 /**
  * Get paper detail
  */
-function getPaperDetail($pdo, $paperCode)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $paperCode Paper code (TJ, TA, TR, etc.)
+ * @return array<string, mixed> Paper detail data
+ */
+function getPaperDetail(PDO $pdo, string $paperCode): array
 {
 
     $stmt = $pdo->prepare("
@@ -940,7 +988,13 @@ function getPaperDetail($pdo, $paperCode)
  * Get detail panel data for business unit
  * Returns data for: delivery breakdown, expiration chart, rate distribution, subscription length
  */
-function getDetailPanelData($pdo, $businessUnit, $snapshotDate)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $businessUnit Business unit name
+ * @param string $snapshotDate Snapshot date in Y-m-d format
+ * @return array<string, mixed> Detail panel data
+ */
+function getDetailPanelData(PDO $pdo, string $businessUnit, string $snapshotDate): array
 {
 
     // Get paper codes for this business unit
@@ -1125,7 +1179,12 @@ function getDetailPanelData($pdo, $businessUnit, $snapshotDate)
  * @param array $params Query parameters
  * @return array Subscriber data
  */
-function getSubscribers($pdo, $params)
+/**
+ * @param PDO $pdo Database connection
+ * @param array<string, mixed> $params Query parameters
+ * @return array<string, mixed> Subscriber data with list and metadata
+ */
+function getSubscribers(PDO $pdo, array $params): array
 {
 
     $businessUnit = $params['business_unit'] ?? '';
@@ -1190,7 +1249,14 @@ function getSubscribers($pdo, $params)
 /**
  * Get subscribers by expiration bucket
  */
-function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $businessUnit Business unit name
+ * @param string $snapshotDate Snapshot date in Y-m-d format
+ * @param string $bucket Expiration bucket
+ * @return array<int, array<string, mixed>> Subscriber list
+ */
+function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapshotDate, string $bucket): array
 {
 
     // Calculate date range for bucket
@@ -1346,7 +1412,14 @@ function getExpirationSubscribers($pdo, $businessUnit, $snapshotDate, $bucket)
 /**
  * Get subscribers by rate
  */
-function getRateSubscribers($pdo, $businessUnit, $snapshotDate, $rateName)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $businessUnit Business unit name
+ * @param string $snapshotDate Snapshot date in Y-m-d format
+ * @param string $rateName Rate name
+ * @return array<int, array<string, mixed>> Subscriber list
+ */
+function getRateSubscribers(PDO $pdo, string $businessUnit, string $snapshotDate, string $rateName): array
 {
 
     $stmt = $pdo->prepare("
@@ -1382,7 +1455,14 @@ function getRateSubscribers($pdo, $businessUnit, $snapshotDate, $rateName)
 /**
  * Get subscribers by subscription length
  */
-function getSubscriptionLengthSubscribers($pdo, $businessUnit, $snapshotDate, $length)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $businessUnit Business unit name
+ * @param string $snapshotDate Snapshot date in Y-m-d format
+ * @param string $length Subscription length
+ * @return array<int, array<string, mixed>> Subscriber list
+ */
+function getSubscriptionLengthSubscribers(PDO $pdo, string $businessUnit, string $snapshotDate, string $length): array
 {
 
     // Use same normalization as detail panel to match aggregated labels
@@ -1425,7 +1505,15 @@ function getSubscriptionLengthSubscribers($pdo, $businessUnit, $snapshotDate, $l
  * OLD FUNCTION - No longer used (kept for reference)
  * Use getExpirationSubscribers(), getRateSubscribers(), getSubscriptionLengthSubscribers() instead
  */
-function generateMockSubscribers_DEPRECATED($businessUnit, $count, $metricType, $metricValue)
+/**
+ * @deprecated No longer used
+ * @param string $businessUnit Business unit name
+ * @param int $count Number of subscribers
+ * @param string $metricType Metric type
+ * @param mixed $metricValue Metric value
+ * @return array<int, array<string, mixed>> Mock subscriber list
+ */
+function generateMockSubscribers_DEPRECATED(string $businessUnit, int $count, string $metricType, mixed $metricValue): array
 {
 
     $subscribers = [];
@@ -1525,7 +1613,15 @@ function generateMockSubscribers_DEPRECATED($businessUnit, $count, $metricType, 
  * @param string $snapshotDate Snapshot date
  * @return int Count for this metric
  */
-function getMetricCount($pdo, $businessUnit, $metricType, $metricValue, $snapshotDate)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $businessUnit Business unit name
+ * @param string $metricType Metric type
+ * @param mixed $metricValue Metric value
+ * @param string $snapshotDate Snapshot date in Y-m-d format
+ * @return int Metric count
+ */
+function getMetricCount(PDO $pdo, string $businessUnit, string $metricType, mixed $metricValue, string $snapshotDate): int
 {
     if ($metricType === 'expiration') {
         // Calculate expiration bucket from paid_thru date
@@ -1639,7 +1735,12 @@ function getMetricCount($pdo, $businessUnit, $metricType, $metricValue, $snapsho
  * @param array $params Query parameters
  * @return array Trend data points
  */
-function getHistoricalTrend($pdo, $params)
+/**
+ * @param PDO $pdo Database connection
+ * @param array<string, mixed> $params Query parameters
+ * @return array<string, mixed> Historical trend data
+ */
+function getHistoricalTrend(PDO $pdo, array $params): array
 {
 
     $businessUnit = $params['business_unit'] ?? '';
@@ -1708,7 +1809,11 @@ function getHistoricalTrend($pdo, $params)
     ];
 }
 
-function sendResponse($data)
+/**
+ * @param mixed $data Response data to send as JSON
+ * @return void
+ */
+function sendResponse(mixed $data): void
 {
 
     echo json_encode([
@@ -1724,7 +1829,12 @@ function sendResponse($data)
  * @param string $snapshotDate Snapshot date to query
  * @return array Longest vacations data
  */
-function getLongestVacations($pdo, $snapshotDate)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $snapshotDate Snapshot date in Y-m-d format
+ * @return array<string, mixed> Longest vacations data with overall and by_unit sections
+ */
+function getLongestVacations(PDO $pdo, string $snapshotDate): array
 {
     // Get top 3 longest vacations overall
     $stmtOverall = $pdo->prepare("
@@ -1787,7 +1897,13 @@ function getLongestVacations($pdo, $snapshotDate)
 /**
  * Get all subscribers currently on vacation with full details
  */
-function getVacationSubscribers($pdo, $snapshotDate, $businessUnit = null)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $snapshotDate Snapshot date in Y-m-d format
+ * @param string|null $businessUnit Optional business unit name
+ * @return array<string, mixed> Vacation subscriber data with metadata
+ */
+function getVacationSubscribers(PDO $pdo, string $snapshotDate, ?string $businessUnit = null): array
 {
     // Standard subscriber query pattern - matches getRateSubscribers, getExpirationSubscribers, etc.
     $query = "
@@ -1831,7 +1947,11 @@ function getVacationSubscribers($pdo, $snapshotDate, $businessUnit = null)
     ];
 }
 
-function sendError($message)
+/**
+ * @param string $message Error message
+ * @return void
+ */
+function sendError(string $message): void
 {
 
     http_response_code(400);

@@ -116,7 +116,11 @@ try {
  * @param string $filename Original uploaded filename
  * @return string snapshot_date in 'Y-m-d' format, or current date if parsing fails
  */
-function extractSnapshotDateFromFilename($filename)
+/**
+ * @param string $filename Uploaded filename
+ * @return string Snapshot date in Y-m-d format
+ */
+function extractSnapshotDateFromFilename(string $filename): string
 {
 
     // Pattern: AllSubscriberReport + YYYYMMDDHHMMSS + .csv
@@ -147,7 +151,13 @@ function extractSnapshotDateFromFilename($filename)
  * - Actual data rows
  * - Footer section (starting with "Report Criteria")
  */
-function processAllSubscriberReport($pdo, $filepath, $filename)
+/**
+ * @param PDO $pdo Database connection
+ * @param string $filepath Path to uploaded file
+ * @param string $filename Original filename
+ * @return array<string, mixed> Processing results
+ */
+function processAllSubscriberReport(PDO $pdo, string $filepath, string $filename): array
 {
     // Step 1: Save raw CSV to raw_uploads table (source of truth)
     $raw_csv_data = file_get_contents($filepath);
@@ -748,7 +758,11 @@ function processAllSubscriberReport($pdo, $filepath, $filename)
 /**
  * Get paper information
  */
-function getPaperInfo($paper_code)
+/**
+ * @param string $paper_code Paper code (TJ, TA, TR, etc.)
+ * @return array{name: string, business_unit: string} Paper information
+ */
+function getPaperInfo(string $paper_code): array
 {
 
     $papers = [
@@ -766,7 +780,11 @@ function getPaperInfo($paper_code)
  * Parse various date formats from Newzware CSV
  * Handles formats like: 6/5/25, 12/4/25, etc.
  */
-function parseDate($date_string)
+/**
+ * @param string $date_string Date string to parse
+ * @return string|null Parsed date in Y-m-d format or null
+ */
+function parseDate(string $date_string): ?string
 {
 
     if (empty($date_string)) {
@@ -804,7 +822,11 @@ function parseDate($date_string)
  * @param string $date Date in Y-m-d format
  * @return array ['week' => int, 'year' => int]
  */
-function getWeekAndYear($date)
+/**
+ * @param string $date Date in Y-m-d format
+ * @return array{week: int, year: int} ISO week number and year
+ */
+function getWeekAndYear(string $date): array
 {
     $dt = new DateTime($date);
     return [

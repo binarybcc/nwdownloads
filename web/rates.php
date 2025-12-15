@@ -254,7 +254,7 @@ foreach ($rates as &$rate) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rate Management - Circulation Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="assets/output.css">
     <style>
         .rate-row:hover { background-color: #f9fafb; }
         .checkbox-cell { min-width: 80px; }

@@ -551,7 +551,7 @@ require_once 'auth_check.php';
 
                 <!-- Right: Actions (Icon-only buttons) -->
                 <div class="flex items-center gap-2">
-                    <a href="upload_unified.php"
+                    <a href="upload_page.php"
                        class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                        title="Upload Weekly Circulation Data"
                        aria-label="Upload data">
@@ -944,36 +944,44 @@ require_once 'auth_check.php';
             <h2 id="revenue-opportunities-heading" class="text-lg font-semibold text-gray-900 mb-4">
                 <span aria-hidden="true">💎</span> Revenue Opportunities
             </h2>
-
-            <!-- Under Construction Notice -->
-            <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Legacy Rate Opportunity -->
+                <div class="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200 hover:shadow-xl transition-all">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-gray-700 flex items-center">
+                            <span class="mr-2" aria-hidden="true">🎯</span>
+                            <span>Legacy Rate Opportunity</span>
+                        </h3>
+                        <div class="text-2xl" aria-hidden="true">💎</div>
                     </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-amber-800">
-                            <strong class="font-semibold">Under Development:</strong> Revenue opportunity calculations are being refined.
-                            Numbers are approximate while we validate rate classifications and market rate detection.
-                            <a href="rates.php" class="underline hover:text-amber-900">Review and classify rates here</a>.
-                        </p>
+
+                    <div class="space-y-4">
+                        <!-- Key Stats -->
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <div class="text-xs text-blue-700 mb-1">Subscribers on &lt;$100/year rates</div>
+                            <div class="text-3xl font-bold text-blue-900" id="legacyRateCount">--</div>
+                            <div class="text-xs text-blue-600 mt-1">
+                                Avg rate: <span id="legacyRateAvg" class="font-semibold">$--</span>/year
+                            </div>
+                        </div>
+
+                        <!-- Revenue Gap -->
+                        <div class="border-t border-gray-200 pt-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs text-gray-600">Current market rate:</span>
+                                <span class="text-sm font-bold text-gray-900">$169.99/year</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs text-gray-600">Monthly revenue gap:</span>
+                                <span class="text-lg font-bold text-orange-600" id="legacyRevenueGap">$--</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-semibold text-gray-700">Annual opportunity:</span>
+                                <span class="text-2xl font-bold text-green-600" id="legacyAnnualOpportunity">$--</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Revenue Opportunity Table (replaces old card) -->
-            <div id="revenueOpportunityTable" class="mb-6">
-                <div class="bg-white rounded-xl shadow-lg p-6">
-                    <div class="text-center py-12">
-                        <div class="loading mx-auto mb-4"></div>
-                        <div class="text-gray-500">Loading revenue opportunity data...</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-1 gap-6">
 
                 <!-- Revenue Per Subscriber -->
                 <div class="bg-white rounded-xl shadow-lg p-6 border-2 border-purple-200 hover:shadow-xl transition-all">
@@ -1197,9 +1205,7 @@ require_once 'auth_check.php';
     <script src="assets/trend-slider.js?v=20251207"></script>
     <script src="assets/chart-context-integration.js?v=20251207"></script>
     <script src="assets/vacation-display.js?v=20251208"></script>
-    <script src="assets/revenue-opportunity-table.js?v=20251213"></script>
-    <script src="assets/publication-revenue-detail.js?v=20251213"></script>
-    <script src="assets/revenue-intelligence.js?v=20251213"></script>
+    <script src="assets/revenue-intelligence.js?v=20251209"></script>
     <script>
         // Initialize UI enhancements after dashboard is fully rendered
         // This listens for the 'DashboardRendered' event dispatched by renderDashboard()

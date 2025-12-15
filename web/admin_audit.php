@@ -63,7 +63,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Audit - Data Provenance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="assets/output.css">
 </head>
 <body class="bg-gray-50">
     <div class="max-w-7xl mx-auto p-8">

@@ -551,7 +551,7 @@ require_once 'auth_check.php';
 
                 <!-- Right: Actions (Icon-only buttons) -->
                 <div class="flex items-center gap-2">
-                    <a href="upload_page.php"
+                    <a href="upload_unified.php"
                        class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                        title="Upload Weekly Circulation Data"
                        aria-label="Upload data">

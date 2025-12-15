@@ -1,0 +1,1 @@
+com.icanon.report.DefaultSchedulerScript,protocol=sftp;server=tj.upstatetoday.com;port=22;user=newzwaresftp;password=yMG.Dv}vqVsn!UU0Ypuo;folder=home;

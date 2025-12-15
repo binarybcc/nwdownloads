@@ -38,7 +38,7 @@ Ask the user: "What database change do you need?" (e.g., "Add user preferences t
 
 **Step 2: Find next migration number**
 ```bash
-ls -1 db_migrations/*.sql | grep -oE '^db_migrations/[0-9]+' | sed 's/db_migrations\///' | sort -n | tail -1
+ls -1 database/migrations/*.sql | grep -oE '^database/migrations/[0-9]+' | sed 's/database\/migrations\///' | sort -n | tail -1
 ```
 
 **Step 3: Create migration file**
@@ -74,7 +74,7 @@ docker exec circulation_db sh -c 'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" circul
 
 **Step 7: Commit to Git**
 ```bash
-git add db_migrations/{number}_{description}.sql
+git add database/migrations/{number}_{description}.sql
 git commit -m "Migration: {description}"
 ```
 

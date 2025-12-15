@@ -1,0 +1,6 @@
+domain: tj.upstatetoday.com
+purpose: SFTP
+port: 22
+user: newzwaresftp
+password: yMG.Dv}vqVsn!UU0Ypuo
+

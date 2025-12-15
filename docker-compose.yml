@@ -17,7 +17,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      - ./db_init:/docker-entrypoint-initdb.d:ro
+      - ./database/init:/docker-entrypoint-initdb.d:ro
     networks:
       - circulation_network
     healthcheck:

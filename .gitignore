@@ -1,15 +1,9 @@
-.env.tj-nwsftp
 # Credentials files - NEVER commit these
+.env.credentials
 .env.*.credentials
 *.credentials
 .passwords
 .env
-.env.dockerhub
-
-# Environment files with secrets
-.env.local
-.env.production
-.env.development
 
 # Environment-specific Apache configuration
 # Use .htaccess.production for production deployment
@@ -26,13 +20,14 @@ web/.htaccess
 
 # Docker volumes
 db_data/
-docker/
+
+# Archive directories (cleaned up files moved here)
+archive/
+docs/ARCHIVE/
 
 # Deployment artifacts
 *.tar.gz
 *.b64
-deployment-bundle/
-nwdownloads-*.tar.gz
 
 # Temporary files
 *.tmp
@@ -61,14 +56,18 @@ debug_*.php
 Screenshot*.png
 docs/*.png
 docs/*.jpg
-*.pdf
+# PDFs - Newzware manuals are large reference files (exclude from indexing)
+/*.pdf
+docs/newzware-manuals/
 
-# Archive files
-*.zip
+# Archive files in root
+/*.zip
 
 # Test/development artifacts
 context.txt
 hotfolder/
+nwauth/
+web/test_*.csv
 
 # Node.js
 node_modules/

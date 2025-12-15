@@ -164,7 +164,7 @@ git checkout <commit-hash>
 
 **When you need to deploy and can't remember how:**
 
-1. Open this file: `README-DEPLOYMENT.md` (this file!)
+1. Open this file: `docs/DEPLOYMENT-GUIDE.md` (this file!)
 2. Run the one command at the top
 3. Watch it do everything automatically
 4. Refresh the dashboard

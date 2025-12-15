@@ -639,7 +639,7 @@ docker compose up -d
 ```
 /web/                         - PHP application and API
 /sql/                         - Database initialization scripts
-/db_init/                     - Database setup files
+/database/                    - Database management (init, migrations, seeds)
 /docs/                        - Documentation
   /KNOWLEDGE-BASE.md          - Comprehensive system reference
   /TROUBLESHOOTING.md         - Decision tree troubleshooting guide

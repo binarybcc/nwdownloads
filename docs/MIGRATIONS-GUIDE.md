@@ -10,15 +10,15 @@ When working across multiple computers, database schema changes need to be synch
 
 ```bash
 # Check if there are pending migrations
-ls db/migrations/
+ls database/migrations/
 
 # If you see new migration files, run them manually:
-docker compose exec database mysql -uroot -pMojave48ice circulation_dashboard < db_init/03_add_week_columns.sql
+docker compose exec database mysql -uroot -pMojave48ice circulation_dashboard < database/init/03_add_week_columns.sql
 ```
 
 ## Migration Files
 
-Migrations are stored in `/db/migrations/` and tracked by Phinx.
+Migrations are stored in `/database/migrations/` and tracked by Phinx.
 
 **Current Migrations:**
 - `20251208134338_initial_schema.php` - Base schema (for reference)
@@ -33,7 +33,7 @@ composer global require robmorgan/phinx
 # Create new migration
 ~/.composer/vendor/bin/phinx create YourMigrationName
 
-# Edit the generated file in db/migrations/
+# Edit the generated file in database/migrations/
 ```
 
 ## How to Run Migrations (Manual Method - Current)
@@ -112,5 +112,5 @@ docker compose exec database mysql -uroot -pMojave48ice circulation_dashboard -e
 # WARNING: This deletes ALL data!
 docker compose down -v
 docker compose up -d
-# Database will reinitialize from db_init/*.sql files
+# Database will reinitialize from database/init/*.sql files
 ```

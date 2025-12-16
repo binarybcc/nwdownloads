@@ -30,7 +30,7 @@ require_once 'auth_check.php';
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- Backfill Indicator Module -->
-    <script src="assets/backfill-indicator.js?v=20251208"></script>
+    <script src="assets/js/features/backfill-indicator.js?v=20251208"></script>
 
     <!-- Custom Styles -->
     <style>
@@ -1198,26 +1198,26 @@ require_once 'auth_check.php';
     </div> <!-- /detailPanel -->
 
     <!-- JavaScript - Cache-busting version parameter forces browser to fetch latest files -->
-    <script src="assets/app.js?v=20251207"></script>
+    <script src="assets/js/core/app.js?v=20251207"></script>
     <!-- State Icons & Chart Layout -->
-    <script src="assets/state-icons.js?v=20251207"></script>
-    <script src="assets/chart-layout-manager.js?v=20251207"></script>
-    <script src="assets/donut-to-state-animation.js?v=20251207"></script>
+    <script src="assets/js/utils/state-icons.js?v=20251207"></script>
+    <script src="assets/js/charts/chart-layout-manager.js?v=20251207"></script>
+    <script src="assets/js/charts/donut-to-state-animation.js?v=20251207"></script>
     <!-- Detail Panel -->
-    <script src="assets/detail_panel.js?v=20251207"></script>
+    <script src="assets/js/components/detail_panel.js?v=20251207"></script>
     <!-- UI/UX Quick Wins -->
-    <script src="assets/ui-enhancements.js?v=20251207"></script>
+    <script src="assets/js/utils/ui-enhancements.js?v=20251207"></script>
 
     <!-- PHASE 3: Contextual Chart Menus -->
-    <script src="assets/context-menu.js?v=20251207"></script>
-    <script src="assets/export-utils.js?v=20251207"></script>
-    <script src="assets/subscriber-table-panel.js?v=20251207"></script>
-    <script src="assets/trend-slider.js?v=20251207"></script>
-    <script src="assets/chart-context-integration.js?v=20251207"></script>
-    <script src="assets/vacation-display.js?v=20251208"></script>
-    <script src="assets/revenue-opportunity-table.js?v=20251213"></script>
-    <script src="assets/publication-revenue-detail.js?v=20251213"></script>
-    <script src="assets/revenue-intelligence.js?v=20251213"></script>
+    <script src="assets/js/components/context-menu.js?v=20251207"></script>
+    <script src="assets/js/utils/export-utils.js?v=20251207"></script>
+    <script src="assets/js/components/subscriber-table-panel.js?v=20251207"></script>
+    <script src="assets/js/components/trend-slider.js?v=20251207"></script>
+    <script src="assets/js/charts/chart-context-integration.js?v=20251207"></script>
+    <script src="assets/js/features/vacation-display.js?v=20251208"></script>
+    <script src="assets/js/components/revenue-opportunity-table.js?v=20251213"></script>
+    <script src="assets/js/components/publication-revenue-detail.js?v=20251213"></script>
+    <script src="assets/js/features/revenue-intelligence.js?v=20251213"></script>
     <script>
         // Initialize UI enhancements after dashboard is fully rendered
         // This listens for the 'DashboardRendered' event dispatched by renderDashboard()

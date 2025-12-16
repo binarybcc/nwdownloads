@@ -484,12 +484,12 @@ require_once 'auth_check.php';
     </main>
 
     <!-- Component Scripts (Reused from main dashboard) -->
-    <script src="assets/context-menu.js"></script>
-    <script src="assets/subscriber-table-panel.js"></script>
-    <script src="assets/trend-slider.js"></script>
+    <script src="assets/js/components/context-menu.js"></script>
+    <script src="assets/js/components/subscriber-table-panel.js"></script>
+    <script src="assets/js/components/trend-slider.js"></script>
 
     <!-- Churn Dashboard Logic -->
-    <script src="assets/churn_dashboard.js"></script>
+    <script src="assets/js/core/churn_dashboard.js"></script>
 
     <script>
         // Update date/time display

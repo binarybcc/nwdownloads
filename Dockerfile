@@ -19,6 +19,9 @@ RUN docker-php-ext-install \
     mysqli \
     zip
 
+# Copy PHP upload configuration
+COPY php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 

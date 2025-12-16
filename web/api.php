@@ -1948,6 +1948,479 @@ function getVacationSubscribers(PDO $pdo, string $snapshotDate, ?string $busines
 }
 
 /**
+ * Get churn overview metrics for a time period
+ *
+ * @param PDO $pdo Database connection
+ * @param string $timeRange Time range ('4weeks' or '12weeks')
+ * @param string $endDate End date (YYYY-MM-DD)
+ * @return array Overview metrics
+ */
+function getChurnOverview(PDO $pdo, string $timeRange, string $endDate): array
+{
+    // Calculate start date based on time range
+    $endDateTime = new DateTime($endDate);
+    $startDateTime = clone $endDateTime;
+
+    if ($timeRange === '4weeks') {
+        $startDateTime->modify('-28 days');
+    } elseif ($timeRange === '12weeks') {
+        $startDateTime->modify('-84 days');
+    }
+
+    $startDate = $startDateTime->format('Y-m-d');
+
+    // Query current period data from churn_daily_summary
+    // Aggregate from individual subscription types (REGULAR, MONTHLY, COMPLIMENTARY)
+    $stmt = $pdo->prepare("
+        SELECT
+            SUM(renewed_count) as total_renewed,
+            SUM(stopped_count) as total_stopped,
+            SUM(expiring_count) as total_expiring,
+            AVG(renewal_rate) as avg_renewal_rate,
+            AVG(churn_rate) as avg_churn_rate
+        FROM churn_daily_summary
+        WHERE snapshot_date BETWEEN :start_date AND :end_date
+          AND subscription_type IN ('REGULAR', 'MONTHLY', 'COMPLIMENTARY')
+    ");
+
+    $stmt->execute([
+        ':start_date' => $startDate,
+        ':end_date' => $endDate
+    ]);
+
+    $current = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Calculate previous period for comparison
+    $prevEndDateTime = clone $startDateTime;
+    $prevEndDateTime->modify('-1 day');
+    $prevStartDateTime = clone $prevEndDateTime;
+
+    if ($timeRange === '4weeks') {
+        $prevStartDateTime->modify('-28 days');
+    } elseif ($timeRange === '12weeks') {
+        $prevStartDateTime->modify('-84 days');
+    }
+
+    $prevStartDate = $prevStartDateTime->format('Y-m-d');
+    $prevEndDate = $prevEndDateTime->format('Y-m-d');
+
+    // Query previous period data
+    $stmt->execute([
+        ':start_date' => $prevStartDate,
+        ':end_date' => $prevEndDate
+    ]);
+
+    $previous = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Calculate metrics
+    $totalRenewed = (int)($current['total_renewed'] ?? 0);
+    $totalStopped = (int)($current['total_stopped'] ?? 0);
+    $totalExpiring = (int)($current['total_expiring'] ?? 0);
+
+    $renewalRate = $totalExpiring > 0 ?
+        round(($totalRenewed / $totalExpiring) * 100, 2) : 0;
+
+    $churnRate = $totalExpiring > 0 ?
+        round(($totalStopped / $totalExpiring) * 100, 2) : 0;
+
+    // Calculate comparison
+    $prevRenewalRate = (float)($previous['avg_renewal_rate'] ?? 0);
+    $changePercent = $prevRenewalRate > 0 ?
+        round((($renewalRate - $prevRenewalRate) / $prevRenewalRate) * 100, 2) : 0;
+
+    return [
+        'time_range' => $timeRange,
+        'start_date' => $startDate,
+        'end_date' => $endDate,
+        'total_renewed' => $totalRenewed,
+        'total_stopped' => $totalStopped,
+        'total_expiring' => $totalExpiring,
+        'renewal_rate' => $renewalRate,
+        'churn_rate' => $churnRate,
+        'net_change' => $totalRenewed - $totalStopped,
+        'comparison' => [
+            'previous_period_renewal_rate' => $prevRenewalRate,
+            'change_percent' => $changePercent
+        ]
+    ];
+}
+
+/**
+ * Get churn metrics broken down by subscription type (REGULAR, MONTHLY, COMPLIMENTARY)
+ *
+ * @param PDO $pdo Database connection
+ * @param string $timeRange Time range ('4weeks' or '12weeks')
+ * @param string $endDate End date (YYYY-MM-DD)
+ * @return array Churn metrics by subscription type
+ */
+function getChurnBySubscriptionType(PDO $pdo, string $timeRange, string $endDate): array
+{
+    // Calculate start date based on time range
+    $endDateTime = new DateTime($endDate);
+    $startDateTime = clone $endDateTime;
+
+    if ($timeRange === '4weeks') {
+        $startDateTime->modify('-28 days');
+    } elseif ($timeRange === '12weeks') {
+        $startDateTime->modify('-84 days');
+    }
+
+    $startDate = $startDateTime->format('Y-m-d');
+
+    // Query data grouped by subscription type
+    $stmt = $pdo->prepare("
+        SELECT
+            subscription_type,
+            SUM(renewed_count) as renewed,
+            SUM(stopped_count) as stopped,
+            SUM(expiring_count) as expiring,
+            AVG(renewal_rate) as avg_renewal_rate,
+            AVG(churn_rate) as avg_churn_rate
+        FROM churn_daily_summary
+        WHERE snapshot_date BETWEEN :start_date AND :end_date
+          AND subscription_type IN ('REGULAR', 'MONTHLY', 'COMPLIMENTARY')
+        GROUP BY subscription_type
+    ");
+
+    $stmt->execute([
+        ':start_date' => $startDate,
+        ':end_date' => $endDate
+    ]);
+
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Format results as associative array keyed by subscription type
+    $data = [];
+    foreach ($results as $row) {
+        $type = $row['subscription_type'];
+        $renewed = (int)$row['renewed'];
+        $stopped = (int)$row['stopped'];
+        $expiring = (int)$row['expiring'];
+
+        // Calculate renewal rate from actual counts
+        $renewalRate = $expiring > 0 ?
+            round(($renewed / $expiring) * 100, 2) : 0;
+
+        $churnRate = $expiring > 0 ?
+            round(($stopped / $expiring) * 100, 2) : 0;
+
+        $data[$type] = [
+            'renewed' => $renewed,
+            'stopped' => $stopped,
+            'expiring' => $expiring,
+            'renewal_rate' => $renewalRate,
+            'churn_rate' => $churnRate,
+            'net_change' => $renewed - $stopped
+        ];
+    }
+
+    // Ensure all subscription types are present (with zeros if no data)
+    $types = ['REGULAR', 'MONTHLY', 'COMPLIMENTARY'];
+    foreach ($types as $type) {
+        if (!isset($data[$type])) {
+            $data[$type] = [
+                'renewed' => 0,
+                'stopped' => 0,
+                'expiring' => 0,
+                'renewal_rate' => 0,
+                'churn_rate' => 0,
+                'net_change' => 0
+            ];
+        }
+    }
+
+    return $data;
+}
+
+/**
+ * Get churn metrics broken down by publication (TJ, TA, TR, LJ, WRN)
+ *
+ * @param PDO $pdo Database connection
+ * @param string $timeRange Time range ('4weeks' or '12weeks')
+ * @param string $endDate End date (YYYY-MM-DD)
+ * @return array Churn metrics by publication
+ */
+function getChurnByPublication(PDO $pdo, string $timeRange, string $endDate): array
+{
+    // Calculate start date based on time range
+    $endDateTime = new DateTime($endDate);
+    $startDateTime = clone $endDateTime;
+
+    if ($timeRange === '4weeks') {
+        $startDateTime->modify('-28 days');
+    } elseif ($timeRange === '12weeks') {
+        $startDateTime->modify('-84 days');
+    }
+
+    $startDate = $startDateTime->format('Y-m-d');
+
+    // Query data from renewal_events grouped by publication
+    // Using renewal_events instead of churn_daily_summary since we need paper_code
+    $stmt = $pdo->prepare("
+        SELECT
+            paper_code,
+            COUNT(*) as total_events,
+            SUM(CASE WHEN status = 'RENEW' THEN 1 ELSE 0 END) as renewed,
+            SUM(CASE WHEN status = 'EXPIRE' THEN 1 ELSE 0 END) as stopped
+        FROM renewal_events
+        WHERE event_date BETWEEN :start_date AND :end_date
+        GROUP BY paper_code
+    ");
+
+    $stmt->execute([
+        ':start_date' => $startDate,
+        ':end_date' => $endDate
+    ]);
+
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Format results as associative array keyed by publication code
+    $data = [];
+    foreach ($results as $row) {
+        $paperCode = $row['paper_code'];
+        $renewed = (int)$row['renewed'];
+        $stopped = (int)$row['stopped'];
+        $totalEvents = (int)$row['total_events'];
+
+        // Calculate renewal rate
+        $renewalRate = $totalEvents > 0 ?
+            round(($renewed / $totalEvents) * 100, 2) : 0;
+
+        $churnRate = $totalEvents > 0 ?
+            round(($stopped / $totalEvents) * 100, 2) : 0;
+
+        $data[$paperCode] = [
+            'renewed' => $renewed,
+            'stopped' => $stopped,
+            'expiring' => $totalEvents,
+            'renewal_rate' => $renewalRate,
+            'churn_rate' => $churnRate,
+            'net_change' => $renewed - $stopped
+        ];
+    }
+
+    // Ensure all publications are present (with zeros if no data)
+    $publications = ['TJ', 'TA', 'TR', 'LJ', 'WRN'];
+    foreach ($publications as $pub) {
+        if (!isset($data[$pub])) {
+            $data[$pub] = [
+                'renewed' => 0,
+                'stopped' => 0,
+                'expiring' => 0,
+                'renewal_rate' => 0,
+                'churn_rate' => 0,
+                'net_change' => 0
+            ];
+        }
+    }
+
+    return $data;
+}
+
+/**
+ * Get churn trend data for charts (daily time series)
+ *
+ * @param PDO $pdo Database connection
+ * @param string $timeRange Time range ('4weeks' or '12weeks')
+ * @param string $endDate End date (YYYY-MM-DD)
+ * @param string $metric Metric to return ('renewal_rate', 'renewals', 'expirations')
+ * @param string|null $paperCode Optional filter by publication
+ * @param string|null $subscriptionType Optional filter by subscription type
+ * @return array Trend data with data points
+ */
+function getChurnTrend(
+    PDO $pdo,
+    string $timeRange,
+    string $endDate,
+    string $metric = 'renewal_rate',
+    ?string $paperCode = null,
+    ?string $subscriptionType = null
+): array {
+    // Calculate start date based on time range
+    $endDateTime = new DateTime($endDate);
+    $startDateTime = clone $endDateTime;
+
+    if ($timeRange === '4weeks') {
+        $startDateTime->modify('-28 days');
+    } elseif ($timeRange === '12weeks') {
+        $startDateTime->modify('-84 days');
+    }
+
+    $startDate = $startDateTime->format('Y-m-d');
+
+    // Build query based on filters
+    $sql = "
+        SELECT
+            event_date as snapshot_date,
+            COUNT(*) as total_events,
+            SUM(CASE WHEN status = 'RENEW' THEN 1 ELSE 0 END) as renewed_count,
+            SUM(CASE WHEN status = 'EXPIRE' THEN 1 ELSE 0 END) as stopped_count
+        FROM renewal_events
+        WHERE event_date BETWEEN :start_date AND :end_date
+    ";
+
+    $params = [
+        ':start_date' => $startDate,
+        ':end_date' => $endDate
+    ];
+
+    // Add optional filters
+    if ($paperCode !== null) {
+        $sql .= " AND paper_code = :paper_code";
+        $params[':paper_code'] = $paperCode;
+    }
+
+    if ($subscriptionType !== null) {
+        $sql .= " AND subscription_type = :subscription_type";
+        $params[':subscription_type'] = $subscriptionType;
+    }
+
+    $sql .= " GROUP BY event_date ORDER BY event_date ASC";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Format data points based on requested metric
+    $dataPoints = [];
+    foreach ($results as $row) {
+        $snapshotDate = $row['snapshot_date'];
+        $renewed = (int)$row['renewed_count'];
+        $stopped = (int)$row['stopped_count'];
+        $total = (int)$row['total_events'];
+
+        $value = 0;
+        if ($metric === 'renewal_rate') {
+            $value = $total > 0 ? round(($renewed / $total) * 100, 2) : 0;
+        } elseif ($metric === 'renewals') {
+            $value = $renewed;
+        } elseif ($metric === 'expirations') {
+            $value = $stopped;
+        }
+
+        $dataPoints[] = [
+            'snapshot_date' => $snapshotDate,
+            'value' => $value,
+            'renewed' => $renewed,
+            'stopped' => $stopped,
+            'total' => $total
+        ];
+    }
+
+    return [
+        'metric' => $metric,
+        'time_range' => $timeRange,
+        'start_date' => $startDate,
+        'end_date' => $endDate,
+        'paper_code' => $paperCode,
+        'subscription_type' => $subscriptionType,
+        'data_points' => $dataPoints
+    ];
+}
+
+/**
+ * Get individual renewal/expiration events for drill-down
+ *
+ * @param PDO $pdo Database connection
+ * @param string|null $status Filter by status ('RENEW' or 'EXPIRE')
+ * @param string|null $paperCode Filter by publication
+ * @param string|null $subscriptionType Filter by subscription type
+ * @param string|null $startDate Start date filter (YYYY-MM-DD)
+ * @param string|null $endDate End date filter (YYYY-MM-DD)
+ * @param int $limit Maximum number of records (max 1000)
+ * @return array List of renewal events
+ */
+function getRenewalEvents(
+    PDO $pdo,
+    ?string $status = null,
+    ?string $paperCode = null,
+    ?string $subscriptionType = null,
+    ?string $startDate = null,
+    ?string $endDate = null,
+    int $limit = 1000
+): array {
+    // Build query with filters
+    $sql = "
+        SELECT
+            id,
+            event_date,
+            sub_num,
+            paper_code,
+            status,
+            subscription_type,
+            source_filename,
+            imported_at
+        FROM renewal_events
+        WHERE 1=1
+    ";
+
+    $params = [];
+
+    // Add filters
+    if ($status !== null) {
+        $sql .= " AND status = :status";
+        $params[':status'] = $status;
+    }
+
+    if ($paperCode !== null) {
+        $sql .= " AND paper_code = :paper_code";
+        $params[':paper_code'] = $paperCode;
+    }
+
+    if ($subscriptionType !== null) {
+        $sql .= " AND subscription_type = :subscription_type";
+        $params[':subscription_type'] = $subscriptionType;
+    }
+
+    if ($startDate !== null && $endDate !== null) {
+        $sql .= " AND event_date BETWEEN :start_date AND :end_date";
+        $params[':start_date'] = $startDate;
+        $params[':end_date'] = $endDate;
+    } elseif ($startDate !== null) {
+        $sql .= " AND event_date >= :start_date";
+        $params[':start_date'] = $startDate;
+    } elseif ($endDate !== null) {
+        $sql .= " AND event_date <= :end_date";
+        $params[':end_date'] = $endDate;
+    }
+
+    // Order by most recent first
+    $sql .= " ORDER BY event_date DESC, id DESC LIMIT :limit";
+
+    $stmt = $pdo->prepare($sql);
+
+    // Bind limit separately (must be integer)
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+
+    // Bind other parameters
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value);
+    }
+
+    $stmt->execute();
+    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Get total count (before limit)
+    // Note: $params does not include :limit (it's bound separately), so no need to check for it
+
+    // Simpler approach: just count the filtered results
+    $countStmt = $pdo->prepare(str_replace('SELECT id, event_date, sub_num, paper_code, status, subscription_type, source_filename, imported_at FROM', 'SELECT COUNT(*) as total FROM', str_replace(' ORDER BY event_date DESC, id DESC LIMIT :limit', '', $sql)));
+    foreach ($params as $key => $value) {
+        $countStmt->bindValue($key, $value);
+    }
+    $countStmt->execute();
+    $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
+    $totalCount = (int)($countResult['total'] ?? 0);
+
+    return [
+        'count' => $totalCount,
+        'returned' => count($events),
+        'limit' => $limit,
+        'events' => $events
+    ];
+}
+
+/**
  * @param string $message Error message
  * @return void
  */
@@ -2045,6 +2518,48 @@ try {
             $snapshotDate = $_GET['snapshot_date'] ?? date('Y-m-d');
             $businessUnit = $_GET['business_unit'] ?? null;
             $data = getVacationSubscribers($pdo, $snapshotDate, $businessUnit);
+            sendResponse($data);
+            break;
+
+        case 'get_churn_overview':
+            $timeRange = $_GET['time_range'] ?? '4weeks';
+            $endDate = $_GET['end_date'] ?? date('Y-m-d');
+            $data = getChurnOverview($pdo, $timeRange, $endDate);
+            sendResponse($data);
+            break;
+
+        case 'get_churn_by_subscription_type':
+            $timeRange = $_GET['time_range'] ?? '4weeks';
+            $endDate = $_GET['end_date'] ?? date('Y-m-d');
+            $data = getChurnBySubscriptionType($pdo, $timeRange, $endDate);
+            sendResponse($data);
+            break;
+
+        case 'get_churn_by_publication':
+            $timeRange = $_GET['time_range'] ?? '4weeks';
+            $endDate = $_GET['end_date'] ?? date('Y-m-d');
+            $data = getChurnByPublication($pdo, $timeRange, $endDate);
+            sendResponse($data);
+            break;
+
+        case 'get_churn_trend':
+            $timeRange = $_GET['time_range'] ?? '4weeks';
+            $endDate = $_GET['end_date'] ?? date('Y-m-d');
+            $metric = $_GET['metric'] ?? 'renewal_rate';
+            $paperCode = $_GET['paper_code'] ?? null;
+            $subscriptionType = $_GET['subscription_type'] ?? null;
+            $data = getChurnTrend($pdo, $timeRange, $endDate, $metric, $paperCode, $subscriptionType);
+            sendResponse($data);
+            break;
+
+        case 'get_renewal_events':
+            $status = $_GET['status'] ?? null;
+            $paperCode = $_GET['paper_code'] ?? null;
+            $subscriptionType = $_GET['subscription_type'] ?? null;
+            $startDate = $_GET['start_date'] ?? null;
+            $endDate = $_GET['end_date'] ?? null;
+            $limit = isset($_GET['limit']) ? min((int)$_GET['limit'], 1000) : 1000;
+            $data = getRenewalEvents($pdo, $status, $paperCode, $subscriptionType, $startDate, $endDate, $limit);
             sendResponse($data);
             break;
 

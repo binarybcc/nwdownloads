@@ -101,6 +101,7 @@ try {
         'success' => true,
         'events_imported' => $result['events_imported'],
         'duplicates_skipped' => $result['duplicates_skipped'],
+        'summaries_imported' => $result['summaries_imported'],
         'date_range' => $result['date_range'],
         'by_publication' => $result['by_publication'],
         'by_type' => $result['by_type'],
@@ -159,6 +160,7 @@ function processRenewalCsv($pdo, $filepath, $filename)
     $stats = [
         'events_imported' => 0,
         'duplicates_skipped' => 0,
+        'summaries_imported' => 0,
         'min_date' => null,
         'max_date' => null,
         'by_publication' => [],
@@ -186,6 +188,31 @@ function processRenewalCsv($pdo, $filepath, $filename)
     "
     );
 
+    // Prepare INSERT for daily summaries
+    $summary_stmt = $pdo->prepare(
+        "
+        INSERT INTO churn_daily_summary (
+            snapshot_date,
+            paper_code,
+            subscription_type,
+            expiring_count,
+            renewed_count,
+            stopped_count,
+            renewal_rate,
+            churn_rate,
+            calculated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+            expiring_count = VALUES(expiring_count),
+            renewed_count = VALUES(renewed_count),
+            stopped_count = VALUES(stopped_count),
+            renewal_rate = VALUES(renewal_rate),
+            churn_rate = VALUES(churn_rate),
+            calculated_at = NOW()
+    "
+    );
+
     // Process first row
     if ($first_row) {
         processRenewalRow($first_row, $col_map, $insert_stmt, $filename, $stats);
@@ -202,8 +229,9 @@ function processRenewalCsv($pdo, $filepath, $filename)
         $first_cell = trim($row[0] ?? '');
         $second_cell = strtoupper(trim($row[1] ?? ''));
 
-        // Skip ISSUE summary rows (empty Sub ID + "ISSUE" in Stat column)
+        // Process ISSUE summary rows (empty Sub ID + "ISSUE" in Stat column)
         if (empty($first_cell) && $second_cell === 'ISSUE') {
+            processIssueSummaryRow($row, $col_map, $summary_stmt, $stats);
             continue;
         }
 
@@ -230,6 +258,7 @@ function processRenewalCsv($pdo, $filepath, $filename)
     return [
         'events_imported' => $stats['events_imported'],
         'duplicates_skipped' => $stats['duplicates_skipped'],
+        'summaries_imported' => $stats['summaries_imported'],
         'date_range' => $date_range,
         'by_publication' => $stats['by_publication'],
         'by_type' => $stats['by_type']
@@ -358,4 +387,95 @@ function parseDate($date_str)
     }
 
     return null;
+}
+
+/**
+ * Process ISSUE summary row and insert into churn_daily_summary
+ *
+ * ISSUE rows contain pre-aggregated daily metrics by subscription type:
+ * "","ISSUE","TJ","","09/03/2024","12","11","1","91.67%","45","45","0","100.00%",...
+ *
+ * @param array $row CSV row data
+ * @param array $col_map Column name to index mapping (unused but kept for consistency)
+ * @param PDOStatement $stmt Prepared INSERT statement for summaries
+ * @param array &$stats Statistics array (passed by reference)
+ */
+function processIssueSummaryRow($row, $col_map, $stmt, &$stats)
+{
+    try {
+        // Extract core fields
+        $paper_code = trim($row[2] ?? ''); // Ed. column
+        $issue_date = trim($row[4] ?? ''); // Issue Date column
+
+        if (empty($paper_code) || empty($issue_date)) {
+            return; // Skip invalid rows
+        }
+
+        $event_date = parseDate($issue_date);
+        if (!$event_date) {
+            return;
+        }
+
+        // Column layout: Sub ID (0), Stat (1), Ed. (2), Issue # (3), Issue Date (4),
+        //   Reg Sub columns (5-8), Mthy Sub columns (9-12), Comp Sub columns (13-16), Totals (17-21)
+
+        // Insert summary for each subscription type that has data
+        $types = [
+            'REGULAR' => [
+                'expiring' => (int)($row[5] ?? 0),
+                'renewed' => (int)($row[6] ?? 0),
+                'stopped' => (int)($row[7] ?? 0),
+                'renewal_pct' => trim($row[8] ?? '')
+            ],
+            'MONTHLY' => [
+                'expiring' => (int)($row[9] ?? 0),
+                'renewed' => (int)($row[10] ?? 0),
+                'stopped' => (int)($row[11] ?? 0),
+                'renewal_pct' => trim($row[12] ?? '')
+            ],
+            'COMPLIMENTARY' => [
+                'expiring' => (int)($row[13] ?? 0),
+                'renewed' => (int)($row[14] ?? 0),
+                'stopped' => (int)($row[15] ?? 0),
+                'renewal_pct' => trim($row[16] ?? '')
+            ]
+        ];
+
+        foreach ($types as $type => $data) {
+            // Skip if no expirations for this type
+            if ($data['expiring'] === 0) {
+                continue;
+            }
+
+            // Parse renewal rate (strip % and convert to decimal)
+            $renewal_rate = null;
+            if (!empty($data['renewal_pct'])) {
+                $renewal_rate = (float)str_replace(['%', ' '], '', $data['renewal_pct']);
+            }
+
+            // Calculate churn rate
+            $churn_rate = null;
+            if ($renewal_rate !== null) {
+                $churn_rate = 100.0 - $renewal_rate;
+            }
+
+            // Insert summary
+            $stmt->execute([
+                $event_date,
+                $paper_code,
+                $type,
+                $data['expiring'],
+                $data['renewed'],
+                $data['stopped'],
+                $renewal_rate,
+                $churn_rate
+            ]);
+
+            $stats['summaries_imported']++;
+        }
+
+    } catch (Exception $e) {
+        error_log("Error processing ISSUE summary row: " . $e->getMessage());
+        // Continue processing other rows
+    }
 }

@@ -88,3 +88,4 @@ tests/Fixtures/temp/
 *.swp
 *.swo
 *~
+archives/

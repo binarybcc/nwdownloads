@@ -24,6 +24,8 @@
 
 console.log('===== APP.JS FILE LOADED =====');
 
+/* exported refreshData, exportToCSV, exportToExcel, exportToPDF, toggleExportMenu, toggleBusinessUnitDetails, renderComparisonWithTrend */
+
 /**
  * CircDashboard Namespace
  * Centralized state management for the dashboard
@@ -854,7 +856,7 @@ function renderBusinessUnits() {
     container.innerHTML = html;
 
     // Create mini charts after DOM is updated
-    for (const [unitName, config] of Object.entries(BUSINESS_UNITS)) {
+    for (const [unitName, _config] of Object.entries(BUSINESS_UNITS)) {
         const data = byUnit[unitName];
         if (!data) continue;
 
@@ -1362,7 +1364,7 @@ function renderBusinessUnitDetail(unitName, data) {
     html += '<div><h4 class="text-sm font-semibold text-gray-700 mb-3">📰 Publications</h4>';
     html += '<div class="space-y-2">';
 
-    for (const [paperCode, paperData] of Object.entries(data.paper_details)) {
+    for (const [_paperCode, paperData] of Object.entries(data.paper_details)) {
         const mailPercent = paperData.total > 0 ? (paperData.mail / paperData.total * 100).toFixed(1) : 0;
         html += `
             <div class="bg-white p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition">

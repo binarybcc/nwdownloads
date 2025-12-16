@@ -9,6 +9,8 @@
  * - Export functionality
  */
 
+/* exported openPublicationDetail, closeRevenueDetail, exportLegacySubscribers */
+
 class PublicationRevenueDetail {
     constructor() {
         this.panel = null;
@@ -179,7 +181,7 @@ class PublicationRevenueDetail {
 
         const marketRevenue = data.market_revenue;
         const legacyRevenue = data.legacy_revenue;
-        const opportunity = marketRevenue - legacyRevenue;
+        const _opportunity = marketRevenue - legacyRevenue;
 
         this.charts.donut = new Chart(ctx, {
             type: 'doughnut',

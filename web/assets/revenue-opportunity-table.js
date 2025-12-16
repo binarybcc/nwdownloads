@@ -8,6 +8,7 @@
  * - Click row to open detail slider
  * - Responsive mobile/tablet/desktop views
  */
+/* exported RevenueOpportunityTable */
 
 class RevenueOpportunityTable {
     constructor(containerId) {

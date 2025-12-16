@@ -8,6 +8,8 @@
  * - Revenue Per Subscriber Analytics
  */
 
+/* exported populateLegacyRateAnalysis */
+
 /**
  * Load and display all revenue intelligence data
  * Called after main dashboard data is loaded
@@ -272,7 +274,7 @@ async function loadRevenueByPublication() {
  * Populate per-paper revenue intelligence cards
  * Creates a card for each publication showing legacy rate opportunity and ARPU
  */
-function populateRevenueByPublication(papers, snapshotDate) {
+function populateRevenueByPublication(papers, _snapshotDate) {
     const container = document.getElementById('revenueByPublication');
 
     if (!papers || papers.length === 0) {

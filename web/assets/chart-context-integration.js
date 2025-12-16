@@ -196,7 +196,7 @@ function showChartContextMenu(x, y, context) {
 async function handleChartMenuAction(actionId, context) {
     console.log('Chart action:', actionId, context);
 
-    const { chartType, metric, count, businessUnit, snapshotDate } = context;
+    const { chartType: _chartType, metric: _metric, count: _count, businessUnit: _businessUnit, snapshotDate: _snapshotDate } = context;
 
     if (actionId === 'trend') {
         // Show historical trend
@@ -237,7 +237,7 @@ async function showHistoricalTrend(context) {
  * Show subscriber list for metric
  */
 async function showSubscriberList(context) {
-    const { chartType, metric, count, businessUnit, snapshotDate } = context;
+    const { chartType, metric, count: _count, businessUnit, snapshotDate } = context;
 
     try {
         // Show loading state

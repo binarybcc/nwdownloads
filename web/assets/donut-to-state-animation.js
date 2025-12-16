@@ -19,7 +19,7 @@
  * CRITICAL: Target position calculated AFTER layout stabilization (450ms delay)
  *
  * Documentation: /docs/animation-system-reference.md
- * Usage: animateDonutToState(businessUnit, donutElement, callback)
+ * Usage: animateDonutToState(_businessUnit, _donutElement, callback)
  *
  * Date: 2025-12-05
  */
@@ -208,7 +208,7 @@ class DonutToStateAnimator {
      * Reverse animation: State icon from sidebar back to donut
      * (For panel close animation)
      */
-    async animateStateToDonut(businessUnit, donutElement) {
+    async animateStateToDonut(_businessUnit, _donutElement) {
         // TODO: Implement reverse animation if needed
         console.log('Reverse animation not yet implemented');
     }

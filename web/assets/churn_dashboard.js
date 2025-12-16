@@ -3,6 +3,8 @@
  * Handles data loading, rendering, and component integration for churn tracking dashboard
  */
 
+/* exported refreshData, showChurnTrend, showChurnDetails */
+
 // Extend CircDashboard namespace
 window.CircDashboard = window.CircDashboard || {};
 

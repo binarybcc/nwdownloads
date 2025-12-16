@@ -14,6 +14,8 @@
  * - getStateIconImg(businessUnit): Returns img tag for state icon
  */
 
+/* exported getStateIconImg, getStateColor */
+
 const STATE_ICON_PATHS = {
     'South Carolina': 'assets/south_carolina_transparent.png',
     'Michigan': 'assets/michigan_transparent.png',
@@ -32,7 +34,7 @@ function getStateIconPath(businessUnit) {
  */
 function getStateIconImg(businessUnit) {
     const path = getStateIconPath(businessUnit);
-    const abbr = getStateAbbr(businessUnit);
+    const _abbr = getStateAbbr(businessUnit);
     return `<img src="${path}" alt="${businessUnit} state outline" class="state-icon" />`;
 }
 

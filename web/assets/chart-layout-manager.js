@@ -166,7 +166,7 @@ class ChartLayoutManager {
                     const dropIndex = parseInt(container.dataset.chartIndex);
 
                     // Reorder in layout
-                    const newLayout = this.reorderChart(this.draggedIndex, dropIndex);
+                    const _newLayout = this.reorderChart(this.draggedIndex, dropIndex);
 
                     // Trigger re-render
                     if (typeof window.renderDetailPanelCharts === 'function') {

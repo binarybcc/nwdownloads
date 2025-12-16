@@ -3,6 +3,8 @@
  * Handles display of vacation counts and longest vacations
  */
 
+/* exported displayLongestVacationsOverall, displayLongestVacationsForUnit, showVacationContextMenu, showVacationSubscriberMenu, showVacationTrends, exportVacationList, showVacationDetails, showVacationHistory */
+
 /**
  * Format vacation duration for display
  * @param {number} weeks - Number of weeks on vacation (decimal)
@@ -161,7 +163,7 @@ function showVacationContextMenu(event, context) {
  * @param {string} subNum - Subscriber number
  * @param {string} context - Business unit context (optional)
  */
-function showVacationSubscriberMenu(event, subNum, context = '') {
+function showVacationSubscriberMenu(event, subNum, _context = '') {
     event.preventDefault();
     event.stopPropagation();
 

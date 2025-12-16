@@ -247,6 +247,15 @@ foreach ($rates as &$rate) {
     $rate['market_rate'] = $market_rates[$market_key];
     $by_paper[$paper][] = $rate;
 }
+unset($rate); // Break reference with last element
+
+// Flatten $by_paper back to $rates with updated flags for alert checks
+$rates = [];
+foreach ($by_paper as $paper_rates) {
+    foreach ($paper_rates as $rate) {
+        $rates[] = $rate;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

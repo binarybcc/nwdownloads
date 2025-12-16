@@ -89,3 +89,20 @@ tests/Fixtures/temp/
 *.swo
 *~
 archives/
+
+# Backup files (added by cleanup script)
+*.backup
+*.old
+*.bak
+*~
+
+# Temporary test files
+web/test_*.php
+web/debug_*.php
+
+# Cleanup logs
+cleanup-*.log
+
+# Safety backups
+backup-*/
+

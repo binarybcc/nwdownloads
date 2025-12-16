@@ -9,6 +9,7 @@ import sys
 from collections import defaultdict
 from decimal import Decimal
 
+
 def normalize_subscription_length(length, len_type):
     """
     Normalize subscription length to match subscriber_snapshots format
@@ -27,6 +28,7 @@ def normalize_subscription_length(length, len_type):
     # Return format WITH SPACE to match subscriber_snapshots
     return f"{length} {len_type}"
 
+
 def calculate_annualized_rate(rate, length, len_type):
     """
     Calculate annualized rate for comparison purposes
@@ -34,19 +36,20 @@ def calculate_annualized_rate(rate, length, len_type):
     rate = Decimal(str(rate))
     length = int(length)
 
-    if len_type == 'Y':
+    if len_type == "Y":
         return rate
-    elif len_type == 'M':
-        return rate * (Decimal('12') / Decimal(str(length)))
-    elif len_type == 'W':
-        return rate * (Decimal('52') / Decimal(str(length)))
-    elif len_type == 'D':
-        return rate * Decimal('365') / Decimal(str(length))
+    elif len_type == "M":
+        return rate * (Decimal("12") / Decimal(str(length)))
+    elif len_type == "W":
+        return rate * (Decimal("52") / Decimal(str(length)))
+    elif len_type == "D":
+        return rate * Decimal("365") / Decimal(str(length))
     else:
         return rate
 
+
 def main():
-    rates_file = '/Users/johncorbin/Desktop/projs/nwdownloads/queries/rates.csv'
+    rates_file = "/Users/johncorbin/Desktop/projs/nwdownloads/queries/rates.csv"
 
     # Store max rate for each paper + subscription length
     # market_rates[paper_code][subscription_length] = {
@@ -54,18 +57,22 @@ def main():
     #     'rate_name': description,
     #     'annualized': annualized_rate
     # }
-    market_rates = defaultdict(lambda: defaultdict(lambda: {'rate': Decimal('0'), 'rate_name': '', 'annualized': Decimal('0')}))
+    market_rates = defaultdict(
+        lambda: defaultdict(
+            lambda: {"rate": Decimal("0"), "rate_name": "", "annualized": Decimal("0")}
+        )
+    )
 
-    with open(rates_file, 'r') as f:
+    with open(rates_file, "r") as f:
         reader = csv.DictReader(f)
 
         for row in reader:
             try:
-                paper_code = row[' Rate.rr Edition'].strip()
-                rate_name = row[' Rate.rr Online Desc'].strip()
-                length = row[' Rate.rr Length'].strip()
-                len_type = row[' Rate.rr Len Type(m=month,Y-year,W=week)'].strip()
-                rate = Decimal(row[' Full Rate'].strip())
+                paper_code = row[" Rate.rr Edition"].strip()
+                rate_name = row[" Rate.rr Online Desc"].strip()
+                length = row[" Rate.rr Length"].strip()
+                len_type = row[" Rate.rr Len Type(m=month,Y-year,W=week)"].strip()
+                rate = Decimal(row[" Full Rate"].strip())
 
                 # Skip $0 rates (comps, promos)
                 if rate <= 0:
@@ -78,12 +85,12 @@ def main():
                 annualized = calculate_annualized_rate(rate, length, len_type)
 
                 # Track maximum rate for this paper + subscription length
-                current_max = market_rates[paper_code][sub_length]['rate']
+                current_max = market_rates[paper_code][sub_length]["rate"]
                 if rate > current_max:
                     market_rates[paper_code][sub_length] = {
-                        'rate': rate,
-                        'rate_name': rate_name,
-                        'annualized': annualized
+                        "rate": rate,
+                        "rate_name": rate_name,
+                        "annualized": annualized,
                     }
 
             except (KeyError, ValueError, decimal.InvalidOperation) as e:
@@ -102,7 +109,9 @@ def main():
     print("    subscription_length VARCHAR(20) NOT NULL,")
     print("    market_rate DECIMAL(10,2) NOT NULL,")
     print("    rate_name VARCHAR(255) NULL,")
-    print("    annualized_rate DECIMAL(10,2) NOT NULL COMMENT 'Rate normalized to annual for comparison',")
+    print(
+        "    annualized_rate DECIMAL(10,2) NOT NULL COMMENT 'Rate normalized to annual for comparison',"
+    )
     print("    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,")
     print("    UNIQUE KEY unique_paper_length (paper_code, subscription_length),")
     print("    INDEX idx_paper_code (paper_code)")
@@ -115,11 +124,13 @@ def main():
     for paper_code in sorted(market_rates.keys()):
         for sub_length in sorted(market_rates[paper_code].keys()):
             data = market_rates[paper_code][sub_length]
-            rate = data['rate']
-            rate_name = data['rate_name'].replace("'", "\\'")  # Escape quotes
-            annualized = data['annualized']
+            rate = data["rate"]
+            rate_name = data["rate_name"].replace("'", "\\'")  # Escape quotes
+            annualized = data["annualized"]
 
-            print(f"INSERT INTO rate_structure (paper_code, subscription_length, market_rate, rate_name, annualized_rate)")
+            print(
+                f"INSERT INTO rate_structure (paper_code, subscription_length, market_rate, rate_name, annualized_rate)"
+            )
             print(f"VALUES ('{paper_code}', '{sub_length}', {rate}, '{rate_name}', {annualized});")
 
     # Print summary statistics
@@ -129,6 +140,8 @@ def main():
     for paper in sorted(market_rates.keys()):
         print(f"-- {paper}: {len(market_rates[paper])} subscription lengths")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     import decimal
+
     main()

@@ -198,10 +198,17 @@ function processRenewalCsv($pdo, $filepath, $filename)
             continue;
         }
 
-        // Stop at footer/total rows
+        // Stop at footer/total rows (but not ISSUE summary rows)
         $first_cell = trim($row[0] ?? '');
-        if (empty($first_cell) 
-            || stripos($first_cell, 'Total') !== false 
+        $second_cell = strtoupper(trim($row[1] ?? ''));
+
+        // Skip ISSUE summary rows (empty Sub ID + "ISSUE" in Stat column)
+        if (empty($first_cell) && $second_cell === 'ISSUE') {
+            continue;
+        }
+
+        // Stop at final totals or report footer
+        if (stripos($first_cell, 'Total') !== false
             || stripos($first_cell, 'Report') !== false
         ) {
             break;
@@ -265,9 +272,11 @@ function processRenewalRow($row, $col_map, $stmt, $filename, &$stats)
         }
 
         // Determine subscription type based on which columns have data
-        $reg_expiring = (int)($row[$col_map['Reg Sub Expiring'] ?? ''] ?? 0);
-        $mthy_expiring = (int)($row[$col_map['Mthy Sub Expiring'] ?? ''] ?? 0);
-        $comp_expiring = (int)($row[$col_map['Comp Sub Expiring'] ?? ''] ?? 0);
+        // Column layout: Sub ID (0), Stat (1), Ed. (2), Issue # (3), Issue Date (4),
+        //   Reg Sub columns (5-8), Mthy Sub columns (9-12), Comp Sub columns (13-16)
+        $reg_expiring = (int)($row[5] ?? 0);   // Reg Sub Expiring
+        $mthy_expiring = (int)($row[9] ?? 0);  // Mthy Sub Expiring
+        $comp_expiring = (int)($row[13] ?? 0); // Comp Sub Expiring
 
         if ($reg_expiring > 0) {
             $subscription_type = 'REGULAR';

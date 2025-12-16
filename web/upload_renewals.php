@@ -62,7 +62,10 @@ try {
     // Connect to database
     $dsn = "mysql:host={$db_config['host']};port={$db_config['port']};dbname={$db_config['database']};charset=utf8mb4";
     $pdo = new PDO(
-        $dsn, $db_config['username'], $db_config['password'], [
+        $dsn,
+        $db_config['username'],
+        $db_config['password'],
+        [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]
@@ -77,6 +80,9 @@ try {
 
     // Validate file type
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    if ($finfo === false) {
+        throw new Exception('Failed to initialize file info');
+    }
     $mime_type = finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
 
@@ -108,7 +114,6 @@ try {
         'processing_time' => $processing_time
         ]
     );
-    
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(
@@ -126,9 +131,9 @@ try {
  * @param  PDO    $pdo      Database connection
  * @param  string $filepath Path to CSV file
  * @param  string $filename Original filename
- * @return array Import statistics
+ * @return array<string, mixed> Import statistics
  */
-function processRenewalCsv($pdo, $filepath, $filename)
+function processRenewalCsv(PDO $pdo, string $filepath, string $filename): array
 {
     $handle = fopen($filepath, 'r');
     if (!$handle) {
@@ -236,7 +241,8 @@ function processRenewalCsv($pdo, $filepath, $filename)
         }
 
         // Stop at final totals or report footer
-        if (stripos($first_cell, 'Total') !== false
+        if (
+            stripos($first_cell, 'Total') !== false
             || stripos($first_cell, 'Report') !== false
         ) {
             break;
@@ -268,13 +274,13 @@ function processRenewalCsv($pdo, $filepath, $filename)
 /**
  * Process a single renewal row
  *
- * @param array        $row      CSV row data
- * @param array        $col_map  Column name to index mapping
- * @param PDOStatement $stmt     Prepared INSERT statement
- * @param string       $filename Source filename
- * @param array        &$stats   Statistics array (passed by reference)
+ * @param array<int, string|null> $row      CSV row data
+ * @param array<string, int>      $col_map  Column name to index mapping
+ * @param PDOStatement            $stmt     Prepared INSERT statement
+ * @param string                  $filename Source filename
+ * @param array<string, mixed>    &$stats   Statistics array (passed by reference)
  */
-function processRenewalRow($row, $col_map, $stmt, $filename, &$stats)
+function processRenewalRow(array $row, array $col_map, PDOStatement $stmt, string $filename, array &$stats): void
 {
     try {
         // Extract core fields
@@ -333,7 +339,7 @@ function processRenewalRow($row, $col_map, $stmt, $filename, &$stats)
         if ($stmt->rowCount() > 0) {
             $stats['events_imported']++;
             $stats['by_type'][$subscription_type]++;
-            
+
             // Track by publication
             if (!isset($stats['by_publication'][$paper_code])) {
                 $stats['by_publication'][$paper_code] = 0;
@@ -350,7 +356,6 @@ function processRenewalRow($row, $col_map, $stmt, $filename, &$stats)
         } else {
             $stats['duplicates_skipped']++;
         }
-
     } catch (Exception $e) {
         error_log("Error processing renewal row: " . $e->getMessage());
         // Continue processing other rows
@@ -363,7 +368,7 @@ function processRenewalRow($row, $col_map, $stmt, $filename, &$stats)
  * @param  string $date_str Date string
  * @return string|null Formatted date (Y-m-d) or null if invalid
  */
-function parseDate($date_str)
+function parseDate(string $date_str): ?string
 {
     if (empty($date_str)) {
         return null;
@@ -395,12 +400,13 @@ function parseDate($date_str)
  * ISSUE rows contain pre-aggregated daily metrics by subscription type:
  * "","ISSUE","TJ","","09/03/2024","12","11","1","91.67%","45","45","0","100.00%",...
  *
- * @param array $row CSV row data
- * @param array $col_map Column name to index mapping (unused but kept for consistency)
+ * @param array<int, string|null> $row CSV row data
+ * @param array<string, int> $col_map Column name to index mapping (unused but kept for consistency)
  * @param PDOStatement $stmt Prepared INSERT statement for summaries
- * @param array &$stats Statistics array (passed by reference)
+ * @param array<string, mixed> &$stats Statistics array (passed by reference)
+ * @return void
  */
-function processIssueSummaryRow($row, $col_map, $stmt, &$stats)
+function processIssueSummaryRow(array $row, array $col_map, PDOStatement $stmt, array &$stats): void
 {
     try {
         // Extract core fields
@@ -473,7 +479,6 @@ function processIssueSummaryRow($row, $col_map, $stmt, &$stats)
 
             $stats['summaries_imported']++;
         }
-
     } catch (Exception $e) {
         error_log("Error processing ISSUE summary row: " . $e->getMessage());
         // Continue processing other rows

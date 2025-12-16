@@ -8,8 +8,6 @@ parameters:
         # CLI utility scripts (use $argv which isn't guaranteed in PHPStan context)
         - web/cleanup_bad_data.php
         - web/purge_all_data.php
-    ignoreErrors:
-        # rates.php: PHPStan can't prove is_ignored can be true (depends on DB data)
-        # This code handles cases where rates are flagged as ignored in rate_flags table
-        - '#Left side of && is always false#'
-        - '#Comparison operation ">" between 0 and 0 is always false#'
+    ignoreErrors: []
+        # Previously ignored errors in rates.php have been fixed
+        # No ignored error patterns needed as of 2025-12-16

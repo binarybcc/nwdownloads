@@ -336,4 +336,4 @@ function cleanupChartContextMenus() {
 window.initializeChartContextMenus = initializeChartContextMenus;
 window.cleanupChartContextMenus = cleanupChartContextMenus;
 
-console.log('Chart context menu integration loaded');
+// console.log('Chart context menu integration loaded');

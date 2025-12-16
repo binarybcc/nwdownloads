@@ -853,4 +853,4 @@ window.switchBusinessUnit = switchBusinessUnit;
 window.loadBusinessUnitData = loadBusinessUnitData;
 window.populateStateNavigation = populateStateNavigation;
 
-console.log('Detail panel module loaded with state navigation');
+// console.log('Detail panel module loaded with state navigation');

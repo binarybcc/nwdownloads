@@ -217,4 +217,4 @@ class DonutToStateAnimator {
 // Create global instance
 window.donutAnimator = new DonutToStateAnimator();
 
-console.log('Donut-to-State animation system loaded');
+// console.log('Donut-to-State animation system loaded');

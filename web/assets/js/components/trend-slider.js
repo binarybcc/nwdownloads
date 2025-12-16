@@ -756,4 +756,4 @@ class TrendSlider {
 // Create global instance
 window.trendSlider = new TrendSlider();
 
-console.log('TrendSlider module loaded');
+// console.log('TrendSlider module loaded');

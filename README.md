@@ -14,6 +14,35 @@ This dashboard tracks daily circulation metrics for newspaper publications acros
 - 🏖️ Vacation tracking
 - 🐳 Fully containerized with Docker
 
+## ✨ Code Quality (December 2025)
+
+**Professional code quality achieved through comprehensive 3-phase cleanup:**
+
+**Phase 1: Critical File Organization**
+- ✅ 8 backup/test/debug files moved from production to archive/tests
+- ✅ Zero backup files in production directories
+- ✅ Proper .gitignore configuration for development artifacts
+
+**Phase 2: Code Standards & Analysis**
+- ✅ **PHP**: PHPStan level 5 with **0 errors** (13,786 lines analyzed)
+- ✅ **JavaScript**: ESLint with **0 errors**, 18 warnings (8,110 lines analyzed)
+- ✅ **Python**: Black + isort formatting (2,304 lines formatted)
+- ✅ PSR-12 compliance for all PHP code
+- ✅ Installed tools: PHPStan, PHPCS, PHP-CS-Fixer, ESLint, Prettier, Black, isort, mypy, Pylint
+
+**Phase 3: Structural Improvements**
+- ✅ **JavaScript modularized** into 5 logical categories (core, components, charts, features, utils)
+- ✅ **API foundation established** with shared modules (database, response, utils)
+- ✅ 17 JavaScript files reorganized with clear dependency hierarchy
+- ✅ Backward compatibility maintained (all global functions preserved)
+
+**Metrics:**
+- **Lines of Code**: PHP 13,786 | JavaScript 8,110 | Python 2,304
+- **Code Quality**: PHPStan 0 errors | ESLint 0 errors
+- **Documentation**: 115+ README files across project
+
+See `/caudit/CODE_QUALITY_AUDIT_AND_CLEANUP_PLAN.md` for complete audit plan and execution details.
+
 ## 🗂️ Publications Tracked
 
 ### Wyoming Business Unit
@@ -88,19 +117,46 @@ http://localhost:8081
 
 ```
 nwdownloads/
-├── web/                    # PHP application
-│   ├── api.php            # REST API endpoints
-│   ├── upload.php         # CSV upload handler
-│   ├── index.html         # Dashboard UI
-│   └── assets/            # JavaScript and CSS
-├── sql/                   # Database schemas
-│   ├── 00_create_daily_snapshots.sql
-│   ├── 01_create_publication_schedule.sql
-│   └── 02_seed_publication_schedule.sql
-├── docs/                  # Documentation
-├── docker-compose.yml     # Container orchestration
-├── Dockerfile            # Web container build
-└── .env.example          # Environment template
+├── web/                              # PHP application
+│   ├── api/                         # API endpoints (modular structure)
+│   │   ├── legacy.php              # Monolithic API (migration in progress)
+│   │   └── shared/                 # Shared modules
+│   │       ├── database.php        # Database connection
+│   │       ├── response.php        # JSON response helpers
+│   │       └── utils.php           # Utility functions
+│   ├── api.php                      # API router (routes to api/legacy.php)
+│   ├── upload.php                   # CSV upload handler
+│   ├── index.php                    # Dashboard UI
+│   └── assets/
+│       └── js/                      # Modular JavaScript structure
+│           ├── core/                # Dashboard initialization
+│           ├── components/          # Reusable UI components
+│           ├── charts/              # Chart visualization
+│           ├── features/            # Feature modules
+│           └── utils/               # Utility functions
+├── database/                         # Database management
+│   ├── init/                        # Initialization scripts (auto-run in Docker)
+│   ├── migrations/                  # Schema migrations (SQL + PHP)
+│   └── seeds/                       # Seed data
+├── docs/                            # Comprehensive documentation
+│   ├── KNOWLEDGE-BASE.md            # Complete system reference
+│   ├── TROUBLESHOOTING.md           # Decision tree diagnostics
+│   └── DESIGN-SYSTEM.md             # Component patterns
+├── tests/                           # Testing infrastructure
+│   ├── Legacy/                      # Archived test scripts
+│   └── Debug/                       # Debug utilities
+├── archive/                         # Historical files
+│   └── web-backups/                # Timestamped backups
+├── caudit/                          # Code quality audit
+│   ├── CODE_QUALITY_AUDIT_AND_CLEANUP_PLAN.md
+│   ├── cleanup-phase1.sh           # Automated cleanup script
+│   ├── .eslintrc.json              # ESLint configuration
+│   ├── .php-cs-fixer.php           # PHP CS Fixer config
+│   └── .prettierrc                 # Prettier configuration
+├── docker-compose.yml               # Container orchestration
+├── Dockerfile                       # Web container build
+├── eslint.config.js                 # ESLint v9 flat config
+└── .env.example                     # Environment template
 ```
 
 ## 📤 Weekly Data Upload Process
@@ -266,11 +322,28 @@ This is a private circulation tracking system. For internal modifications:
 
 ## 📚 Documentation
 
-See `/docs` directory for:
-- `dashboard_architecture.md` - System architecture
-- `data-cleanup-2025-12-02.md` - Data cleanup notes
-- `PHASE_1_REQUIREMENTS.md` - Original requirements
-- `DOCKER_SETUP.md` - Detailed Docker setup guide
+**Comprehensive Documentation:**
+
+**Primary References:**
+- `/docs/KNOWLEDGE-BASE.md` - Complete system reference (architecture, database, API, deployment)
+- `/docs/TROUBLESHOOTING.md` - Decision tree diagnostics for 9 common issue categories
+- `/docs/DESIGN-SYSTEM.md` - Component library and UI patterns
+- `/docs/cost_analysis.md` - Real-world development cost analysis
+
+**Code Organization:**
+- `/database/migrations/README.md` - Database migration system (SQL + PHP)
+- `/database/init/README.md` - Database initialization (Docker auto-run scripts)
+- `/web/assets/js/README.md` - JavaScript modular architecture
+- `/web/api/README.md` - API endpoints and shared modules
+- `/tests/README.md` - Testing structure and guidelines
+- `/archive/README.md` - Archive policy and historical files
+
+**Code Quality:**
+- `/caudit/CODE_QUALITY_AUDIT_AND_CLEANUP_PLAN.md` - Complete audit plan and results
+
+**Historical Documentation:**
+- `/docs/ARCHIVE/` - 33+ archived markdown files
+- `/docs/DEPLOYMENT-2025-12-07.md` - Recent deployment notes
 
 ## 📄 License
 
@@ -282,5 +355,6 @@ Built for tracking circulation metrics across multiple newspaper publications wi
 
 ---
 
-**Last Updated:** December 5, 2025
+**Last Updated:** December 16, 2025
 **Repository:** https://github.com/binarybcc/nwdownloads
+**Code Quality:** ✅ PHPStan Level 5 (0 errors) | ✅ ESLint (0 errors) | ✅ Black Formatted

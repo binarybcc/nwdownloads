@@ -302,4 +302,4 @@ function createChartContextMenu(options = {}) {
 window.ContextMenu = ContextMenu;
 window.createChartContextMenu = createChartContextMenu;
 
-console.log('ContextMenu module loaded');
+// console.log('ContextMenu module loaded');

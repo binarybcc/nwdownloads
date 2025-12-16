@@ -62,4 +62,4 @@ function getStateColor(businessUnit) {
     return colors[businessUnit] || '#0369A1';
 }
 
-console.log('State icons module loaded');
+// console.log('State icons module loaded');

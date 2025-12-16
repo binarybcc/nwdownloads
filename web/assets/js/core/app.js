@@ -22,7 +22,7 @@
  * - All dashboard rendering and navigation functions
  */
 
-console.log('===== APP.JS FILE LOADED =====');
+// console.log('===== APP.JS FILE LOADED =====');
 
 /* exported refreshData, exportToCSV, exportToExcel, exportToPDF, toggleExportMenu, toggleBusinessUnitDetails, renderComparisonWithTrend */
 
@@ -55,7 +55,7 @@ CircDashboard.state = {
 // Configuration
 const API_BASE = './api.php';
 
-console.log('===== CONSTANTS DEFINED =====');
+// console.log('===== CONSTANTS DEFINED =====');
 
 // Global state
 let dashboardData = null;
@@ -96,16 +96,16 @@ const PAPER_INFO = {
     'FN': { name: 'Former News', location: 'Sold' }
 };
 
-console.log('===== SETTING UP DOM CONTENT LOADED LISTENER =====');
+// console.log('===== SETTING UP DOM CONTENT LOADED LISTENER =====');
 
 /**
  * Initialize dashboard on page load
  */
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('===== DOM CONTENT LOADED EVENT FIRED =====');
+    // console.log('===== DOM CONTENT LOADED EVENT FIRED =====');
     // Set dropdown to match default compareMode
     document.getElementById('compareMode').value = compareMode;
-    console.log('===== DROPDOWN SET TO:', compareMode, '=====');
+    // console.log('===== DROPDOWN SET TO:', compareMode, '=====');
 
     updateDateTime();
     loadDashboardData();
@@ -127,7 +127,7 @@ function updateDateTime() {
  * Load dashboard data from API
  */
 async function loadDashboardData() {
-    console.log('===== LOAD DASHBOARD DATA CALLED =====');
+    // console.log('===== LOAD DASHBOARD DATA CALLED =====');
     try {
         const params = new URLSearchParams({
             action: 'overview',
@@ -138,22 +138,22 @@ async function loadDashboardData() {
             params.append('date', currentDate);
         }
 
-        console.log('===== FETCHING DATA FROM API =====', `${API_BASE}?${params}`);
+        // console.log('===== FETCHING DATA FROM API =====', `${API_BASE}?${params}`);
         const response = await fetch(`${API_BASE}?${params}`);
-        console.log('===== API RESPONSE RECEIVED =====', response.status);
+        // console.log('===== API RESPONSE RECEIVED =====', response.status);
         const result = await response.json();
-        console.log('===== API RESULT =====', result.success ? 'SUCCESS' : 'FAILED');
+        // console.log('===== API RESULT =====', result.success ? 'SUCCESS' : 'FAILED');
 
         if (result.success) {
             dashboardData = CircDashboard.state.dashboardData = result.data;
             dataRange = CircDashboard.state.dataRange = result.data.data_range;
-            console.log('===== DASHBOARD DATA SET, CALLING RENDER =====');
-            console.log('===== ABOUT TO ENTER TRY BLOCK =====');
+            // console.log('===== DASHBOARD DATA SET, CALLING RENDER =====');
+            // console.log('===== ABOUT TO ENTER TRY BLOCK =====');
 
             try {
-                console.log('===== INSIDE TRY BLOCK, CALLING renderDashboard() =====');
+                // console.log('===== INSIDE TRY BLOCK, CALLING renderDashboard() =====');
                 renderDashboard();
-                console.log('===== renderDashboard() RETURNED =====');
+                // console.log('===== renderDashboard() RETURNED =====');
             } catch (renderError) {
                 console.error('===== CAUGHT ERROR IN RENDER =====', renderError);
                 console.error('Error rendering dashboard:', renderError);
@@ -162,7 +162,7 @@ async function loadDashboardData() {
                 return;
             }
 
-            console.log('===== AFTER TRY/CATCH, UPDATING NAVIGATION =====');
+            // console.log('===== AFTER TRY/CATCH, UPDATING NAVIGATION =====');
             updateNavigationState();
             initDateNavigation(); // Initialize after first data load
         } else {
@@ -384,9 +384,9 @@ function renderEmptyState() {
  * CONSOLIDATED VERSION - Phase 2 merged
  */
 function renderDashboard() {
-    console.log('===== RENDER DASHBOARD CALLED =====');
+    // console.log('===== RENDER DASHBOARD CALLED =====');
     if (!dashboardData) {
-        console.log('===== NO DASHBOARD DATA, RETURNING =====');
+        // console.log('===== NO DASHBOARD DATA, RETURNING =====');
         return;
     }
 
@@ -1607,4 +1607,4 @@ function loadLongestVacations() {
         });
 }
 
-console.log('App.js loaded - Phase 2 consolidated successfully!');
+// console.log('App.js loaded - Phase 2 consolidated successfully!');

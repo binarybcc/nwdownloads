@@ -212,4 +212,4 @@ class ChartLayoutManager {
 // Create global instance
 window.chartLayoutManager = new ChartLayoutManager();
 
-console.log('Chart Layout Manager loaded');
+// console.log('Chart Layout Manager loaded');

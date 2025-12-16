@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Renewal Churn Data</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8f0fe;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f0f4ff;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .progress {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress.show {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            margin-top: 8px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .result-details {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .nav-buttons {
+            margin-top: 30px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            flex: 1;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Upload Renewal Churn Data</h1>
+        <p class="subtitle">Import Newzware "Renewal Churn Report by Issue" CSV files</p>
+
+        <div class="upload-area" id="upload-area">
+            <div class="upload-icon">📁</div>
+            <p><strong>Click to select</strong> or drag and drop</p>
+            <p style="font-size: 14px; color: #999; margin-top: 8px;">Renewal Churn CSV file (max 50MB)</p>
+        </div>
+
+        <input type="file" id="file-input" accept=".csv">
+
+        <div class="file-info" id="file-info">
+            <div class="file-name" id="file-name"></div>
+            <div class="file-size" id="file-size"></div>
+        </div>
+
+        <button class="btn" id="upload-btn" disabled>Upload and Process Data</button>
+
+        <div class="progress" id="progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-text" id="progress-text">Processing...</div>
+        </div>
+
+        <div class="result" id="result">
+            <div class="result-title" id="result-title"></div>
+            <div class="result-details" id="result-details"></div>
+        </div>
+
+        <div class="nav-buttons">
+            <button class="btn btn-secondary" onclick="window.location.href='index.php'">← Back to Dashboard</button>
+            <button class="btn btn-secondary" onclick="window.location.href='churn_dashboard.php'" id="view-churn-btn" style="display: none;">View Churn Analysis →</button>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        const uploadBtn = document.getElementById('upload-btn');
+        const progress = document.getElementById('progress');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const result = document.getElementById('result');
+        const resultTitle = document.getElementById('result-title');
+        const resultDetails = document.getElementById('result-details');
+        const viewChurnBtn = document.getElementById('view-churn-btn');
+
+        let selectedFile = null;
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            // Validate file type
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                alert('Please select a CSV file');
+                return;
+            }
+
+            selectedFile = file;
+
+            // Display file info
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.classList.add('show');
+
+            // Enable upload button
+            uploadBtn.disabled = false;
+
+            // Hide previous results
+            result.classList.remove('show');
+            viewChurnBtn.style.display = 'none';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        // Upload button click
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // Disable button and show progress
+            uploadBtn.disabled = true;
+            progress.classList.add('show');
+            progressFill.style.width = '30%';
+            progressText.textContent = 'Uploading...';
+            result.classList.remove('show');
+
+            // Create form data
+            const formData = new FormData();
+            formData.append('renewal_csv', selectedFile);
+
+            try {
+                // Upload file
+                const response = await fetch('upload_renewals.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                progressFill.style.width = '70%';
+                progressText.textContent = 'Processing...';
+
+                const data = await response.json();
+
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Complete!';
+
+                // Hide progress after a moment
+                setTimeout(() => {
+                    progress.classList.remove('show');
+                }, 1000);
+
+                if (data.success) {
+                    showSuccess(data);
+                } else {
+                    showError(data.error);
+                }
+
+            } catch (error) {
+                progressFill.style.width = '100%';
+                progress.classList.remove('show');
+                showError('Upload failed: ' + error.message);
+            }
+
+            // Re-enable button
+            uploadBtn.disabled = false;
+        });
+
+        function showSuccess(data) {
+            result.className = 'result show success';
+            resultTitle.textContent = '✅ Import Successful';
+
+            let html = `
+                <div class="result-details">
+                    <p><strong>Processing Time:</strong> ${data.processing_time}</p>
+                    <p><strong>Date Range:</strong> ${data.date_range}</p>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.events_imported.toLocaleString()}</div>
+                        <div class="stat-label">Events Imported</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.duplicates_skipped.toLocaleString()}</div>
+                        <div class="stat-label">Duplicates Skipped</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.by_type.REGULAR.toLocaleString()}</div>
+                        <div class="stat-label">Regular Subs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.by_type.MONTHLY.toLocaleString()}</div>
+                        <div class="stat-label">Monthly Subs</div>
+                    </div>
+                </div>
+            `;
+
+            if (data.by_publication && Object.keys(data.by_publication).length > 0) {
+                html += '<div style="margin-top: 16px;"><strong>By Publication:</strong><br>';
+                for (const [pub, count] of Object.entries(data.by_publication)) {
+                    html += `${pub}: ${count.toLocaleString()} events<br>`;
+                }
+                html += '</div>';
+            }
+
+            resultDetails.innerHTML = html;
+            
+            // Show button to view churn dashboard
+            viewChurnBtn.style.display = 'block';
+        }
+
+        function showError(errorMsg) {
+            result.className = 'result show error';
+            resultTitle.textContent = '❌ Import Failed';
+            resultDetails.innerHTML = `<p>${errorMsg}</p>`;
+        }
+    </script>
+</body>
+</html>

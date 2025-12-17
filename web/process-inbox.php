@@ -95,12 +95,23 @@ require_once __DIR__ . '/processors/IFileProcessor.php';
 require_once __DIR__ . '/processors/AllSubscriberProcessor.php';
 require_once __DIR__ . '/processors/VacationProcessor.php';
 require_once __DIR__ . '/processors/RenewalProcessor.php';
+require_once __DIR__ . '/processors/RatesProcessor.php';
+require_once __DIR__ . '/notifications/INotifier.php';
+require_once __DIR__ . '/notifications/EmailNotifier.php';
+require_once __DIR__ . '/notifications/DashboardNotifier.php';
 
 use CirculationDashboard\Processors\IFileProcessor;
 use CirculationDashboard\Processors\AllSubscriberProcessor;
 use CirculationDashboard\Processors\VacationProcessor;
 use CirculationDashboard\Processors\RenewalProcessor;
+use CirculationDashboard\Processors\RatesProcessor;
 use CirculationDashboard\Processors\ProcessResult;
+use CirculationDashboard\Notifications\EmailNotifier;
+use CirculationDashboard\Notifications\DashboardNotifier;
+
+// Initialize notifiers
+$emailNotifier = new EmailNotifier($pdo);
+$dashboardNotifier = new DashboardNotifier($pdo);
 
 // ============================================================================
 // Main Processing Logic
@@ -179,6 +190,13 @@ foreach ($files as $filepath) {
             // Update log
             updateProcessingLog($pdo, $logId, 'completed', $result);
 
+            // Store log_id in result metadata for notifications
+            $result->metadata['log_id'] = $logId;
+
+            // Send notifications
+            $emailNotifier->sendSuccess($result);
+            $dashboardNotifier->sendSuccess($result);
+
             echo "  ✅ Success: {$result->recordsProcessed} records\n";
             echo "     Range: {$result->dateRange}\n";
             echo "     Duration: " . number_format($result->processingDuration, 2) . "s\n\n";
@@ -196,6 +214,18 @@ foreach ($files as $filepath) {
 
         // Update log
         updateProcessingLog($pdo, $logId, 'failed', null, $e->getMessage());
+
+        // Create ProcessResult for failure notification
+        $failureResult = ProcessResult::failure(
+            $filename,
+            'unknown',  // fileType not available here
+            $e->getMessage(),
+            ['log_id' => $logId]
+        );
+
+        // Send notifications
+        $emailNotifier->sendFailure($failureResult);
+        $dashboardNotifier->sendFailure($failureResult);
 
         echo "  ❌ Failed: " . $e->getMessage() . "\n\n";
         $failedCount++;
@@ -274,6 +304,7 @@ function createProcessor(string $processorClass, PDO $pdo): IFileProcessor
         'AllSubscriberProcessor' => AllSubscriberProcessor::class,
         'VacationProcessor' => VacationProcessor::class,
         'RenewalProcessor' => RenewalProcessor::class,
+        'RatesProcessor' => RatesProcessor::class,
     ];
 
     if (!isset($processors[$processorClass])) {

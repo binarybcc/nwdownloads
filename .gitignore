@@ -106,3 +106,4 @@ cleanup-*.log
 # Safety backups
 backup-*/
 
+.worktrees/

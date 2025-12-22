@@ -25,6 +25,15 @@ use DateTime;
 
 class AllSubscriberImporter
 {
+    /**
+     * Minimum backfill date - start of Week 47
+     *
+     * Files subtract 7 days for "data represents previous week" logic.
+     * Nov 24 file → -7 days → Nov 17 (Week 47)
+     * Setting minimum to Nov 17 allows all historical uploads from Nov 24 onward.
+     */
+    private const MIN_BACKFILL_DATE = '2025-11-17';
+
     /** @var PDO Database connection */
     private PDO $pdo;
 
@@ -347,9 +356,8 @@ class AllSubscriberImporter
         // SOFT BACKFILL ALGORITHM
         $this->pdo->beginTransaction();
         try {
-            // Determine backfill range (start of Week 48 - first real data week)
-            $min_backfill_date = '2025-11-24';
-            $min_backfill_week_year = $this->getWeekAndYear($min_backfill_date);
+            // Determine backfill range using configured minimum date
+            $min_backfill_week_year = $this->getWeekAndYear(self::MIN_BACKFILL_DATE);
             $min_backfill_week = $min_backfill_week_year['week'];
             $min_backfill_year = $min_backfill_week_year['year'];
 
@@ -367,7 +375,7 @@ class AllSubscriberImporter
                     $current_year < $min_backfill_year ||
                     ($current_year == $min_backfill_year && $current_week < $min_backfill_week)
                 ) {
-                    error_log("🛑 Backfill stopped at minimum date (Oct 1, 2025)");
+                    error_log("🛑 Backfill stopped at minimum date (Nov 17, 2025 - Week 47)");
                     break;
                 }
 

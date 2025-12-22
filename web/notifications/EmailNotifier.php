@@ -162,7 +162,7 @@ class EmailNotifier implements INotifier
     {
         $timestamp = date('F j, Y \a\t g:i A');
         $dashboardUrl = 'https://cdash.upstatetoday.com';
-        $uploadUrl = $dashboardUrl . '/upload.html';
+        $uploadUrl = $dashboardUrl . '/upload_unified.php';
         $settingsUrl = $dashboardUrl . '/settings.php#processing-history';
 
         $body = <<<EMAIL

@@ -379,7 +379,7 @@ git checkout master && git pull && git branch -d feature/my-feature
 ```bash
 git checkout -b fix/typo-in-upload-form
 # Fix the typo
-git add web/upload.html
+git add web/upload_unified.php
 git commit -m "Fix typo in upload form label"
 git push -u origin fix/typo-in-upload-form
 gh pr create --title "Fix typo in upload form" --body "Corrects 'Uplaod' to 'Upload'"
@@ -656,6 +656,16 @@ docker compose up -d
 
 ## Weekly Data Upload Process
 
+### ⚠️ CRITICAL: Upload Interface Location
+
+**CANONICAL UPLOAD INTERFACE:** `upload_unified.php`
+**URL:** https://cdash.upstatetoday.com/upload_unified.php
+
+- This is the ONLY upload interface - handles both Subscribers AND Vacations
+- `upload.html` redirects to `upload_unified.php` (do not use directly)
+- Any code/documentation referencing uploads MUST use `upload_unified.php`
+- This has been the standard for 2+ weeks - do not regress!
+
 ### Overview
 The dashboard uses an **UPSERT** (Update or Insert) system for importing weekly circulation data from Newzware's "All Subscriber Report".
 
@@ -676,20 +686,21 @@ The dashboard uses an **UPSERT** (Update or Insert) system for importing weekly 
 
 **Development:**
 ```
-1. Open: http://localhost:8081/upload.html
-2. Click "Choose File" and select the CSV
-3. Click "Upload and Process Data"
-4. Wait 10-30 seconds for processing (~8,000 rows)
-5. Review import summary showing:
+1. Open: http://localhost:8081/upload_unified.php
+2. Select file type (Subscribers or Vacations tab)
+3. Click "Choose File" and select the CSV
+4. Click "Upload and Process Data"
+5. Wait 10-30 seconds for processing (~8,000 rows)
+6. Review import summary showing:
    - New records added
    - Existing records updated
    - Total subscribers by business unit
-6. Click "View Dashboard" to see updated data
+7. Click "View Dashboard" to see updated data
 ```
 
 **Production:**
 ```
-1. Open: http://192.168.1.254:8081/upload.html
+1. Open: https://cdash.upstatetoday.com/upload_unified.php
 2. Follow same steps as Development
 3. Dashboard automatically refreshes with new week's data
 ```

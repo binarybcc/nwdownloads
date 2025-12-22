@@ -382,10 +382,12 @@ class AllSubscriberImporter
                 $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($existing && $existing['source_date']) {
-                    if ($weeks_back == 0 && $existing['source_date'] < $file_date) {
-                        error_log("♻️ Replacing upload week $current_week, $current_year");
+                    if ($weeks_back == 0) {
+                        // Always allow replacing the primary upload week, regardless of source_date
+                        error_log("♻️ Replacing upload week $current_week, $current_year (old source: {$existing['source_date']}, new source: $file_date)");
                     } else {
-                        error_log("🛑 Backfill stopped at Week $current_week, $current_year");
+                        // For backfill weeks, stop at existing data
+                        error_log("🛑 Backfill stopped at Week $current_week, $current_year (has data from {$existing['source_date']})");
                         break;
                     }
                 }

@@ -10,14 +10,25 @@
 
 The SoftBackfill system is an intelligent data backfilling algorithm that automatically fills historical weeks with subscriber data based on CSV upload dates.
 
-### Key Principle
+### Key Principles
 
-**"Each upload owns its week and backfills backward until hitting ANY existing data"**
+**"Each upload owns its week and backfills backward until hitting REAL data"**
 
 - Uploads **ONLY backfill backward** (never forward)
-- Backfilling **stops when hitting any existing data** (regardless of date)
-- Upload week can **replace older data** at that specific week
-- Upload order **doesn't matter** - system self-organizes
+- **REAL data (is_backfilled = 0):** Protected - stops backfilling
+- **BACKFILLED data (is_backfilled = 1):** Placeholder - can be replaced by real uploads
+- Upload order **doesn't matter** - real data always wins
+- System **self-organizes** - you can upload files in any order
+
+### Quick Reference
+
+| Scenario | Behavior |
+|----------|----------|
+| Upload file for empty week | Creates REAL data, backfills empty weeks backward |
+| Upload file for week with BACKFILLED data | **Replaces** backfilled data with REAL data |
+| Upload file for week with REAL data | Only replaces if new file is newer |
+| Backfilling encounters REAL data | **Stops** - real data is protected |
+| Backfilling encounters BACKFILLED data | **Continues** - backfilled data can be replaced |
 
 ---
 
@@ -50,14 +61,41 @@ When you upload a CSV file (e.g., `AllSubscriberReport20251208120000.csv`):
    - `is_backfilled` - Boolean flag (0 = real data, 1 = backfilled)
    - `backfill_weeks` - How many weeks back (0 = upload week)
 
-### Critical Behavior: Stop on ANY Existing Data
+### Critical Behavior: Distinguish Real vs Backfilled Data
 
-**When backfilling backward, the algorithm stops when it encounters ANY existing data, regardless of that data's source date.**
+**⚠️ IMPORTANT CLARIFICATION:**
 
-This ensures:
-- Earlier uploads establish their "territory"
-- Later uploads fill gaps backward but respect existing data
-- Upload order doesn't matter - each upload owns its week and backfills as far back as possible
+**When backfilling backward, the algorithm distinguishes between REAL data and BACKFILLED data:**
+
+- **REAL data (is_backfilled = 0):** Stops backfilling - real data is protected
+- **BACKFILLED data (is_backfilled = 1):** Can be REPLACED by real uploads - backfill is placeholder data
+
+**This ensures:**
+- Real data is always respected and never overwritten by backfill
+- Backfilled data can be replaced when you upload the actual historical files
+- Upload order doesn't matter - real data always wins over backfilled data
+- You can upload files in any order, and the system self-organizes correctly
+
+**Example:**
+```
+Upload Dec 22 (Week 51):
+Week 48: Dec 22 (backfilled) ← Can be replaced
+Week 49: Dec 22 (backfilled) ← Can be replaced
+Week 50: Dec 22 (backfilled) ← Can be replaced
+Week 51: Dec 22 (REAL)       ← Protected
+
+Upload Nov 24 (Week 48):
+Week 48: Nov 24 (REAL)       ← Replaced backfill with real data ✓
+Week 49: Dec 22 (backfilled) ← Still backfilled
+Week 50: Dec 22 (backfilled) ← Still backfilled
+Week 51: Dec 22 (REAL)       ← Still protected
+
+Upload Dec 1 (Week 49):
+Week 48: Nov 24 (REAL)       ← Protected, stops backfill
+Week 49: Dec 1 (REAL)        ← Replaced backfill with real data ✓
+Week 50: Dec 22 (backfilled) ← Still backfilled
+Week 51: Dec 22 (REAL)       ← Still protected
+```
 
 ### Example Scenario
 
@@ -342,6 +380,6 @@ while (\$row = \$stmt->fetch(PDO::FETCH_ASSOC)) {
 
 ---
 
-**Last Updated:** December 8, 2025
+**Last Updated:** December 22, 2025 - Added critical clarification about real vs backfilled data replacement
 **Authors:** Claude Code
-**Version:** 1.0.0
+**Version:** 1.1.0

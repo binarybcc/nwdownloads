@@ -282,16 +282,16 @@ Upload Week 49 (Dec 8):
 
 ### Backfill Minimum Date
 
-**Current:** November 24, 2025 (start of Week 48 - first real data week)
-**Location:** `upload.php` line 427
+**Current:** November 17, 2025 (start of Week 47)
+**Location:** `AllSubscriberImporter.php` line 354
 
 ```php
-$min_backfill_date = '2025-11-24';  // Start of Week 48
+$min_backfill_date = '2025-11-17';  // Start of Week 47
 ```
 
-**Why Nov 24:** This is the Monday of Week 48, which corresponds to the first real CSV upload (Dec 1, 2025). The system does not backfill before this date, ensuring all data is based on actual uploads rather than synthetic backfills.
+**Why Nov 17:** Files subtract 7 days for "data represents previous week" logic (line 179). The first real CSV upload (`AllSubscriberReport20251124161207.csv` dated Nov 24) becomes Nov 17 after the -7 day adjustment, which is Week 47. Setting the minimum to Nov 17 allows all historical uploads starting from Nov 24 to work correctly.
 
-**To change:** Edit this value and redeploy
+**To change:** Edit this value in `AllSubscriberImporter.php` and redeploy
 
 ### Warning Threshold
 
@@ -310,7 +310,7 @@ if (backfillData.backfill_weeks > 2) {
 
 ### Test Scenarios
 
-1. **Empty database** → Upload Dec 1 CSV (Week 48) → Verify only Week 48 created (no backfill before Nov 24)
+1. **Empty database** → Upload Dec 1 CSV (Week 48) → Verify only Week 48 created (no backfill before Nov 17/Week 47)
 2. **After Test 1** → Upload Dec 8 CSV (Week 50) → Verify Weeks 49-50 filled, Week 49 backfilled from Dec 8
 3. **Empty database** → Upload Dec 8 (Week 50) → Upload Dec 1 (Week 48) → Verify Week 49 has Dec 8 data, Week 48 stops Dec 8 backfill
 4. **Upload Dec 15 (Week 51)** → Verify Week 51 created, stops at Week 50 (has Dec 8 data)

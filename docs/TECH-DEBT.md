@@ -8,7 +8,64 @@ This document tracks technical debt, refactoring needs, and future enhancement o
 
 ## High Priority
 
-### 1. Unit Test Infrastructure
+### 1. 🚨 CRITICAL: Eliminate Divergent Upload Code Paths
+
+**Status:** In Progress (Quick fix applied, refactoring pending)
+**Priority:** CRITICAL
+**Effort:** High (1 week)
+**Added:** December 22, 2024
+
+**Problem:**
+- **Duplicate backfill logic** exists in two places:
+  - `upload.php` - 490 lines with hardcoded backfill algorithm
+  - `AllSubscriberImporter.php` - Shared library (NOT being used!)
+- `upload_unified.php` (form) submits to `upload.php`, bypassing the library
+- Bug fixes must be applied to BOTH files or bugs persist
+- This caused the Nov 24 upload bug to persist even after "fixing" the library
+
+**Current Architecture (BROKEN):**
+```
+upload_unified.php (form) → upload.php (duplicate code) ❌
+AllSubscriberImporter.php (library) → NOT USED ❌
+```
+
+**Target Architecture:**
+```
+upload_unified.php (form) → upload.php (thin wrapper)
+                                ↓
+                        AllSubscriberImporter.php (single source) ✅
+```
+
+**Solution:**
+1. ✅ Quick fix applied: Manually patched `upload.php` with date fix
+2. ⏳ Refactor `upload.php` to use `AllSubscriberImporter.php`
+3. ⏳ Remove ALL duplicate backfill logic from `upload.php`
+4. ⏳ Add integration tests to prevent future divergence
+5. ⏳ Document upload architecture in KNOWLEDGE-BASE.md
+
+**Benefits:**
+- Single source of truth for upload logic
+- Bug fixes only need to be made once
+- Easier maintenance and feature additions
+- Prevents future divergence issues
+
+**Files Affected:**
+- `web/upload.php` (needs refactoring)
+- `web/lib/AllSubscriberImporter.php` (already correct)
+- `web/upload_unified.php` (form - may need updates)
+
+**Blockers:**
+- Must test quick fix works before refactoring
+- Need comprehensive test coverage before major refactor
+
+**References:**
+- Bug: Nov 24 upload failed even after library fix
+- Root cause: Divergent code paths
+- Quick fix: Manually patched upload.php line 490
+
+---
+
+### 2. Unit Test Infrastructure
 
 **Status:** Not Started
 **Priority:** High

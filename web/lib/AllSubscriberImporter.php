@@ -382,13 +382,27 @@ class AllSubscriberImporter
                 $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($existing && $existing['source_date']) {
-                    if ($weeks_back == 0) {
-                        // Always allow replacing the primary upload week, regardless of source_date
-                        error_log("♻️ Replacing upload week $current_week, $current_year (old source: {$existing['source_date']}, new source: $file_date)");
+                    // Check if existing data is REAL (not backfilled)
+                    $is_real_data = ($existing['is_backfilled'] == 0);
+
+                    if ($is_real_data) {
+                        // Existing data is REAL - respect it and stop backfilling
+                        if ($weeks_back == 0) {
+                            // Upload week: only replace if new file is newer
+                            if ($existing['source_date'] < $file_date) {
+                                error_log("♻️ Replacing upload week $current_week, $current_year with newer data (old: {$existing['source_date']}, new: $file_date)");
+                            } else {
+                                throw new Exception("Cannot replace real data from {$existing['source_date']} with older file from $file_date");
+                            }
+                        } else {
+                            // Backfill week: stop when hitting real data
+                            error_log("🛑 Backfill stopped at Week $current_week, $current_year (has REAL data from {$existing['source_date']})");
+                            break;
+                        }
                     } else {
-                        // For backfill weeks, stop at existing data
-                        error_log("🛑 Backfill stopped at Week $current_week, $current_year (has data from {$existing['source_date']})");
-                        break;
+                        // Existing data is BACKFILLED - can be replaced with real data
+                        error_log("♻️ Replacing BACKFILLED data at Week $current_week, $current_year (old: {$existing['source_date']}, new: $file_date)");
+                        // Continue processing - don't break
                     }
                 }
 

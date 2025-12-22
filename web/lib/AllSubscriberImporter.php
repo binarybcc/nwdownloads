@@ -64,11 +64,22 @@ class AllSubscriberImporter
      */
     public function import(string $filepath, string $filename): array
     {
+        // Debug logging
+        $debug_log = __DIR__ . '/../upload-debug.log';
+        $debug = function($msg) use ($debug_log) {
+            file_put_contents($debug_log, date('Y-m-d H:i:s') . " - $msg\n", FILE_APPEND);
+        };
+        $debug("=== IMPORT START ===");
+        $debug("File: $filename");
+        $debug("Path: $filepath");
+
         // Step 1: Save raw CSV to raw_uploads table (source of truth)
         $raw_csv_data = file_get_contents($filepath);
         if ($raw_csv_data === false) {
+            $debug("ERROR: Could not read uploaded file");
             throw new Exception('Could not read uploaded file');
         }
+        $debug("File read successfully, size: " . strlen($raw_csv_data) . " bytes");
 
         $file_size = filesize($filepath);
         $file_hash = hash('sha256', $raw_csv_data);
@@ -182,15 +193,18 @@ class AllSubscriberImporter
 
         // Extract snapshot_date from filename (source of truth)
         $file_date = $this->extractSnapshotDateFromFilename($filename);
+        $debug("Extracted file date: $file_date");
 
         // Subtract 7 days to get the week the data actually represents
         $dt = new DateTime($file_date);
         $dt->modify('-7 days');
         $snapshot_date = $dt->format('Y-m-d');
+        $debug("Adjusted snapshot date (-7 days): $snapshot_date");
 
         // Calculate week number and year from adjusted date using ISO 8601
         $week_num = (int)$dt->format('W');  // ISO week number (1-53)
         $year = (int)$dt->format('o');      // ISO year
+        $debug("Calculated week: $week_num, year: $year");
 
         $row_num = $header_line;
 

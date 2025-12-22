@@ -283,15 +283,15 @@ Upload Week 49 (Dec 8):
 ### Backfill Minimum Date
 
 **Current:** November 17, 2025 (start of Week 47)
-**Location:** `AllSubscriberImporter.php` line 354
+**Location:** `AllSubscriberImporter.php` class constant `MIN_BACKFILL_DATE`
 
 ```php
-$min_backfill_date = '2025-11-17';  // Start of Week 47
+private const MIN_BACKFILL_DATE = '2025-11-17';
 ```
 
 **Why Nov 17:** Files subtract 7 days for "data represents previous week" logic (line 179). The first real CSV upload (`AllSubscriberReport20251124161207.csv` dated Nov 24) becomes Nov 17 after the -7 day adjustment, which is Week 47. Setting the minimum to Nov 17 allows all historical uploads starting from Nov 24 to work correctly.
 
-**To change:** Edit this value in `AllSubscriberImporter.php` and redeploy
+**To change:** Edit the `MIN_BACKFILL_DATE` constant in `AllSubscriberImporter.php` and redeploy
 
 ### Warning Threshold
 

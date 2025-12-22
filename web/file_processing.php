@@ -10,16 +10,33 @@ require_once 'version.php';
 require_once __DIR__ . '/notifications/DashboardNotifier.php';
 
 // Database connection
+// Auto-detect production vs development
+$isProduction = file_exists('/run/mysqld/mysqld10.sock');
+
 try {
-    $pdo = new PDO(
-        'mysql:host=database;port=3306;dbname=circulation_dashboard;charset=utf8mb4',
-        getenv('DB_USER') ?: 'circ_dash',
-        getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!',
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]
-    );
+    if ($isProduction) {
+        // Production: Native Synology MariaDB via Unix socket
+        $pdo = new PDO(
+            'mysql:unix_socket=/run/mysqld/mysqld10.sock;dbname=circulation_dashboard;charset=utf8mb4',
+            'root',
+            'P@ta675N0id',
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ]
+        );
+    } else {
+        // Development: Docker container
+        $pdo = new PDO(
+            'mysql:host=database;port=3306;dbname=circulation_dashboard;charset=utf8mb4',
+            getenv('DB_USER') ?: 'circ_dash',
+            getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!',
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ]
+        );
+    }
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }

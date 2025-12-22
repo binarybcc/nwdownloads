@@ -361,6 +361,12 @@ class AllSubscriberImporter
             $min_backfill_week = $min_backfill_week_year['week'];
             $min_backfill_year = $min_backfill_week_year['year'];
 
+            error_log("📊 Upload Debug - File: $filename");
+            error_log("📅 File date: $file_date");
+            error_log("📅 Snapshot date (after -7 days): $snapshot_date");
+            error_log("📅 Upload week: $week_num, Year: $year");
+            error_log("📅 Minimum backfill: Week $min_backfill_week, Year $min_backfill_year");
+
             // Find which weeks need to be filled/replaced
             $weeks_to_process = [];
 
@@ -370,12 +376,15 @@ class AllSubscriberImporter
             $weeks_back = 0;
 
             while (true) {
+                error_log("🔄 Loop iteration - Week $current_week, Year $current_year, Weeks back: $weeks_back");
+
                 // Check if we've reached the minimum date
                 if (
                     $current_year < $min_backfill_year ||
                     ($current_year == $min_backfill_year && $current_week < $min_backfill_week)
                 ) {
                     error_log("🛑 Backfill stopped at minimum date (Nov 17, 2025 - Week 47)");
+                    error_log("   Current: Week $current_week, $current_year | Minimum: Week $min_backfill_week, $min_backfill_year");
                     break;
                 }
 
@@ -433,6 +442,11 @@ class AllSubscriberImporter
 
             // Reverse so we process oldest to newest
             $weeks_to_process = array_reverse($weeks_to_process);
+
+            error_log("📋 Total weeks to process: " . count($weeks_to_process));
+            if (!empty($weeks_to_process)) {
+                error_log("📋 Weeks: " . json_encode(array_column($weeks_to_process, 'week')));
+            }
 
             if (empty($weeks_to_process)) {
                 throw new Exception('No weeks to process - all data is from newer uploads');

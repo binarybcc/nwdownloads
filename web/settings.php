@@ -108,6 +108,32 @@ require_once 'version.php';
                 </div>
             </a>
 
+            <!-- File Processing Card -->
+            <a href="file_processing.php" class="settings-card bg-white rounded-lg shadow-md p-6 cursor-pointer border-2 border-transparent hover:border-purple-200">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">File Processing</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Configure automated file processing notifications and view processing history logs.
+                </p>
+                <div class="flex items-center gap-2 text-xs text-purple-600 font-medium">
+                    <span>View Processing Settings</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                    </svg>
+                </div>
+            </a>
+
             <!-- Cache Management Card -->
             <div id="cacheManagementCard" class="settings-card bg-white rounded-lg shadow-md p-6 cursor-pointer border-2 border-transparent hover:border-green-200">
                 <div class="flex items-start justify-between mb-4">

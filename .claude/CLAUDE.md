@@ -1,5 +1,52 @@
 # NWDownloads Project - Circulation Dashboard
 
+## 📦 Version & Engineering Standards
+
+**Current Version:** v2.0.0
+**Version Location:** `package.json`
+**Changelog:** `CHANGELOG.md` (root)
+
+### Versioning Protocol (MANDATORY)
+
+This project follows **Semantic Versioning (SemVer)**:
+- PATCH (2.0.x): Bug fixes, typos
+- MINOR (2.x.0): New features, backwards compatible
+- MAJOR (x.0.0): Breaking changes
+
+**After ANY code changes, Claude MUST:**
+1. Update version in `package.json`
+2. Update `CHANGELOG.md` with changes under appropriate section
+3. Create git tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z: description"`
+
+### Commit Message Format (MANDATORY)
+
+All commits use **Conventional Commits**:
+```
+<type>(<scope>): <description>
+
+feat(upload): add vacation file support
+fix(api): correct date timezone handling
+docs(readme): update deployment instructions
+refactor(db): optimize snapshot queries
+```
+
+**Types:** feat, fix, docs, style, refactor, test, chore, perf, security
+
+### Branch Strategy
+
+- `master` - Production-ready code
+- `feature/*` - New features
+- `fix/*` - Bug fixes
+- `hotfix/*` - Urgent production fixes
+
+### Code Conventions
+
+- **PHP:** snake_case for variables/functions, PascalCase for classes
+- **JavaScript:** camelCase for variables/functions
+- **Files:** kebab-case for web assets, snake_case for PHP
+
+---
+
 ## 🚨 CRITICAL: PRODUCTION IS NOT DOCKER 🚨
 
 # ⛔ PRODUCTION DOES NOT USE DOCKER ⛔

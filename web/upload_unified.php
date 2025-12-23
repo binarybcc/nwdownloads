@@ -72,12 +72,13 @@ require_once 'auth_check.php';
                     >
                         🏖️ Vacations
                     </button>
-                    <!-- Future tabs can be added here -->
-                    <!--
-                    <button class="tab-button" data-tab="rates" onclick="switchTab('rates')">
-                        💵 Rates
+                    <button
+                        class="tab-button"
+                        data-tab="renewals"
+                        onclick="switchTab('renewals')"
+                    >
+                        📊 Renewal Churns
                     </button>
-                    -->
                 </div>
 
                 <!-- Tab Content -->
@@ -219,6 +220,74 @@ require_once 'auth_check.php';
                             </div>
                         </div>
                     </div>
+
+                    <!-- Renewal Churns Tab -->
+                    <div id="renewals-tab" class="tab-content">
+                        <h2 class="text-xl font-semibold mb-4">Upload Renewal Churn Data</h2>
+
+                        <form id="renewalsForm" class="space-y-4">
+                            <!-- Renewal Churn CSV File -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    📊 Renewal Churn Report CSV (required)
+                                </label>
+                                <input type="file"
+                                       name="renewal_csv"
+                                       id="renewalsFileInput"
+                                       accept=".csv"
+                                       required
+                                       class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none p-2">
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Format: Renewal Churn Report by Issue from Newzware
+                                </p>
+                                <p id="renewalsFileInfo" class="text-xs text-blue-600 mt-1 hidden"></p>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="pt-4">
+                                <button type="submit" id="renewalsUploadBtn"
+                                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200">
+                                    🚀 Upload and Process Renewal Churn Data
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Progress/Results -->
+                        <div id="renewalsProgress" class="mt-6 hidden">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div class="flex items-center">
+                                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+                                    <span class="text-blue-800 font-medium" id="renewalsProgressText">Processing file...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="renewalsResult" class="mt-6 hidden">
+                            <!-- Success/error message will appear here -->
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <h3 class="text-lg font-semibold mb-3">📋 How to Upload Renewal Churn Data</h3>
+                            <ol class="list-decimal list-inside space-y-2 text-gray-700 text-sm">
+                                <li>Run "Renewal Churn Report by Issue" query in Newzware</li>
+                                <li>Export results as CSV file</li>
+                                <li>Click "Choose File" above and select the CSV file</li>
+                                <li>Click "Upload and Process Renewal Churn Data"</li>
+                                <li>Review the import summary showing events and daily summaries</li>
+                            </ol>
+
+                            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+                                <p class="text-blue-800 font-semibold mb-1">📊 Renewal Churn Tracking:</p>
+                                <ul class="text-blue-700 space-y-1 list-disc list-inside text-xs">
+                                    <li>Tracks subscription renewal and churn events by publication</li>
+                                    <li>Categorizes events by subscription type (REGULAR, MONTHLY, etc.)</li>
+                                    <li>Generates daily summaries for trend analysis</li>
+                                    <li>Links to churn dashboard for detailed analytics</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -226,6 +295,13 @@ require_once 'auth_check.php';
 
     <script>
         // Tab switching functionality
+        // Check for hash in URL and switch to that tab on page load
+        window.addEventListener("DOMContentLoaded", function() {
+            const hash = window.location.hash.substring(1);
+            if (hash && ["subscribers", "vacations", "renewals"].includes(hash)) {
+                switchTab(hash);
+            }
+        });
         function switchTab(tabName) {
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
@@ -442,6 +518,62 @@ require_once 'auth_check.php';
             } finally {
                 vacationsUploadBtn.disabled = false;
                 vacationsUploadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+
+        // ============================================
+        // RENEWAL CHURNS UPLOAD FUNCTIONALITY
+        // ============================================
+        const renewalsForm = document.getElementById("renewalsForm");
+        const renewalsUploadBtn = document.getElementById("renewalsUploadBtn");
+        const renewalsFileInput = document.getElementById("renewalsFileInput");
+        const renewalsFileInfo = document.getElementById("renewalsFileInfo");
+        const renewalsProgress = document.getElementById("renewalsProgress");
+        const renewalsProgressText = document.getElementById("renewalsProgressText");
+        const renewalsResult = document.getElementById("renewalsResult");
+
+        renewalsFileInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+                renewalsFileInfo.textContent = "Selected: " + file.name + " (" + sizeMB + " MB)";
+                renewalsFileInfo.classList.remove("hidden");
+            }
+        });
+
+        renewalsForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            renewalsProgress.classList.remove("hidden");
+            renewalsResult.classList.add("hidden");
+            renewalsUploadBtn.disabled = true;
+
+            try {
+                const formData = new FormData(renewalsForm);
+                const response = await fetch("upload_renewals.php", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+                renewalsProgress.classList.add("hidden");
+
+                if (data.success) {
+                    const msg = "Imported: " + data.events_imported + " events, " + data.summaries_imported + " summaries";
+                    renewalsResult.textContent = "✅ " + msg;
+                    renewalsResult.className = "mt-6 p-4 bg-green-50 border border-green-200 rounded text-green-800";
+                    renewalsForm.reset();
+                    renewalsFileInfo.classList.add("hidden");
+                } else {
+                    renewalsResult.textContent = "❌ Error: " + (data.error || "Unknown error");
+                    renewalsResult.className = "mt-6 p-4 bg-red-50 border border-red-200 rounded text-red-800";
+                }
+                renewalsResult.classList.remove("hidden");
+            } catch (error) {
+                renewalsProgress.classList.add("hidden");
+                renewalsResult.textContent = "❌ Upload failed: " + error.message;
+                renewalsResult.className = "mt-6 p-4 bg-red-50 border border-red-200 rounded text-red-800";
+                renewalsResult.classList.remove("hidden");
+            } finally {
+                renewalsUploadBtn.disabled = false;
             }
         });
     </script>

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Backup Status API
  *
@@ -35,7 +36,8 @@ define('LOG_DIR', BACKUP_BASE . '/logs');
  * Get disk space information (in GB)
  * Uses native PHP function - no shell execution
  */
-function getDiskSpace() {
+function getDiskSpace()
+{
     $free_space = disk_free_space('/volume1');
     if ($free_space !== false) {
         return round($free_space / 1024 / 1024 / 1024, 2); // Convert to GB
@@ -46,7 +48,8 @@ function getDiskSpace() {
 /**
  * Get backup schedule information
  */
-function getNextBackupTime() {
+function getNextBackupTime()
+{
     // Schedule: Sun 23:30, Wed 00:30, Fri 00:30
     $now = time();
     $schedules = [
@@ -74,7 +77,8 @@ function getNextBackupTime() {
 /**
  * Get information about a specific backup
  */
-function getBackupInfo($backup_num) {
+function getBackupInfo($backup_num)
+{
     $backup_dir = BACKUP_BASE . "/backup-{$backup_num}";
 
     if (!is_dir($backup_dir)) {
@@ -117,7 +121,8 @@ function getBackupInfo($backup_num) {
 /**
  * Format bytes to human-readable size
  */
-function formatBytes($bytes) {
+function formatBytes($bytes)
+{
     $units = ['B', 'KB', 'MB', 'GB'];
     $bytes = max($bytes, 0);
     $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
@@ -129,27 +134,37 @@ function formatBytes($bytes) {
 /**
  * Get time ago string
  */
-function getTimeAgo($timestamp) {
+function getTimeAgo($timestamp)
+{
     $diff = time() - $timestamp;
 
-    if ($diff < 60) return 'Just now';
-    if ($diff < 3600) return floor($diff / 60) . ' minutes ago';
-    if ($diff < 86400) return floor($diff / 3600) . ' hours ago';
-    if ($diff < 604800) return floor($diff / 86400) . ' days ago';
+    if ($diff < 60) {
+        return 'Just now';
+    }
+    if ($diff < 3600) {
+        return floor($diff / 60) . ' minutes ago';
+    }
+    if ($diff < 86400) {
+        return floor($diff / 3600) . ' hours ago';
+    }
+    if ($diff < 604800) {
+        return floor($diff / 86400) . ' days ago';
+    }
     return floor($diff / 604800) . ' weeks ago';
 }
 
 /**
  * Get recent backup logs
  */
-function getRecentLogs($limit = 10) {
+function getRecentLogs($limit = 10)
+{
     $log_files = glob(LOG_DIR . '/backup-*.log');
     if (!$log_files) {
         return [];
     }
 
     // Sort by modification time (newest first)
-    usort($log_files, function($a, $b) {
+    usort($log_files, function ($a, $b) {
         return filemtime($b) - filemtime($a);
     });
 
@@ -200,7 +215,6 @@ try {
     }
 
     echo json_encode($response, JSON_PRETTY_PRINT);
-
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([

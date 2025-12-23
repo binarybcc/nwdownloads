@@ -105,5 +105,10 @@ cleanup-*.log
 
 # Safety backups
 backup-*/
+backups/
+
+# Linter/analyzer reports (regeneratable)
+*-report.txt
+*-report.md
 
 .worktrees/

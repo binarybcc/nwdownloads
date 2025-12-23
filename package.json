@@ -9,7 +9,12 @@
     "prepare": "husky",
     "lint": "eslint web/assets/**/*.js",
     "lint:fix": "eslint web/assets/**/*.js --fix",
-    "format": "prettier --write web/assets/**/*.js"
+    "format": "prettier --write web/assets/**/*.js",
+    "release": "standard-version",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major",
+    "release:patch": "standard-version --release-as patch",
+    "release:dry-run": "standard-version --dry-run"
   },
   "lint-staged": {
     "web/assets/**/*.js": [
@@ -29,6 +34,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.7.4",
+    "standard-version": "^9.5.0",
     "tailwindcss": "^3.4.0"
   }
 }

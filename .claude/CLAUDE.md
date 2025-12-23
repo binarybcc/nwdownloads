@@ -6,14 +6,42 @@
 **Version Location:** `package.json`
 **Changelog:** `CHANGELOG.md` (root)
 
-### Versioning Protocol (MANDATORY)
+### Versioning Protocol (AUTOMATED)
 
 This project follows **Semantic Versioning (SemVer)**:
-- PATCH (2.0.x): Bug fixes, typos
+
+- PATCH (2.0.x): Bug fixes, typos, security patches
 - MINOR (2.x.0): New features, backwards compatible
 - MAJOR (x.0.0): Breaking changes
 
-**After ANY code changes, Claude MUST:**
+**Automated Release Process** (using `standard-version`):
+
+```bash
+# Automatic version bump based on commits since last release
+npm run release              # Auto-detects: feat=MINOR, fix=PATCH
+npm run release:patch        # Force PATCH (bug fixes)
+npm run release:minor        # Force MINOR (new features)
+npm run release:major        # Force MAJOR (breaking changes)
+npm run release:dry-run      # Preview without making changes
+```
+
+**What `standard-version` does automatically:**
+
+1. ✅ Analyzes conventional commits since last release
+2. ✅ Determines appropriate version bump (MAJOR/MINOR/PATCH)
+3. ✅ Updates `package.json` version
+4. ✅ Generates/updates `CHANGELOG.md` with grouped changes
+5. ✅ Creates git commit: `chore(release): vX.Y.Z`
+6. ✅ Creates git tag: `vX.Y.Z`
+
+**Then push the release:**
+
+```bash
+git push --follow-tags origin master
+```
+
+**Manual override** (only if `standard-version` fails):
+
 1. Update version in `package.json`
 2. Update `CHANGELOG.md` with changes under appropriate section
 3. Create git tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z: description"`
@@ -21,6 +49,7 @@ This project follows **Semantic Versioning (SemVer)**:
 ### Commit Message Format (MANDATORY)
 
 All commits use **Conventional Commits**:
+
 ```
 <type>(<scope>): <description>
 
@@ -50,10 +79,13 @@ refactor(db): optimize snapshot queries
 ## 🚨 CRITICAL: PRODUCTION IS NOT DOCKER 🚨
 
 # ⛔ PRODUCTION DOES NOT USE DOCKER ⛔
+
 # ⛔ PRODUCTION DOES NOT USE DOCKER ⛔
+
 # ⛔ PRODUCTION DOES NOT USE DOCKER ⛔
 
 **PRODUCTION ENVIRONMENT:**
+
 - **Native Synology Apache + PHP + MariaDB**
 - **NO Docker containers**
 - **NO docker-compose**
@@ -61,6 +93,7 @@ refactor(db): optimize snapshot queries
 - **Deployment via file copy ONLY**
 
 **DEVELOPMENT ENVIRONMENT:**
+
 - Uses Docker for local testing
 - Runs at http://localhost:8081
 
@@ -69,11 +102,13 @@ refactor(db): optimize snapshot queries
 ---
 
 ## Project Overview
+
 Newspaper circulation dashboard for tracking subscriber metrics across multiple business units and publications.
 
 ## 📚 Documentation Reference
 
 **Primary Documentation** (Updated December 10, 2025):
+
 - `/docs/DESIGN-SYSTEM.md` - **Component library and UI patterns** (READ FIRST when working on UI!)
   - Metric card grid layouts
   - Standard metric card pattern
@@ -93,9 +128,11 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 - `/docs/cost_analysis.md` - Real-world development cost analysis & ROI
 
 **Recent Deployment Documentation:**
+
 - `/docs/DEPLOYMENT-2025-12-07.md` - Multi-platform builds + setTimeout fix deployment
 
 **Archived Documentation:**
+
 - `/docs/ARCHIVE/` - Historical files including:
   - Superseded JSON knowledge base files (architecture.json, knowledge-base.json, etc.)
   - Legacy markdown documentation (33+ files)
@@ -107,9 +144,11 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 **This project is developed across multiple computers with different file paths.**
 
 **Primary Workstation (johncorbin):**
+
 - Path: `/Users/johncorbin/Desktop/projs/nwdownloads/`
 
 **Secondary Workstation (user):**
+
 - Path: `/Users/user/Development/work/_active/nwdownloads/`
 
 **In all documentation below, `$PROJECT_ROOT` refers to your local project directory.**
@@ -140,6 +179,7 @@ direnv allow
 ```
 
 **How it works:**
+
 - When you `cd` into the project, direnv automatically runs `.envrc`
 - `.envrc` sets `PROJECT_ROOT=$(pwd)` - automatically adapts to each computer
 - When you leave the directory, variables are unset automatically
@@ -169,11 +209,13 @@ source .env.credentials && echo "SSH Host: $SSH_HOST"
 ### Credential File Locations:
 
 **For Deployment Scripts** (Project-Specific):
+
 - Template: `.env.credentials.example` (committed to git)
 - Your copy: `.env.credentials` (gitignored, contains real credentials)
 - Usage: `source .env.credentials` before running commands
 
 **For Reference** (Global, Human-Readable):
+
 - Location: `~/docs/CREDENTIALS.md`
 - **CONFIDENTIAL** - Complete credential reference
 - Never committed to git
@@ -182,6 +224,7 @@ source .env.credentials && echo "SSH Host: $SSH_HOST"
 ### Error Handling:
 
 **If commands fail with "command not found" or empty variables:**
+
 ```bash
 # Check if credential file exists
 ls -la .env.credentials
@@ -206,6 +249,7 @@ cat .env.credentials | grep -v "^#" | grep "="
 4. **Follow the 3-attempt rule** - If it takes more than 3 attempts, you didn't read the docs
 
 **Key files to check BEFORE executing:**
+
 - `.env.credentials` - **MUST be sourced first:** `source .env.credentials`
 - `~/docs/CREDENTIALS.md` - Complete credential reference (SSH, DB, Docker Hub)
 - `/docs/KNOWLEDGE-BASE.md` - System reference (deployment, configuration)
@@ -213,6 +257,7 @@ cat .env.credentials | grep -v "^#" | grep "="
 - `.claude/CLAUDE.md` - This file (quick reference and protocols)
 
 **Critical production details:**
+
 - Production uses **native Synology services** (NOT Docker)
 - Database: MariaDB 10 via Unix socket (path in `$PROD_DB_SOCKET`)
 - Credentials: Stored in `.env.credentials` (must source before use)
@@ -220,6 +265,7 @@ cat .env.credentials | grep -v "^#" | grep "="
 - Deployment: Git clone at `/volume1/homes/it/circulation-deploy` → rsync to production
 
 **If you see Claude:**
+
 - Trying multiple connection attempts (3+)
 - Guessing at hostnames or credentials
 - Getting "connection refused" or "access denied" repeatedly
@@ -228,6 +274,7 @@ cat .env.credentials | grep -v "^#" | grep "="
 ## Environment Naming Convention
 
 **PRODUCTION**: Synology NAS deployment
+
 - **Location**: `/volume1/web/circulation/` on Synology NAS (192.168.1.254)
 - **Access URL**: `https://cdash.upstatetoday.com`
 - **Purpose**: Live, stable deployment for actual use
@@ -238,6 +285,7 @@ cat .env.credentials | grep -v "^#" | grep "="
 - **Deployment Script**: `/volume1/homes/it/deploy-circulation.sh`
 
 **DEVELOPMENT**: OrbStack/Local deployment
+
 - **Location**: `$PROJECT_ROOT` (see Multi-Workstation Setup above for your specific path)
 - **Access URL**: `http://localhost:8081/`
 - **Purpose**: Testing, development, and experimentation
@@ -255,17 +303,20 @@ cat .env.credentials | grep -v "^#" | grep "="
 ### Why Pull Requests?
 
 **Safety:**
+
 - ✅ Code review before deployment
 - ✅ Catch bugs before Production
 - ✅ Test in Development environment first
 - ✅ Easy rollback if issues occur
 
 **Documentation:**
+
 - ✅ Clear history of what changed and why
 - ✅ Discussion and decisions preserved
 - ✅ PR descriptions explain context
 
 **Quality:**
+
 - ✅ `@claude` can review code automatically
 - ✅ Automated tests can run
 - ✅ Team collaboration and feedback
@@ -273,6 +324,7 @@ cat .env.credentials | grep -v "^#" | grep "="
 ### The Proper Workflow (For Every Feature/Fix):
 
 **Step 1: Start with a Feature Branch**
+
 ```bash
 # BEFORE making ANY changes
 git checkout master
@@ -285,12 +337,14 @@ git checkout -b fix/dashboard-loading-error
 ```
 
 **Branch Naming Convention:**
+
 - `feature/description` - New functionality
 - `fix/description` - Bug fixes
 - `refactor/description` - Code improvements
 - `docs/description` - Documentation updates
 
 **Step 2: Make Changes and Commit**
+
 ```bash
 # Make your changes to files
 # Test locally in Development environment
@@ -305,6 +359,7 @@ git commit -m "Add weekly trend comparison chart
 ```
 
 **Commit Message Format:**
+
 ```
 Short summary (50 chars or less)
 
@@ -315,11 +370,13 @@ Detailed explanation:
 ```
 
 **Step 3: Push Branch to GitHub**
+
 ```bash
 git push -u origin feature/add-weekly-trends
 ```
 
 **Step 4: Create Pull Request**
+
 ```bash
 gh pr create \
   --title "Add weekly trend comparison chart" \
@@ -350,6 +407,7 @@ Adds a new chart showing week-over-week subscriber trends by business unit.
 ```
 
 **Step 5: Review with Claude**
+
 ```bash
 # In GitHub, add comment to PR:
 @claude review this code for:
@@ -360,6 +418,7 @@ Adds a new chart showing week-over-week subscriber trends by business unit.
 ```
 
 **Step 6: Test on Development**
+
 ```bash
 # Switch to your branch
 git checkout feature/add-weekly-trends
@@ -370,6 +429,7 @@ docker compose up -d
 ```
 
 **Step 7: Merge When Ready**
+
 ```bash
 # Option A: Via CLI
 gh pr merge --squash  # Squashes commits into one
@@ -379,6 +439,7 @@ gh pr merge --squash  # Squashes commits into one
 ```
 
 **Step 8: Clean Up**
+
 ```bash
 # Switch back to master
 git checkout master
@@ -394,28 +455,33 @@ git push origin --delete feature/add-weekly-trends
 ### Quick Reference Commands:
 
 **Start New Work:**
+
 ```bash
 git checkout master && git pull && git checkout -b feature/my-feature
 ```
 
 **Create PR:**
+
 ```bash
 git push -u origin $(git branch --show-current)
 gh pr create --title "Title" --body "Description"
 ```
 
 **Review PR:**
+
 ```bash
 gh pr view --web  # Opens in browser
 gh pr checks      # Show status checks
 ```
 
 **Merge PR:**
+
 ```bash
 gh pr merge --squash
 ```
 
 **Clean Up:**
+
 ```bash
 git checkout master && git pull && git branch -d feature/my-feature
 ```
@@ -423,6 +489,7 @@ git checkout master && git pull && git branch -d feature/my-feature
 ### Common Scenarios:
 
 **Small Bug Fix:**
+
 ```bash
 git checkout -b fix/typo-in-upload-form
 # Fix the typo
@@ -435,6 +502,7 @@ git checkout master && git pull
 ```
 
 **Large Feature:**
+
 ```bash
 git checkout -b feature/subscriber-alerts
 # Work on feature over several commits
@@ -449,6 +517,7 @@ gh pr create --title "Add subscriber alert system" --body "[detailed description
 ```
 
 **Emergency Production Fix:**
+
 ```bash
 git checkout -b hotfix/database-connection-error
 # Fix the critical issue
@@ -464,6 +533,7 @@ gh pr merge --squash
 ### What NOT to Do:
 
 **❌ WRONG - Direct to Master:**
+
 ```bash
 git checkout master
 git add .
@@ -472,6 +542,7 @@ git push origin master  # NEVER DO THIS!
 ```
 
 **❌ WRONG - No Testing:**
+
 ```bash
 git push origin feature/untested-feature
 gh pr create
@@ -479,11 +550,13 @@ gh pr merge  # Without testing!
 ```
 
 **❌ WRONG - Vague PR Description:**
+
 ```bash
 gh pr create --title "Changes" --body "Updated stuff"
 ```
 
 **✅ RIGHT - Proper Workflow:**
+
 ```bash
 git checkout -b feature/descriptive-name
 # Make changes
@@ -510,11 +583,13 @@ gh pr merge --squash
 **Claude will ask: "Should I create a PR for review, or merge directly?"**
 
 **If you say "merge" - Claude will:**
+
 1. Create PR
 2. Merge immediately
 3. Clean up branch
 
 **If you say "review" - Claude will:**
+
 1. Create PR
 2. Wait for your approval
 3. Then merge and clean up
@@ -522,6 +597,7 @@ gh pr merge --squash
 ### Integration with Deployment Workflow
 
 **Full Development → Production Flow:**
+
 1. Create feature branch
 2. Make changes in Development environment
 3. Test thoroughly locally (http://localhost:8081)
@@ -540,6 +616,7 @@ gh pr merge --squash
 **URL**: https://github.com/binarybcc/nwdownloads
 
 **Production Deployment Architecture:**
+
 - Native Synology Web Station (NO Docker)
 - Git clone at: `/volume1/homes/it/circulation-deploy`
 - Production directory: `/volume1/web/circulation/`
@@ -547,18 +624,21 @@ gh pr merge --squash
 - SSH deploy key: `~/.ssh/github_circulation_deploy` (read-only)
 
 **Development Environment** (`docker-compose.yml`):
+
 - Uses **volume mounts** for live code editing
 - Changes to `./web/` directory reflect immediately in browser
 - No rebuilding required - fast iteration
 - Database: Docker container
 
 **Production Environment:**
+
 - Native Synology services (Apache + PHP 8.2 + MariaDB 10)
 - Files served from `/volume1/web/circulation/`
 - Database via Unix socket: `/run/mysqld/mysqld10.sock`
 - Web Service Portal: `https://cdash.upstatetoday.com`
 
 **Development → Production Flow:**
+
 1. Make changes in Development environment (with volume mounts)
 2. Test thoroughly locally at http://localhost:8081/
 3. Create PR and merge to master on GitHub
@@ -567,6 +647,7 @@ gh pr merge --squash
 6. Verify Production deployment at https://cdash.upstatetoday.com
 
 **Deployment Script Details:**
+
 ```bash
 # Location: /volume1/homes/it/deploy-circulation.sh
 # What it does:
@@ -577,12 +658,14 @@ gh pr merge --squash
 ```
 
 **Critical Rules:**
+
 - **GitHub is the single source of truth** - never push from NAS
 - **Never make changes directly in Production** - always test in Development first
 - **Deploy via deployment script only** - preserves production configuration
 - **Production-specific files** (`.htaccess`, `.build_number`) are never overwritten
 
 **SSH Deploy Key Setup:**
+
 - Public key added to GitHub as read-only deploy key
 - Private key: `/volume1/homes/it/.ssh/github_circulation_deploy`
 - SSH config at: `~/.ssh/config` (uses deploy key for github.com)
@@ -592,12 +675,14 @@ gh pr merge --squash
 ## Key Technical Notes
 
 ### Synology-Specific Considerations:
+
 - `.env` files may not be read properly by Docker Compose (hardcode values in `docker-compose.yml`)
 - Use `sudo` for all Docker commands via SSH
 - SSH credentials stored in approved Bash commands
 - SCP/SFTP disabled - use SSH cat method for file transfers
 
 ### Database Connection:
+
 - **Development**: Uses hostname `db` (Docker DNS works on OrbStack)
   - Credentials: `circ_dash` / `Barnaby358@Jones!`
 - **Production**: Uses Unix socket `/run/mysqld/mysqld10.sock` (native Synology MariaDB 10)
@@ -608,6 +693,7 @@ gh pr merge --squash
 ## Production Management Commands
 
 ### Production (Native Synology Services):
+
 ```bash
 # SSH into NAS
 sshpass -p 'Mojave48ice' ssh it@192.168.1.254
@@ -640,6 +726,7 @@ git log --oneline -10
 ```
 
 ### Development (Docker, local):
+
 ```bash
 # Navigate to project
 cd $PROJECT_ROOT
@@ -655,15 +742,18 @@ docker compose up -d
 ## Publications Tracked
 
 ### Wyoming (Business Unit: Wyoming)
+
 - **TJ** (The Journal) - Print: Wed/Sat, Digital: Tue-Sat
 - **TR** (The Ranger) - Print: Wed/Sat, Digital: Wed/Sat
 - **LJ** (The Lander Journal) - Print: Wed/Sat, Digital: Wed/Sat
 - **WRN** (Wind River News) - Print: Thu, Digital: Thu
 
 ### Michigan (Business Unit: Michigan)
+
 - **TA** (The Advertiser) - Print: Wed only, no digital
 
 ### South Carolina (Business Unit: South Carolina)
+
 - **TJ** (The Journal) - Print: Wed/Sat, Digital: Tue-Sat
 
 **Note**: FN (Former News) represents sold/discontinued publications
@@ -671,6 +761,7 @@ docker compose up -d
 ## Data Notes
 
 ### Recent Data Cleanup (Dec 2, 2025)
+
 - Deleted all pre-2025 data due to rate system change in January 2025
 - Old subscription rates retired, making 2024 data incomplete/inaccurate
 - Current data range: Jan 4, 2025 onwards (250 records)
@@ -678,6 +769,7 @@ docker compose up -d
 - See: `/docs/KNOWLEDGE-BASE.md` (Data State section) for details
 
 ### Database Schema
+
 - `daily_snapshots` - Daily circulation metrics by paper/business unit
 - `publication_schedule` - Print/digital publication days by paper
 
@@ -714,9 +806,11 @@ docker compose up -d
 - This has been the standard for 2+ weeks - do not regress!
 
 ### Overview
+
 The dashboard uses an **UPSERT** (Update or Insert) system for importing weekly circulation data from Newzware's "All Subscriber Report".
 
 **How UPSERT Works:**
+
 - **New snapshots**: Automatically inserted into database
 - **Existing snapshots**: Updated with latest subscriber counts
 - **Date filter**: Only imports data from January 1, 2025 onwards
@@ -725,6 +819,7 @@ The dashboard uses an **UPSERT** (Update or Insert) system for importing weekly 
 ### Step-by-Step Upload Process
 
 **1. Export Data from Newzware**
+
 - Run "All Subscriber Report" query in Newzware Ad-Hoc Query Builder
 - Export results as CSV
 - File saves as: `AllSubscriberReportYYYYMMDDHHMMSS.csv` (e.g., `AllSubscriberReport20251202135758.csv`)
@@ -732,6 +827,7 @@ The dashboard uses an **UPSERT** (Update or Insert) system for importing weekly 
 **2. Upload to Dashboard**
 
 **Development:**
+
 ```
 1. Open: http://localhost:8081/upload_unified.php
 2. Select file type (Subscribers or Vacations tab)
@@ -746,6 +842,7 @@ The dashboard uses an **UPSERT** (Update or Insert) system for importing weekly 
 ```
 
 **Production:**
+
 ```
 1. Open: https://cdash.upstatetoday.com/upload_unified.php
 2. Follow same steps as Development
@@ -755,11 +852,13 @@ The dashboard uses an **UPSERT** (Update or Insert) system for importing weekly 
 ### What Gets Imported
 
 **From AllSubscriberReport CSV:**
+
 - **Paper Code** (Ed column) - TJ, TA, TR, LJ, WRN, FN
 - **Delivery Type** (DEL column) - MAIL, CARR, INTE
 - **Vacation Status** (Zone column) - VAC indicators
 
 **Calculated Metrics:**
+
 - `total_active` - Count of all subscribers
 - `mail_delivery` - Subscribers with MAIL delivery
 - `carrier_delivery` - Subscribers with CARR delivery
@@ -791,12 +890,14 @@ Wyoming: 1,610 subscribers
 ### Weekly Workflow
 
 **Recommended Schedule: Every Saturday Morning**
+
 1. Run All Subscriber Report in Newzware (captures current week)
 2. Upload CSV to Production dashboard
 3. Verify metrics look correct
 4. Review weekly trends on dashboard
 
 **Why Weekly?**
+
 - Aligns with publication schedules (Wed/Sat print days)
 - Provides consistent week-over-week comparison
 - Saturday captures full week's data
@@ -804,18 +905,22 @@ Wyoming: 1,610 subscribers
 ### Troubleshooting
 
 **Error: "CSV does not appear to be an All Subscriber Report"**
+
 - Solution: Ensure you're exporting the "All Subscriber Report" query, not individual exports
 - Required columns: Ed, ISS, DEL (system auto-trims whitespace)
 
 **Error: "No valid data found"**
+
 - Solution: Check that report includes active subscribers
 - Date filter automatically excludes pre-2025 data
 
 **Import seems slow:**
+
 - Normal processing time: 10-30 seconds for ~8,000 rows
 - Large files (>10MB) will be rejected
 
 **Numbers look wrong:**
+
 - Verify upload summary matches expected subscriber counts
 - Check dashboard for business unit breakdowns
 - Compare to previous week's numbers for reasonableness
@@ -823,6 +928,7 @@ Wyoming: 1,610 subscribers
 ### Database Schema
 
 **daily_snapshots Table:**
+
 ```sql
 PRIMARY KEY (snapshot_date, paper_code)  -- Enables UPSERT
 - snapshot_date: DATE (e.g., '2025-12-02')
@@ -842,6 +948,7 @@ PRIMARY KEY (snapshot_date, paper_code)  -- Enables UPSERT
 ## Common Tasks
 
 ### Deploy Code Updates to Production (Git-Based Deployment):
+
 ```bash
 # Step 1: Merge changes to master on GitHub (via PR workflow)
 # See ~/docs/git-workflow-examples.md for detailed PR workflows
@@ -859,6 +966,7 @@ sshpass -p "$SSH_PASSWORD" ssh $SSH_USER@$SSH_HOST
 ```
 
 **Deployment Script Output:**
+
 ```
 ==> Circulation Dashboard Deployment
 ==> Pulling latest code from GitHub...
@@ -871,6 +979,7 @@ Already up to date.
 ```
 
 **What the deployment script does:**
+
 1. Pulls latest code from GitHub master branch to `/volume1/homes/it/circulation-deploy`
 2. Syncs `web/` subdirectory to `/volume1/web/circulation/` via rsync
 3. Preserves production-specific files (`.htaccess`, `.build_number`)
@@ -879,6 +988,7 @@ Already up to date.
 **Note:** Code files are deployed via Git deployment script ONLY. Never copy .php or .html files directly to production directory.
 
 ### Manual File Copy to Production (Emergency Only):
+
 ```bash
 # ONLY for emergency hotfixes when Git deployment can't be used
 # Always follow up by committing to GitHub and running proper deployment
@@ -894,6 +1004,7 @@ sshpass -p "$SSH_PASSWORD" ssh "$SSH_USER@$SSH_HOST" "chmod 644 /volume1/web/cir
 ```
 
 ### Check Database:
+
 ```bash
 # Load credentials
 source .env.credentials
@@ -908,6 +1019,7 @@ docker exec circulation_db mariadb \
 ```
 
 ### Verify Upload Data:
+
 ```bash
 # Load credentials
 source .env.credentials

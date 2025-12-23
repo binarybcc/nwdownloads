@@ -1,0 +1,22 @@
+{
+  "types": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "chore", "section": "Maintenance", "hidden": false },
+    { "type": "docs", "section": "Documentation", "hidden": false },
+    { "type": "style", "section": "Styling", "hidden": true },
+    { "type": "refactor", "section": "Code Refactoring", "hidden": false },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "security", "section": "Security" },
+    { "type": "revert", "section": "Reverts", "hidden": true }
+  ],
+  "commitUrlFormat": "https://github.com/binarybcc/nwdownloads/commit/{{hash}}",
+  "compareUrlFormat": "https://github.com/binarybcc/nwdownloads/compare/{{previousTag}}...{{currentTag}}",
+  "issueUrlFormat": "https://github.com/binarybcc/nwdownloads/issues/{{id}}",
+  "userUrlFormat": "https://github.com/{{user}}",
+  "releaseCommitMessageFormat": "chore(release): {{currentTag}}",
+  "skip": {
+    "changelog": false
+  }
+}

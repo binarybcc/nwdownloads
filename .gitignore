@@ -51,6 +51,10 @@ debug_*.php
 !docs/architecture.json
 !docs/deployment-procedures.json
 !docs/troubleshooting-rules.json
+# Exception: Project configuration files (required for versioning/tooling)
+!package.json
+!commitlint.config.js
+!.versionrc.json
 
 # Screenshots and documentation images (but allow assets)
 Screenshot*.png

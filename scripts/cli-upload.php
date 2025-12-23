@@ -22,12 +22,26 @@ require_once '/volume1/web/circulation/lib/AllSubscriberImporter.php';
 
 use CirculationDashboard\AllSubscriberImporter;
 
+// Load credentials from environment
+// In production: source .env.credentials before running this script
+// Example: source .env.credentials && php scripts/cli-upload.php file.csv
+$dbSocket = getenv('PROD_DB_SOCKET') ?: '/run/mysqld/mysqld10.sock';
+$dbUser = getenv('PROD_DB_USERNAME') ?: 'root';
+$dbPass = getenv('PROD_DB_PASSWORD');
+$dbName = getenv('PROD_DB_DATABASE') ?: 'circulation_dashboard';
+
+if (!$dbPass) {
+    echo "❌ Error: PROD_DB_PASSWORD environment variable not set\n";
+    echo "   Run: source .env.credentials && php scripts/cli-upload.php [file]\n";
+    exit(1);
+}
+
 // Connect to database (production)
 try {
     $pdo = new PDO(
-        'mysql:unix_socket=/run/mysqld/mysqld10.sock;dbname=circulation_dashboard;charset=utf8mb4',
-        'root',
-        'P@ta675N0id',
+        "mysql:unix_socket=$dbSocket;dbname=$dbName;charset=utf8mb4",
+        $dbUser,
+        $dbPass,
         [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

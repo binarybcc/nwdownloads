@@ -128,6 +128,10 @@ fi
 # Extract migration number from filename
 MIGRATION_NUMBER=$(echo "$MIGRATION_FILE" | grep -oE '^[0-9]+' || echo "0")
 
+# Escape single quotes in migration filename for SQL safety
+# This prevents SQL injection if filename contains malicious characters
+MIGRATION_FILE_ESCAPED="${MIGRATION_FILE//\'/\'\'}"
+
 print_info "Migration: $MIGRATION_FILE"
 print_info "Environment: $ENVIRONMENT"
 print_info "Migration Number: $MIGRATION_NUMBER"
@@ -163,12 +167,12 @@ fi
 
 print_header "Step 2: Checking Migration Status"
 
-ALREADY_RAN=$(run_mysql -e "SELECT COUNT(*) as count FROM migration_log WHERE migration_file = '$MIGRATION_FILE' AND status = 'completed';" 2>/dev/null | tail -n 1 || echo "0")
+ALREADY_RAN=$(run_mysql -e "SELECT COUNT(*) as count FROM migration_log WHERE migration_file = '$MIGRATION_FILE_ESCAPED' AND status = 'completed';" 2>/dev/null | tail -n 1 || echo "0")
 
 if [ "$ALREADY_RAN" != "0" ]; then
     print_error "Migration already ran successfully: $MIGRATION_FILE"
     echo ""
-    run_mysql -e "SELECT migration_file, executed_at, execution_time_seconds, status FROM migration_log WHERE migration_file = '$MIGRATION_FILE';"
+    run_mysql -e "SELECT migration_file, executed_at, execution_time_seconds, status FROM migration_log WHERE migration_file = '$MIGRATION_FILE_ESCAPED';"
     echo ""
     print_warning "This migration has already been applied. Re-running could cause data loss."
     echo ""
@@ -207,7 +211,9 @@ fi
 
 if [ -f "$BACKUP_FILE" ]; then
     BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
-    print_success "Backup created: $BACKUP_SIZE"
+    # Set restrictive permissions on backup file (contains sensitive data)
+    chmod 600 "$BACKUP_FILE"
+    print_success "Backup created: $BACKUP_SIZE (permissions: 600)"
 else
     print_error "Backup failed - aborting migration"
     exit 1
@@ -236,7 +242,7 @@ if [ "$MIGRATION_FILE" != "000_migration_tracking.sql" ]; then
         backup_path,
         executed_by
     ) VALUES (
-        '$MIGRATION_FILE',
+        '$MIGRATION_FILE_ESCAPED',
         $MIGRATION_NUMBER,
         'running',
         '$FILE_CHECKSUM',
@@ -282,7 +288,7 @@ if run_mysql < "$MIGRATION_PATH" 2>&1 | tee /tmp/migration_output.log; then
         UPDATE migration_log
         SET status = 'completed',
             execution_time_seconds = $EXECUTION_TIME
-        WHERE migration_file = '$MIGRATION_FILE';
+        WHERE migration_file = '$MIGRATION_FILE_ESCAPED';
         "
         print_success "Migration status updated to 'completed'"
     else
@@ -299,7 +305,7 @@ if run_mysql < "$MIGRATION_PATH" 2>&1 | tee /tmp/migration_output.log; then
             backup_path,
             executed_by
         ) VALUES (
-            '$MIGRATION_FILE',
+            '$MIGRATION_FILE_ESCAPED',
             $MIGRATION_NUMBER,
             'completed',
             '$FILE_CHECKSUM',
@@ -320,12 +326,15 @@ else
     print_error "Migration FAILED after ${EXECUTION_TIME}s"
 
     # Update tracking table with failure
+    # Sanitize error message to prevent data leakage
+    ERROR_MSG_SANITIZED=$(echo "$ERROR_MSG" | sed 's/password[=:][^ ]*/password=REDACTED/gi' | head -1000)
+
     run_mysql -e "
     UPDATE migration_log
     SET status = 'failed',
         execution_time_seconds = $EXECUTION_TIME,
-        error_message = '$(echo "$ERROR_MSG" | head -1000)'
-    WHERE migration_file = '$MIGRATION_FILE';
+        error_message = '$(echo "$ERROR_MSG_SANITIZED")'
+    WHERE migration_file = '$MIGRATION_FILE_ESCAPED';
     "
 
     print_error "Migration status updated to 'failed'"
@@ -364,7 +373,7 @@ SELECT
     backup_created,
     LEFT(backup_path, 50) as backup_location
 FROM migration_log
-WHERE migration_file = '$MIGRATION_FILE';
+WHERE migration_file = '$MIGRATION_FILE_ESCAPED';
 "
 
 echo ""

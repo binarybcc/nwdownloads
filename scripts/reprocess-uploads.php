@@ -23,11 +23,23 @@ $isProduction = file_exists('/run/mysqld/mysqld10.sock');
 
 try {
     if ($isProduction) {
-        // Production: Unix socket
+        // Production: Load from environment variables
+        // Run: source .env.credentials && php scripts/reprocess-uploads.php
+        $dbSocket = getenv('PROD_DB_SOCKET') ?: '/run/mysqld/mysqld10.sock';
+        $dbUser = getenv('PROD_DB_USERNAME') ?: 'root';
+        $dbPass = getenv('PROD_DB_PASSWORD');
+        $dbName = getenv('PROD_DB_DATABASE') ?: 'circulation_dashboard';
+
+        if (!$dbPass) {
+            echo "❌ Error: PROD_DB_PASSWORD environment variable not set\n";
+            echo "   Run: source .env.credentials && php scripts/reprocess-uploads.php\n";
+            exit(1);
+        }
+
         $pdo = new PDO(
-            'mysql:unix_socket=/run/mysqld/mysqld10.sock;dbname=circulation_dashboard;charset=utf8mb4',
-            'root',
-            'P@ta675N0id',
+            "mysql:unix_socket=$dbSocket;dbname=$dbName;charset=utf8mb4",
+            $dbUser,
+            $dbPass,
             [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

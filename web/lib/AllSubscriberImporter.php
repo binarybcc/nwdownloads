@@ -66,7 +66,7 @@ class AllSubscriberImporter
     {
         // Debug logging
         $debug_log = __DIR__ . '/../upload-debug.log';
-        $debug = function($msg) use ($debug_log) {
+        $debug = function ($msg) use ($debug_log) {
             file_put_contents($debug_log, date('Y-m-d H:i:s') . " - $msg\n", FILE_APPEND);
         };
         $debug("=== IMPORT START ===");
@@ -376,7 +376,7 @@ class AllSubscriberImporter
             $min_backfill_year = $min_backfill_week_year['year'];
 
             $debug_log = __DIR__ . '/../upload-debug.log';
-            $debug = function($msg) use ($debug_log) {
+            $debug = function ($msg) use ($debug_log) {
                 file_put_contents($debug_log, date('Y-m-d H:i:s') . " - $msg\n", FILE_APPEND);
             };
 

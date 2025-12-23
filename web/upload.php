@@ -111,7 +111,6 @@ try {
         'summary_html' => $result['summary_html'],
         'cache_cleared' => $cleared_count
     ]);
-
 } catch (Exception $e) {
     http_response_code(400);
     echo json_encode([

@@ -188,7 +188,7 @@ try {
             echo "     $statusIcon {$log['filename']} - {$log['status']}\n";
             if ($log['status'] === 'completed') {
                 echo "        Records: {$log['records_processed']}\n";
-            } else if ($log['error_message']) {
+            } elseif ($log['error_message']) {
                 echo "        Error: {$log['error_message']}\n";
             }
         }
@@ -226,7 +226,7 @@ if ($exitCode === 0 && count($completedFiles) > 0) {
     echo "2. Verify dashboard shows updated metrics\n";
     echo "3. Review processing log for details\n";
     echo "\n";
-} else if (count($failedFiles) > 0) {
+} elseif (count($failedFiles) > 0) {
     echo "❌ Processing Failures Detected\n";
     echo "\n";
     echo "Next steps:\n";

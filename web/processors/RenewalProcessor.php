@@ -33,7 +33,6 @@ class RenewalProcessor implements IFileProcessor
 {
     private PDO $pdo;
     private const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-    private const REQUIRED_COLUMNS = ['Sub ID', 'Stat', 'Ed.', 'Issue Date'];
 
     public function __construct(PDO $pdo)
     {

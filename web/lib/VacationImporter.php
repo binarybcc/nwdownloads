@@ -71,7 +71,7 @@ class VacationImporter
             $summary = $this->buildSummaryHTML($stats);
 
             return [
-                'date_range' => $stats['date_range'] ?? date('Y-m-d'),
+                'date_range' => $stats['date_range'],
                 'new_records' => 0, // Vacation updates don't create new records
                 'updated_records' => $stats['updated_rows'],
                 'total_processed' => $stats['updated_rows'],

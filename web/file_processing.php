@@ -139,7 +139,7 @@ $emailAddresses = json_decode($settings['email_addresses'] ?? '[]', true) ?: [];
                         Email Recipients
                     </label>
                     <div id="emailList" class="space-y-2 mb-3">
-                        <?php foreach ($emailAddresses as $index => $email): ?>
+                        <?php foreach ($emailAddresses as $index => $email) : ?>
                             <div class="flex items-center gap-2">
                                 <input type="email"
                                        class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"

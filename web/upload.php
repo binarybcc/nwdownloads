@@ -487,7 +487,7 @@ function processAllSubscriberReport(PDO $pdo, string $filepath, string $filename
     $pdo->beginTransaction();
     try {
         // Determine backfill range (start of Week 48 - first real data week)
-        $min_backfill_date = '2025-11-24';
+        $min_backfill_date = '2025-11-17';
         $min_backfill_week_year = getWeekAndYear($min_backfill_date);
         $min_backfill_week = $min_backfill_week_year['week'];
         $min_backfill_year = $min_backfill_week_year['year'];

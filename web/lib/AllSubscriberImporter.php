@@ -754,7 +754,7 @@ class AllSubscriberImporter
         $dt = new DateTime($date);
         return [
             'week' => (int)$dt->format('W'),  // ISO week number
-            'year' => (int)$dt->format('Y')   // Year
+            'year' => (int)$dt->format('o')   // ISO week-numbering year (handles year boundaries correctly)
         ];
     }
 }

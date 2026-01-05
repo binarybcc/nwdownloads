@@ -69,7 +69,7 @@ function getWeekBoundaries(string $date): array
 // Calculate week number from the actual date (not Sunday) to match upload.php logic
     // This ensures API and upload.php use the same week numbering
     $week_num = (int)$dt->format('W');
-    $year = (int)$dt->format('Y');
+    $year = (int)$dt->format('o'); // 'o' = ISO week-numbering year (handles year boundaries correctly)
     return [
         'start' => $sunday->format('Y-m-d'),
         'end' => $saturday->format('Y-m-d'),

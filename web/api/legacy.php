@@ -1049,19 +1049,8 @@ function getDetailPanelData(PDO $pdo, string $businessUnit, string $snapshotDate
     }
 
     $snapshotDate = $actualSnapshotDate;
-// Get comparison data for this business unit
-    $comparison_data = getBusinessUnitComparison($pdo, $businessUnit, $snapshotDate, []);
-    $response = [
-        'business_unit' => $businessUnit,
-        'snapshot_date' => $snapshotDate,
-        'papers' => $papers,
-        'comparison' => $comparison_data,
-        'delivery_breakdown' => [],
-        'expiration_chart' => [],
-        'rate_distribution' => [],
-        'subscription_length' => []
-    ];
-// 1. Current delivery breakdown (from daily_snapshots)
+
+    // 1. Get current delivery breakdown (from daily_snapshots) - MUST be before comparison
     $delivery_stmt = $pdo->prepare("
         SELECT
             SUM(total_active) as total_active,
@@ -1075,6 +1064,27 @@ function getDetailPanelData(PDO $pdo, string $businessUnit, string $snapshotDate
     ");
     $delivery_stmt->execute(array_merge([$snapshotDate], $paper_codes));
     $delivery_data = $delivery_stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Build current data array for comparison
+    $currentData = [
+        'total' => $delivery_data ? (int)$delivery_data['total_active'] : 0,
+        'deliverable' => $delivery_data ? (int)$delivery_data['deliverable'] : 0
+    ];
+
+    // Get comparison data for this business unit (now with current data)
+    $comparison_data = getBusinessUnitComparison($pdo, $businessUnit, $snapshotDate, $currentData);
+
+    $response = [
+        'business_unit' => $businessUnit,
+        'snapshot_date' => $snapshotDate,
+        'papers' => $papers,
+        'comparison' => $comparison_data,
+        'delivery_breakdown' => [],
+        'expiration_chart' => [],
+        'rate_distribution' => [],
+        'subscription_length' => []
+    ];
+
     if ($delivery_data) {
         $response['delivery_breakdown'] = [
             'total_active' => (int)$delivery_data['total_active'],

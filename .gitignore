@@ -55,6 +55,8 @@ debug_*.php
 !package.json
 !commitlint.config.js
 !.versionrc.json
+# Exception: GSD planning config
+!.planning/config.json
 
 # Screenshots and documentation images (but allow assets)
 Screenshot*.png

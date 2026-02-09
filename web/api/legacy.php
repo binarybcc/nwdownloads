@@ -527,6 +527,112 @@ function findPerformers(array $by_business_unit, array $comparisons): array
 }
 
 /**
+ * Get 12-week trend data for a specific business unit.
+ *
+ * Returns an array of 12 entries (W1 oldest through W12 most recent),
+ * each containing a label, total_active count, and week-over-week change.
+ * Missing weeks are padded with null values. Multiple snapshots in the
+ * same calendar week use the latest snapshot_date only.
+ *
+ * @param PDO $pdo Database connection
+ * @param string $businessUnit Business unit name (e.g. 'South Carolina')
+ * @param int $weekNum Current ISO week number
+ * @param int $year Current year
+ * @return array<int, array{label: string, total_active: int|null, change: int|null}>
+ */
+function getBusinessUnitTrendData(PDO $pdo, string $businessUnit, int $weekNum, int $year): array
+{
+    $trend = [];
+    $startWeekNum = $weekNum - 11;
+    $startYear = $year;
+
+    // Handle year boundary
+    if ($startWeekNum < 1) {
+        $weeksNeeded = abs($startWeekNum) + 1;
+        $startYear--;
+        $startWeekNum = 52 - $weeksNeeded + 1;
+    }
+
+    $lastNonNullValue = null;
+
+    for ($i = 0; $i < 12; $i++) {
+        $currentWeekNum = $startWeekNum + $i;
+        $currentYear = $startYear;
+        // Handle year boundary within loop
+        if ($currentWeekNum > 52) {
+            $currentWeekNum = $currentWeekNum - 52;
+            $currentYear++;
+        }
+
+        // Query with subquery to ensure "latest snapshot date wins"
+        // when multiple snapshots exist in the same calendar week
+        $stmt = $pdo->prepare("
+            SELECT SUM(total_active) as total_active
+            FROM daily_snapshots
+            WHERE business_unit = ?
+              AND paper_code != 'FN'
+              AND week_num = ?
+              AND year = ?
+              AND snapshot_date = (
+                SELECT MAX(sd.snapshot_date)
+                FROM daily_snapshots sd
+                WHERE sd.business_unit = ?
+                  AND sd.paper_code != 'FN'
+                  AND sd.week_num = ?
+                  AND sd.year = ?
+              )
+        ");
+        $stmt->execute([$businessUnit, $currentWeekNum, $currentYear, $businessUnit, $currentWeekNum, $currentYear]);
+        $weekData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $label = 'W' . ($i + 1);
+
+        if ($weekData && $weekData['total_active'] !== null) {
+            $totalActive = (int)$weekData['total_active'];
+            $change = ($lastNonNullValue !== null) ? $totalActive - $lastNonNullValue : null;
+            $lastNonNullValue = $totalActive;
+
+            $trend[] = [
+                'label' => $label,
+                'total_active' => $totalActive,
+                'change' => $change
+            ];
+        } else {
+            $trend[] = [
+                'label' => $label,
+                'total_active' => null,
+                'change' => null
+            ];
+        }
+    }
+
+    return $trend;
+}
+
+/**
+ * Get 12-week trend data for all known business units.
+ *
+ * Returns an associative array keyed by business unit name,
+ * each containing the 12-week trend array from getBusinessUnitTrendData().
+ *
+ * @param PDO $pdo Database connection
+ * @param int $weekNum Current ISO week number
+ * @param int $year Current year
+ * @return array<string, array<int, array{label: string, total_active: int|null, change: int|null}>>
+ */
+function getAllBusinessUnitTrends(PDO $pdo, int $weekNum, int $year): array
+{
+    $units = ['South Carolina', 'Wyoming', 'Michigan'];
+    $result = [];
+
+    foreach ($units as $unit) {
+        $result[$unit] = getBusinessUnitTrendData($pdo, $unit, $weekNum, $year);
+    }
+
+    return $result;
+}
+
+/**
  * Get enhanced overview with Phase 2 features
  */
 /**
@@ -896,6 +1002,9 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
         ];
     }
 
+    // Get business unit 12-week trend data
+    $business_unit_trends = getAllBusinessUnitTrends($pdo, $week_num, $year);
+
     // Get data range
     $dataRange = getDataRange($pdo);
 // Phase 2: Analytics
@@ -948,6 +1057,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
         'by_business_unit' => $by_business_unit,
         'business_unit_comparisons' => $unit_comparisons,  // PHASE 2: Business unit comparisons
         'by_edition' => $by_edition,
+        'business_unit_trends' => $business_unit_trends,
         'data_range' => [
             'min_date' => $dataRange['min_date'],
             'max_date' => $dataRange['max_date'],

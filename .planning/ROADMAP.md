@@ -28,11 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 1. Calling the API with a business unit parameter returns 12 weekly Total Active values for that business unit only
 2. The data covers exactly 12 weeks (or as many weeks as exist if fewer than 12 are available)
 3. Each data point includes the week label and the Total Active subscriber count for that business unit
-   **Plans**: TBD
+
+**Plans:** 1 plan
 
 Plans:
 
-- [ ] 01-01: Extend trend API to support per-business-unit filtering and integrate into dashboard data flow
+- [ ] 01-01-PLAN.md -- Extend trend API with per-BU filtering and wire frontend data flow
 
 ### Phase 2: Chart Rendering and Card Integration
 

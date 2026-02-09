@@ -1,9 +1,17 @@
-# Requirements: Business Unit 12-Week Trend Charts
+# Requirements Archive: v1 Business Unit 12-Week Trend Charts
+
+**Archived:** 2026-02-09
+**Status:** SHIPPED
+
+This is the archived requirements specification for v1.
+For current requirements, see `.planning/REQUIREMENTS.md` (created for next milestone).
+
+---
+
+## v1 Requirements
 
 **Defined:** 2026-02-09
 **Core Value:** Each business unit card tells its own trend story at a glance
-
-## v1 Requirements
 
 ### Data
 
@@ -20,10 +28,6 @@
 
 - [x] **CARD-01**: Chart sits between the comparison bar and the donut chart
 - [x] **CARD-02**: Chart fits the card width on any screen size
-
-## v2 Requirements
-
-None -- this is a focused feature addition.
 
 ## Out of Scope
 
@@ -50,10 +54,18 @@ None -- this is a focused feature addition.
 **Coverage:**
 
 - v1 requirements: 7 total
-- Mapped to phases: 7
-- Unmapped: 0
+- Shipped: 7
+- Adjusted: 0
+- Dropped: 0
 
 ---
 
-_Requirements defined: 2026-02-09_
-_Last updated: 2026-02-09 after Phase 2 completion_
+## Milestone Summary
+
+**Shipped:** 7 of 7 v1 requirements
+**Adjusted:** None — all requirements implemented as originally specified
+**Dropped:** None
+
+---
+
+_Archived: 2026-02-09 as part of v1 milestone completion_

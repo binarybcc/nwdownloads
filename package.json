@@ -1,6 +1,6 @@
 {
   "name": "nwdownloads-dashboard",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Newspaper circulation dashboard with Tailwind CSS",
   "scripts": {
     "build:css": "tailwindcss -i ./web/assets/input.css -o ./web/assets/output.css --minify",

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.1.1](https://github.com/binarybcc/nwdownloads/compare/v2.1.0...v2.1.1) (2026-02-09)
+
+### Bug Fixes
+
+- **api:** correct Previous Week comparison in detail panel ([be2e3a3](https://github.com/binarybcc/nwdownloads/commit/be2e3a30e7c4b428682c2a0e62b566f7c6147470))
+- **api:** correct year calculation for ISO week boundaries ([182de08](https://github.com/binarybcc/nwdownloads/commit/182de0860a03cdce52ff654458b2a8646a9a9a46))
+
 ## [2.1.0](https://github.com/binarybcc/nwdownloads/compare/v2.0.0...v2.1.0) (2025-12-24)
 
 ### Features

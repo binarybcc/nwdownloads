@@ -11,15 +11,15 @@
 
 ### Chart
 
-- [ ] **CHART-01**: Small line chart with blue area fill (same style as the company-wide chart)
-- [ ] **CHART-02**: Shows week labels along the bottom (W1, W2, etc.)
-- [ ] **CHART-03**: Hovering over a point shows the exact subscriber count for that week
-- [ ] **CHART-04**: Y-axis scales to that business unit's numbers (not the company total)
+- [x] **CHART-01**: Small line chart with blue area fill (same style as the company-wide chart)
+- [x] **CHART-02**: Shows week labels along the bottom (W1, W2, etc.)
+- [x] **CHART-03**: Hovering over a point shows the exact subscriber count for that week
+- [x] **CHART-04**: Y-axis scales to that business unit's numbers (not the company total)
 
 ### Card Layout
 
-- [ ] **CARD-01**: Chart sits between the comparison bar and the donut chart
-- [ ] **CARD-02**: Chart fits the card width on any screen size
+- [x] **CARD-01**: Chart sits between the comparison bar and the donut chart
+- [x] **CARD-02**: Chart fits the card width on any screen size
 
 ## v2 Requirements
 
@@ -40,12 +40,12 @@ None -- this is a focused feature addition.
 | Requirement | Phase   | Status   |
 | ----------- | ------- | -------- |
 | DATA-01     | Phase 1 | Complete |
-| CHART-01    | Phase 2 | Pending  |
-| CHART-02    | Phase 2 | Pending  |
-| CHART-03    | Phase 2 | Pending  |
-| CHART-04    | Phase 2 | Pending  |
-| CARD-01     | Phase 2 | Pending  |
-| CARD-02     | Phase 2 | Pending  |
+| CHART-01    | Phase 2 | Complete |
+| CHART-02    | Phase 2 | Complete |
+| CHART-03    | Phase 2 | Complete |
+| CHART-04    | Phase 2 | Complete |
+| CARD-01     | Phase 2 | Complete |
+| CARD-02     | Phase 2 | Complete |
 
 **Coverage:**
 
@@ -56,4 +56,4 @@ None -- this is a focused feature addition.
 ---
 
 _Requirements defined: 2026-02-09_
-_Last updated: 2026-02-09 after Phase 1 completion_
+_Last updated: 2026-02-09 after Phase 2 completion_

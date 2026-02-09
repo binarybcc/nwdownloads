@@ -62,6 +62,7 @@ let dashboardData = null;
 let trendChart = null;
 let deliveryChart = null;
 let businessUnitCharts = {}; // Store business unit mini charts
+let businessUnitTrendCharts = {}; // Store business unit trend line charts
 let currentDate = null; // null = latest, or YYYY-MM-DD
 let compareMode = 'previous'; // yoy, previous, none - default to previous week
 let dataRange = null;
@@ -756,6 +757,134 @@ function renderDeliveryChart() {
 }
 
 /**
+ * Create a BU trend mini-chart on a canvas element
+ * @param {string} canvasId - The canvas element ID
+ * @param {Array} trendData - Array of {label, total_active, change} from Phase 1
+ * @returns {Chart|null} - Chart instance or null if no chart created
+ */
+function createBUTrendChart(canvasId, trendData) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return null;
+
+  // Handle no-data case
+  if (!trendData || trendData.length === 0 || trendData.every(d => d.total_active === null)) {
+    const container = canvas.parentNode;
+    container.textContent = '';
+    const msg = document.createElement('div');
+    msg.className = 'flex items-center justify-center h-full text-sm text-gray-400';
+    msg.textContent = 'No data available';
+    container.appendChild(msg);
+    return null;
+  }
+
+  // Extract labels and data points from Phase 1 data shape
+  const labels = trendData.map(d => d.label);
+  const dataPoints = trendData.map(d => d.total_active);
+
+  // Calculate auto-scaled Y-axis from real (non-null) values only
+  const realValues = dataPoints.filter(v => v !== null);
+  let scaleMin, scaleMax;
+
+  if (realValues.length > 0) {
+    const minVal = Math.min(...realValues);
+    const maxVal = Math.max(...realValues);
+    const range = maxVal - minVal;
+    const padding = range * 0.15 || 50;
+    scaleMin = Math.max(0, Math.floor((minVal - padding) / 10) * 10);
+    scaleMax = Math.ceil((maxVal + padding) / 10) * 10;
+  } else {
+    scaleMin = 0;
+    scaleMax = 100;
+  }
+
+  return new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Total Active',
+          data: dataPoints,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#3b82f6',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1,
+          spanGaps: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 1000,
+        easing: 'easeOutQuart',
+      },
+      interaction: {
+        intersect: true,
+        mode: 'nearest',
+      },
+      events: ['mousemove', 'mouseout'],
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: function (tooltipItems) {
+              return tooltipItems[0].label;
+            },
+            label: function (context) {
+              const value = context.parsed.y;
+              const index = context.dataIndex;
+              const formatted = formatNumber(value);
+
+              // Access change from original trendData via closure
+              const change = trendData[index].change;
+              if (change === null || change === undefined) {
+                return formatted;
+              }
+
+              const sign = change >= 0 ? '+' : '';
+              return formatted + ' (' + sign + formatNumber(change) + ')';
+            },
+            labelTextColor: function (context) {
+              const index = context.dataIndex;
+              const change = trendData[index].change;
+
+              if (change === null || change === undefined || change === 0) {
+                return '#fff';
+              }
+              if (change > 0) return '#4ade80';
+              if (change < 0) return '#f87171';
+              return '#fff';
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          display: true,
+          grid: { display: false },
+          ticks: {
+            font: { size: 9 },
+            maxRotation: 0,
+          },
+        },
+        y: {
+          display: false,
+          min: scaleMin,
+          max: scaleMax,
+        },
+      },
+    },
+  });
+}
+
+/**
  * Render business unit cards
  * CONSOLIDATED VERSION - Phase 2 merged
  */
@@ -775,6 +904,8 @@ function renderBusinessUnits() {
   // Destroy existing business unit charts
   Object.values(businessUnitCharts).forEach(chart => chart.destroy());
   businessUnitCharts = {};
+  Object.values(businessUnitTrendCharts).forEach(chart => chart.destroy());
+  businessUnitTrendCharts = {};
 
   let html = '';
 

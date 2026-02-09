@@ -916,6 +916,7 @@ function renderBusinessUnits() {
     const percentage = ((data.total / dashboardData.current.total_active) * 100).toFixed(1);
     const vacPercent = ((data.on_vacation / data.total) * 100).toFixed(2);
     const chartId = `chart-${unitName.replace(/\s+/g, '-').toLowerCase()}`;
+    const trendChartId = `bu-trend-${unitName.replace(/\s+/g, '-').toLowerCase()}`;
     const comparison = comparisons[unitName];
     const trendData = buTrends[unitName] || [];
 
@@ -940,6 +941,13 @@ function renderBusinessUnits() {
                 <div class="mb-4">
                     <div class="w-full bg-gray-200 rounded-full h-2">
                         <div class="progress-bar h-2 rounded-full" style="width: ${percentage}%; background-color: ${config.color}"></div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-100" onclick="event.stopPropagation()">
+                    <div class="text-xs font-medium text-gray-500 mb-2">12-Week Trend</div>
+                    <div style="position: relative; height: 120px;">
+                        <canvas id="${trendChartId}"></canvas>
                     </div>
                 </div>
 
@@ -1049,6 +1057,14 @@ function renderBusinessUnits() {
         },
       }
     );
+
+    // Create trend chart
+    const trendChartId = `bu-trend-${unitName.replace(/\s+/g, '-').toLowerCase()}`;
+    const trendData = buTrends[unitName] || [];
+    const trendChartInstance = createBUTrendChart(trendChartId, trendData);
+    if (trendChartInstance) {
+      businessUnitTrendCharts[unitName] = trendChartInstance;
+    }
   }
 }
 

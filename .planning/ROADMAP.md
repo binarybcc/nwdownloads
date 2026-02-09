@@ -47,12 +47,12 @@ Plans:
 3. Hovering over any data point on the chart shows a tooltip with the exact subscriber count for that week
 4. The chart Y-axis range is scaled to the specific business unit's data (not company totals)
 5. The chart is positioned between the comparison bar and the donut chart, and fills the card width on any screen size
-   **Plans**: TBD
+
+**Plans:** 1 plan
 
 Plans:
 
-- [ ] 02-01: Create Chart.js line chart component with area fill, week labels, tooltips, and auto-scaled Y-axis
-- [ ] 02-02: Integrate chart into business unit card layout with responsive sizing
+- [ ] 02-01-PLAN.md -- Create BU trend chart helper, integrate into card template with responsive layout and tooltips
 
 ## Progress
 
@@ -62,4 +62,4 @@ Phases execute in numeric order: 1 -> 2
 | Phase                                   | Plans Complete | Status      | Completed  |
 | --------------------------------------- | -------------- | ----------- | ---------- |
 | 1. Business Unit Trend Data             | 1/1            | Complete    | 2026-02-09 |
-| 2. Chart Rendering and Card Integration | 0/2            | Not started | -          |
+| 2. Chart Rendering and Card Integration | 0/1            | Not started | -          |

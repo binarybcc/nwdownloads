@@ -7,7 +7,7 @@
 
 ### Data
 
-- [ ] **DATA-01**: Each business unit card gets its own 12-week trend data (not the whole company)
+- [x] **DATA-01**: Each business unit card gets its own 12-week trend data (not the whole company)
 
 ### Chart
 
@@ -37,15 +37,15 @@ None -- this is a focused feature addition.
 
 ## Traceability
 
-| Requirement | Phase   | Status  |
-| ----------- | ------- | ------- |
-| DATA-01     | Phase 1 | Pending |
-| CHART-01    | Phase 2 | Pending |
-| CHART-02    | Phase 2 | Pending |
-| CHART-03    | Phase 2 | Pending |
-| CHART-04    | Phase 2 | Pending |
-| CARD-01     | Phase 2 | Pending |
-| CARD-02     | Phase 2 | Pending |
+| Requirement | Phase   | Status   |
+| ----------- | ------- | -------- |
+| DATA-01     | Phase 1 | Complete |
+| CHART-01    | Phase 2 | Pending  |
+| CHART-02    | Phase 2 | Pending  |
+| CHART-03    | Phase 2 | Pending  |
+| CHART-04    | Phase 2 | Pending  |
+| CARD-01     | Phase 2 | Pending  |
+| CARD-02     | Phase 2 | Pending  |
 
 **Coverage:**
 
@@ -56,4 +56,4 @@ None -- this is a focused feature addition.
 ---
 
 _Requirements defined: 2026-02-09_
-_Last updated: 2026-02-09 after roadmap creation_
+_Last updated: 2026-02-09 after Phase 1 completion_

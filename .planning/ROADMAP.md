@@ -14,7 +14,7 @@ This feature adds a compact, interactive 12-week trend chart to each business un
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Business Unit Trend Data** - API serves 12-week trend data filtered per business unit
-- [ ] **Phase 2: Chart Rendering and Card Integration** - Interactive trend chart rendered inside each business unit card
+- [x] **Phase 2: Chart Rendering and Card Integration** - Interactive trend chart rendered inside each business unit card
 
 ## Phase Details
 
@@ -52,14 +52,14 @@ Plans:
 
 Plans:
 
-- [ ] 02-01-PLAN.md -- Create BU trend chart helper, integrate into card template with responsive layout and tooltips
+- [x] 02-01-PLAN.md -- Create BU trend chart helper, integrate into card template with responsive layout and tooltips
 
 ## Progress
 
 **Execution Order:**
 Phases execute in numeric order: 1 -> 2
 
-| Phase                                   | Plans Complete | Status      | Completed  |
-| --------------------------------------- | -------------- | ----------- | ---------- |
-| 1. Business Unit Trend Data             | 1/1            | Complete    | 2026-02-09 |
-| 2. Chart Rendering and Card Integration | 0/1            | Not started | -          |
+| Phase                                   | Plans Complete | Status   | Completed  |
+| --------------------------------------- | -------------- | -------- | ---------- |
+| 1. Business Unit Trend Data             | 1/1            | Complete | 2026-02-09 |
+| 2. Chart Rendering and Card Integration | 1/1            | Complete | 2026-02-09 |

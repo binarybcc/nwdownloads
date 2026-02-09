@@ -9,32 +9,32 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 ## Current Position
 
-Phase: 1 of 2 (Business Unit Trend Data)
+Phase: 2 of 2 (Chart Rendering and Card Integration)
 Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-09 -- Completed 01-01-PLAN.md
+Last activity: 2026-02-09 -- Completed 02-01-PLAN.md
 
-Progress: [███░░░░░░░] 33% (1/3 plans)
+Progress: [██████░░░░] 67% (2/3 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: ~4 minutes
-- Total execution time: ~4 minutes
+- Total plans completed: 2
+- Average duration: ~3.5 minutes
+- Total execution time: ~7 minutes
 
 **By Phase:**
 
 | Phase | Plans | Total  | Avg/Plan |
 | ----- | ----- | ------ | -------- |
 | 1     | 1/1   | ~4 min | ~4 min   |
-| 2     | 0/2   | -      | -        |
+| 2     | 1/2   | ~3 min | ~3 min   |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (~4 min)
-- Trend: N/A (first plan)
+- Last 5 plans: 01-01 (~4 min), 02-01 (~3 min)
+- Trend: Consistent ~3-4 min per plan
 
 _Updated after each plan completion_
 
@@ -51,6 +51,10 @@ Recent decisions affecting current work:
 - [01-01]: MAX(snapshot_date) subquery for multi-upload dedup per calendar week
 - [01-01]: Sequential W1-W12 labels (not date-based) per CONTEXT.md
 - [01-01]: data-bu-trend DOM attribute for flexible Phase 2 access
+- [02-01]: bu-trend- canvas ID prefix to avoid collision with drill-down panel
+- [02-01]: Nulls with spanGaps instead of zeros for missing weeks (cleaner visual)
+- [02-01]: Default animation instead of progressive line draw (safer with fill:true)
+- [02-01]: Tooltip reads pre-computed change from Phase 1 data via closure
 
 ### Pending Todos
 
@@ -63,5 +67,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 01-01-PLAN.md, Phase 1 complete, ready for Phase 2
+Stopped at: Completed 02-01-PLAN.md, Phase 2 plan 1 complete
 Resume file: None

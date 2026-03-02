@@ -26,9 +26,10 @@
     panel.className =
       'bg-white rounded-2xl shadow-2xl w-[92vw] max-w-[1200px] max-h-[92vh] flex flex-col overflow-hidden';
 
-    // Header
+    // Header — flex-shrink-0 prevents it from collapsing when body content is tall
     const header = document.createElement('div');
-    header.className = 'flex items-center justify-between px-6 py-4 border-b border-gray-200';
+    header.className =
+      'flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0';
 
     const title = document.createElement('h2');
     title.id = 'trend-detail-title';
@@ -58,14 +59,23 @@
     closeBtn.className = 'text-gray-400 hover:text-gray-700 text-2xl leading-none';
     closeBtn.textContent = '\u00D7';
 
+    const printBtn = document.createElement('button');
+    printBtn.id = 'trend-detail-print';
+    printBtn.className = 'text-gray-400 hover:text-blue-600 text-lg leading-none';
+    printBtn.title = 'Print';
+    printBtn.textContent = '\uD83D\uDDA8'; // printer emoji
+    printBtn.addEventListener('click', printTrendDetail);
+
     controls.appendChild(label);
+    controls.appendChild(printBtn);
     controls.appendChild(closeBtn);
     header.appendChild(title);
     header.appendChild(controls);
 
-    // Body
+    // Body — min-h-0 is the classic flexbox fix: allows this flex child to shrink
+    // below its content's intrinsic height so overflow-y-auto actually scrolls
     const body = document.createElement('div');
-    body.className = 'px-6 pt-4 pb-6 flex-1 overflow-y-auto';
+    body.className = 'px-6 pt-4 pb-6 flex-1 overflow-y-auto min-h-0';
 
     // Loading
     const loading = document.createElement('div');
@@ -79,10 +89,11 @@
     loading.appendChild(spinner);
     loading.appendChild(loadText);
 
-    // Chart
+    // Chart — use max-height + flex-shrink so it adapts to smaller viewports
     const chartWrap = document.createElement('div');
     chartWrap.id = 'trend-detail-chart-wrap';
-    chartWrap.style.cssText = 'height: 350px; position: relative;';
+    chartWrap.style.cssText =
+      'min-height: 250px; max-height: 350px; height: 40vh; position: relative; flex-shrink: 0;';
     const canvas = document.createElement('canvas');
     canvas.id = 'trend-detail-chart';
     chartWrap.appendChild(canvas);
@@ -216,9 +227,49 @@
     }
   }
 
+  // Print the modal content to a single Letter-size page, portrait mode
+  function printTrendDetail() {
+    const overlay = document.getElementById('trend-detail-overlay');
+    if (!overlay || overlay.classList.contains('hidden')) return;
+
+    // Add print class to body so @media print rules kick in
+    document.body.classList.add('printing-trend-detail');
+    window.print();
+    document.body.classList.remove('printing-trend-detail');
+  }
+
   // Expose on window for onclick handlers in app.js
   window.openTrendDetail = openTrendDetail;
   window.closeTrendDetail = closeTrendDetail;
+
+  // --- Inject print styles (one-time) ---
+  (function injectPrintStyles() {
+    const style = document.createElement('style');
+    style.textContent =
+      '@media print {' +
+      '  body.printing-trend-detail > *:not(#trend-detail-overlay) { display: none !important; }' +
+      '  body.printing-trend-detail #trend-detail-overlay {' +
+      '    position: static !important; display: block !important;' +
+      '    width: 100% !important; height: auto !important;' +
+      '    background: white !important; overflow: visible !important;' +
+      '  }' +
+      '  body.printing-trend-detail #trend-detail-overlay > div {' +
+      '    max-height: none !important; overflow: visible !important;' +
+      '    box-shadow: none !important; width: 100% !important; max-width: 100% !important;' +
+      '    border-radius: 0 !important;' +
+      '  }' +
+      '  body.printing-trend-detail #trend-detail-overlay .overflow-y-auto {' +
+      '    overflow: visible !important; max-height: none !important;' +
+      '  }' +
+      '  body.printing-trend-detail #trend-detail-chart-wrap {' +
+      '    height: 280px !important; max-height: 280px !important; min-height: 280px !important;' +
+      '  }' +
+      '  body.printing-trend-detail #trend-detail-close,' +
+      '  body.printing-trend-detail #trend-detail-print { display: none !important; }' +
+      '  @page { size: letter portrait; margin: 0.5in; }' +
+      '}';
+    document.head.appendChild(style);
+  })();
 
   // --- Fetch API and render chart + table ---
   function fetchAndRender(businessUnit, weeks) {
@@ -300,6 +351,16 @@
       return d.net;
     });
 
+    // Compute smart Y-axis min: round down to nearest 100 below the data minimum
+    // This zooms in on the variation instead of starting at 0
+    const minTotal = Math.min.apply(
+      null,
+      totals.filter(function (v) {
+        return v !== null;
+      })
+    );
+    const yMin = Math.floor(minTotal / 100) * 100;
+
     chartInstance = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -312,9 +373,9 @@
             yAxisID: 'y',
             borderColor: '#3B82F6',
             backgroundColor: '#3B82F6',
-            borderWidth: 2.5,
-            pointRadius: 3,
-            pointHoverRadius: 5,
+            borderWidth: 4,
+            pointRadius: 4,
+            pointHoverRadius: 6,
             tension: 0.3,
             fill: false,
             order: 1,
@@ -391,6 +452,7 @@
           y: {
             type: 'linear',
             position: 'left',
+            min: yMin,
             title: { display: true, text: 'Total Subscribers' },
             ticks: {
               callback: function (v) {

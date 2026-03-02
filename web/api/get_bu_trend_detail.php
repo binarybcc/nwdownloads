@@ -190,7 +190,6 @@ try {
         'weeks_requested' => $weeks,
         'data'            => $result,
     ]);
-
 } catch (PDOException $e) {
     error_log('BU Trend Detail DB error: ' . $e->getMessage());
     sendError('Database error. Please try again later.', 500);

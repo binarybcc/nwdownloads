@@ -108,43 +108,56 @@ try {
     $stmt->execute($papers);
     $rows = $stmt->fetchAll();
 
-    // Reverse to oldest-first for chart rendering
+    // Step 2: Batch-fetch all churn data in a single query
+    // Group by week-Sunday so we can look up per snapshot in O(1)
+    $churn_by_sunday = [];
+    if (!empty($rows)) {
+        // $rows is still DESC order — first = newest, last = oldest
+        $newest_date  = $rows[0]['snapshot_date'];
+        $oldest_date  = $rows[count($rows) - 1]['snapshot_date'];
+
+        $dt_oldest = new DateTime($oldest_date);
+        $dt_newest = new DateTime($newest_date);
+        $range_sunday   = (clone $dt_oldest)->modify('-' . $dt_oldest->format('w') . ' days')->format('Y-m-d');
+        $range_saturday = (clone $dt_newest)->modify('+' . (6 - (int) $dt_newest->format('w')) . ' days')->format('Y-m-d');
+
+        // Single query: group by the Sunday of each churn row's week
+        $churn_sql = "
+            SELECT
+                DATE_SUB(cds.snapshot_date, INTERVAL (DAYOFWEEK(cds.snapshot_date) - 1) DAY) as week_sunday,
+                SUM(cds.renewed_count) as starts,
+                SUM(cds.stopped_count) as stops
+            FROM churn_daily_summary cds
+            WHERE cds.paper_code IN ($placeholders)
+              AND cds.snapshot_date BETWEEN ? AND ?
+            GROUP BY week_sunday
+        ";
+        $churn_params = array_merge($papers, [$range_sunday, $range_saturday]);
+        $churn_stmt = $pdo->prepare($churn_sql);
+        $churn_stmt->execute($churn_params);
+
+        // Key by Sunday date string for O(1) lookup
+        foreach ($churn_stmt->fetchAll() as $cr) {
+            $churn_by_sunday[$cr['week_sunday']] = $cr;
+        }
+    }
+
+    // Step 3: Build result array (reverse to oldest-first for chart rendering)
     $rows = array_reverse($rows);
-
-    // Step 2: For each week, get churn data (starts/stops)
-    $churn_sql = "
-        SELECT
-            COALESCE(SUM(cds.renewed_count), 0) as starts,
-            COALESCE(SUM(cds.stopped_count), 0) as stops
-        FROM churn_daily_summary cds
-        WHERE cds.paper_code IN ($placeholders)
-          AND cds.snapshot_date BETWEEN ? AND ?
-    ";
-    $churn_stmt = $pdo->prepare($churn_sql);
-
     $result = [];
     $prev_total = null;
 
     foreach ($rows as $row) {
         $snapshot_date = $row['snapshot_date'];
 
-        // Compute week Sunday and Saturday
-        // DAYOFWEEK: 1=Sun, 7=Sat in MySQL; in PHP: date('w') gives 0=Sun, 6=Sat
+        // Compute this snapshot's week-Sunday for churn lookup
         $dt = new DateTime($snapshot_date);
-        $day_of_week = (int) $dt->format('w'); // 0=Sun, 6=Sat
-        $sunday = (clone $dt)->modify("-{$day_of_week} days")->format('Y-m-d');
-        $saturday = (clone $dt)->modify('+' . (6 - $day_of_week) . ' days')->format('Y-m-d');
+        $sunday = (clone $dt)->modify('-' . $dt->format('w') . ' days')->format('Y-m-d');
 
-        // Get churn data for this week
-        $churn_params = array_merge($papers, [$sunday, $saturday]);
-        $churn_stmt->execute($churn_params);
-        $churn = $churn_stmt->fetch();
-
-        $starts = (int) $churn['starts'];
-        $stops  = (int) $churn['stops'];
-
-        // If no churn data exists for this week (pre-Dec 2025), mark as null
-        $has_churn = ($starts > 0 || $stops > 0);
+        // Look up churn data — key existence = data available (even if values are 0)
+        $churn = $churn_by_sunday[$sunday] ?? null;
+        $starts = ($churn !== null) ? (int) $churn['starts'] : null;
+        $stops  = ($churn !== null) ? (int) $churn['stops']  : null;
 
         // Net = week-over-week change in total_active
         $total = (int) $row['total_active'];
@@ -160,8 +173,8 @@ try {
             'year'          => (int) $row['year'],
             'label'         => $label,
             'total_active'  => $total,
-            'starts'        => $has_churn ? $starts : null,
-            'stops'         => $has_churn ? $stops : null,
+            'starts'        => $starts,
+            'stops'         => $stops,
             'net'           => $net,
         ];
     }
@@ -174,7 +187,9 @@ try {
     ]);
 
 } catch (PDOException $e) {
-    sendError('Database error: ' . $e->getMessage(), 500);
+    error_log('BU Trend Detail DB error: ' . $e->getMessage());
+    sendError('Database error. Please try again later.', 500);
 } catch (Exception $e) {
-    sendError('Server error: ' . $e->getMessage(), 500);
+    error_log('BU Trend Detail error: ' . $e->getMessage());
+    sendError('Server error. Please try again later.', 500);
 }

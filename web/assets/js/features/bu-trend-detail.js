@@ -247,6 +247,11 @@
           return;
         }
 
+        if (!json.data || json.data.length === 0) {
+          showTableError('No trend data available for this business unit.');
+          return;
+        }
+
         renderChart(json.data);
         renderTable(json.data);
       })

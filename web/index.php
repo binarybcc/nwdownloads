@@ -1205,6 +1205,8 @@ require_once 'auth_check.php';
     <script src="assets/js/charts/donut-to-state-animation.js?v=20251207"></script>
     <!-- Detail Panel -->
     <script src="assets/js/components/detail_panel.js?v=20251207"></script>
+    <!-- BU Trend Detail Drill-Down Modal -->
+    <script src="assets/js/features/bu-trend-detail.js?v=20260302"></script>
     <!-- UI/UX Quick Wins -->
     <script src="assets/js/utils/ui-enhancements.js?v=20251207"></script>
 

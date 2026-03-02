@@ -944,8 +944,13 @@ function renderBusinessUnits() {
                     </div>
                 </div>
 
-                <div class="mt-4 pt-4 border-t border-gray-100" onclick="event.stopPropagation()">
-                    <div class="text-xs font-medium text-gray-500 mb-2">12-Week Trend</div>
+                <div class="mt-4 pt-4 border-t border-gray-100 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors"
+                     onclick="event.stopPropagation(); openTrendDetail('${unitName}');"
+                     title="Click to view detailed trend">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-xs font-medium text-gray-500">12-Week Trend</div>
+                        <div class="text-xs text-blue-500">Click to expand</div>
+                    </div>
                     <div style="position: relative; height: 120px;">
                         <canvas id="${trendChartId}"></canvas>
                     </div>

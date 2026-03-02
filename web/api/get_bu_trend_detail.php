@@ -21,7 +21,7 @@ ini_set('display_errors', 0);
 require_once __DIR__ . '/../auth_check.php';
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// No CORS header — this is an authenticated same-origin endpoint
 
 // --- Database connection (same pattern as legacy.php) ---
 $db_config = [
@@ -170,7 +170,7 @@ try {
         $prev_total = $total;
 
         // Short label for x-axis: "Wk 9 '26"
-        $label = "Wk " . (int) $row['week_num'] . " '" . substr($row['year'], 2);
+        $label = "Wk " . (int) $row['week_num'] . " '" . substr((string) $row['year'], 2);
 
         $result[] = [
             'snapshot_date' => $snapshot_date,

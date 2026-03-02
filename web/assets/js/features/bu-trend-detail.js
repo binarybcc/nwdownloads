@@ -353,13 +353,11 @@
 
     // Compute smart Y-axis min: round down to nearest 100 below the data minimum
     // This zooms in on the variation instead of starting at 0
-    const minTotal = Math.min.apply(
-      null,
-      totals.filter(function (v) {
-        return v !== null;
-      })
-    );
-    const yMin = Math.floor(minTotal / 100) * 100;
+    const validTotals = totals.filter(function (v) {
+      return v !== null;
+    });
+    const yMin =
+      validTotals.length > 0 ? Math.floor(Math.min.apply(null, validTotals) / 100) * 100 : 0;
 
     chartInstance = new Chart(ctx, {
       type: 'bar',

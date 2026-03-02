@@ -104,7 +104,6 @@ foreach ($files as $filepath) {
 
         move_file($processing_path, COMPLETED_DIR . $filename);
         $processed++;
-
     } catch (Exception $e) {
         log_msg("  FAILED: " . $e->getMessage());
         move_file($processing_path, FAILED_DIR . $filename);

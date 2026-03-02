@@ -13,6 +13,11 @@
  *   - churn_daily_summary: renewed_count (starts) and stopped_count (stops) per paper per day (Dec 2025+)
  */
 
+// Suppress HTML error output — this is a JSON API endpoint
+// Must be set before auth_check (which loads config.php)
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+
 require_once __DIR__ . '/../auth_check.php';
 
 header('Content-Type: application/json');

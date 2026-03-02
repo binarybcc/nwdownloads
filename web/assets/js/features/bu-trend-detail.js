@@ -110,7 +110,7 @@
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     headerRow.className = 'bg-gray-100 text-gray-700';
-    ['Week', 'Date', 'Total', 'Starts', 'Stops', 'Net'].forEach(function (text, i) {
+    ['Week', 'Date', 'Total', 'Starts', 'Stops', 'New', 'Net'].forEach(function (text, i) {
       const th = document.createElement('th');
       th.className = i < 2 ? 'text-left px-3 py-2' : 'text-right px-3 py-2';
       th.textContent = text;
@@ -175,15 +175,19 @@
       },
       {
         bold: 'Starts',
-        text: ' \u2014 subscriptions that renewed during the week (from the Renewal Churn report). Note: this captures renewals only \u2014 brand-new first-time subscribers are not tracked separately and are included in the net change instead.',
+        text: ' \u2014 subscriptions that renewed during the week (from the Renewal Churn report).',
       },
       {
         bold: 'Stops',
         text: ' \u2014 subscriptions that expired and were not renewed during the week.',
       },
       {
+        bold: 'New Starts',
+        text: ' \u2014 genuinely new first-time subscribers with no prior subscription history (purple bars). These are people subscribing for the very first time, not renewals or restarts.',
+      },
+      {
         bold: 'Net',
-        text: ' \u2014 the actual week-over-week change in total subscribers. This is the most accurate measure of growth or decline. Starts and Stops data is only available from December 2025 onward.',
+        text: ' \u2014 the actual week-over-week change in total subscribers. This is the most accurate measure of growth or decline. Starts, Stops, and New Starts data is only available from December 2025 onward.',
       },
     ];
 
@@ -319,7 +323,7 @@
     tbody.textContent = '';
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.colSpan = 6;
+    td.colSpan = 7;
     td.className = 'text-center py-4 text-red-600';
     td.textContent = message;
     tr.appendChild(td);
@@ -346,6 +350,9 @@
     });
     const stops = data.map(function (d) {
       return d.stops;
+    });
+    const newStarts = data.map(function (d) {
+      return d.new_starts;
     });
     const nets = data.map(function (d) {
       return d.net;
@@ -397,6 +404,16 @@
             borderColor: 'rgba(239, 68, 68, 0.9)',
             borderWidth: 1,
             order: 4,
+          },
+          {
+            type: 'bar',
+            label: 'New Starts',
+            data: newStarts,
+            yAxisID: 'y2',
+            backgroundColor: 'rgba(147, 51, 234, 0.6)',
+            borderColor: 'rgba(147, 51, 234, 0.9)',
+            borderWidth: 1,
+            order: 5,
           },
           {
             type: 'line',
@@ -462,7 +479,7 @@
           y2: {
             type: 'linear',
             position: 'right',
-            title: { display: true, text: 'Starts / Stops / Net' },
+            title: { display: true, text: 'Starts / Stops / New / Net' },
             beginAtZero: false,
             grid: { drawOnChartArea: false },
           },
@@ -498,6 +515,12 @@
         tr,
         d.stops !== null ? fmtNum(d.stops) : '\u2014',
         'px-3 py-2 text-right' + (d.stops === null ? ' text-gray-300' : '')
+      );
+      // New Starts
+      appendCell(
+        tr,
+        d.new_starts !== null ? fmtNum(d.new_starts) : '\u2014',
+        'px-3 py-2 text-right' + (d.new_starts !== null ? ' text-purple-600' : ' text-gray-300')
       );
       // Net
       let netClass = 'px-3 py-2 text-right text-gray-500';

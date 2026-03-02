@@ -11,6 +11,7 @@
  *   AllSubscriberReport*.csv      → AllSubscriberImporter
  *   SubscribersOnVacation*.csv    → VacationImporter
  *   RenewalChurnReport*.csv       → RenewalImporter
+ *   NewSubscriptionStarts*.csv    → NewStartsImporter
  *
  * Run via Synology Task Scheduler:
  *   Command: /var/packages/PHP8.2/target/usr/local/bin/php82 /volume1/web/circulation/auto_process.php
@@ -32,11 +33,13 @@ date_default_timezone_set('America/New_York');
 require_once __DIR__ . '/lib/AllSubscriberImporter.php';
 require_once __DIR__ . '/lib/VacationImporter.php';
 require_once __DIR__ . '/lib/RenewalImporter.php';
+require_once __DIR__ . '/lib/NewStartsImporter.php';
 require_once __DIR__ . '/SimpleCache.php';
 
 use CirculationDashboard\AllSubscriberImporter;
 use CirculationDashboard\VacationImporter;
 use CirculationDashboard\RenewalImporter;
+use CirculationDashboard\NewStartsImporter;
 use CirculationDashboard\SimpleCache;
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -136,6 +139,9 @@ function run_importer(PDO $pdo, string $filepath, string $filename): array
     if (str_starts_with($filename, 'RenewalChurnReport')) {
         return (new RenewalImporter($pdo))->import($filepath, $filename);
     }
+    if (str_starts_with($filename, 'NewSubscriptionStarts') || str_starts_with($filename, 'NewStart')) {
+        return (new NewStartsImporter($pdo))->import($filepath, $filename);
+    }
     throw new Exception("Unknown file type: $filename");
 }
 
@@ -153,6 +159,10 @@ function format_result(array $result): string
     // RenewalImporter returns: events_imported, summaries_imported
     if (isset($result['events_imported'])) {
         return "events={$result['events_imported']} summaries={$result['summaries_imported']}";
+    }
+    // NewStartsImporter returns: truly_new, restarts, total_processed
+    if (isset($result['truly_new'])) {
+        return "total={$result['total_processed']} truly_new={$result['truly_new']} restarts={$result['restarts']}";
     }
     return json_encode($result);
 }

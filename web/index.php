@@ -15,7 +15,7 @@ require_once 'auth_check.php';
     <title>Circulation Dashboard v2</title>
 
     <!-- Tailwind CSS - Optimized Production Build -->
-    <link rel="stylesheet" href="assets/output.css?v=20260302">
+    <link rel="stylesheet" href="assets/output.css?v=20260302b">
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

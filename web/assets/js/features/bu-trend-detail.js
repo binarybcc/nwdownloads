@@ -1,7 +1,8 @@
 /**
  * BU Trend Detail Modal
  * Opens a large drill-down from the mini 12-week trend chart on BU cards.
- * Shows: mixed Chart.js chart (total line + starts/stops bars + net line),
+ * Shows: dual-panel Chart.js charts (top: total line + renewals bars;
+ *        bottom: stops/new-starts bars + net line),
  *        explanatory note, and a data table.
  *
  * Globals provided: openTrendDetail(businessUnit), closeTrendDetail()
@@ -12,7 +13,8 @@
 (function () {
   'use strict';
 
-  let chartInstance = null;
+  let topChartInstance = null;
+  let bottomChartInstance = null;
   let debounceTimer = null;
 
   // --- Inject modal HTML on DOMContentLoaded ---
@@ -89,14 +91,35 @@
     loading.appendChild(spinner);
     loading.appendChild(loadText);
 
-    // Chart — use max-height + flex-shrink so it adapts to smaller viewports
+    // Chart — dual-panel layout with shared container
     const chartWrap = document.createElement('div');
     chartWrap.id = 'trend-detail-chart-wrap';
-    chartWrap.style.cssText =
-      'min-height: 250px; max-height: 350px; height: 40vh; position: relative; flex-shrink: 0;';
-    const canvas = document.createElement('canvas');
-    canvas.id = 'trend-detail-chart';
-    chartWrap.appendChild(canvas);
+    chartWrap.style.cssText = 'position: relative; flex-shrink: 0;';
+
+    // Top chart panel: Total Subscribers line + Renewals bars
+    const topChartWrap = document.createElement('div');
+    topChartWrap.id = 'trend-detail-chart-top-wrap';
+    topChartWrap.style.cssText = 'height: 280px; position: relative;';
+    const topCanvas = document.createElement('canvas');
+    topCanvas.id = 'trend-detail-chart-top';
+    topChartWrap.appendChild(topCanvas);
+
+    // Divider label between charts
+    const divider = document.createElement('div');
+    divider.className = 'text-xs text-gray-500 font-medium text-center py-1';
+    divider.textContent = 'Stops & New Starts';
+
+    // Bottom chart panel: Stops bars + New Starts bars + Net line
+    const bottomChartWrap = document.createElement('div');
+    bottomChartWrap.id = 'trend-detail-chart-bottom-wrap';
+    bottomChartWrap.style.cssText = 'height: 160px; position: relative;';
+    const bottomCanvas = document.createElement('canvas');
+    bottomCanvas.id = 'trend-detail-chart-bottom';
+    bottomChartWrap.appendChild(bottomCanvas);
+
+    chartWrap.appendChild(topChartWrap);
+    chartWrap.appendChild(divider);
+    chartWrap.appendChild(bottomChartWrap);
 
     // Explanatory note (static content)
     const note = document.createElement('div');
@@ -110,7 +133,7 @@
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     headerRow.className = 'bg-gray-100 text-gray-700';
-    ['Week', 'Date', 'Total', 'Starts', 'Stops', 'New', 'Net'].forEach(function (text, i) {
+    ['Week', 'Date', 'Total', 'Renewals', 'Stops', 'New', 'Net'].forEach(function (text, i) {
       const th = document.createElement('th');
       th.className = i < 2 ? 'text-left px-3 py-2' : 'text-right px-3 py-2';
       th.textContent = text;
@@ -161,46 +184,82 @@
   // Build static explanatory note content using safe DOM methods
   function buildNoteContent() {
     const frag = document.createDocumentFragment();
-    const strong = document.createElement('strong');
-    strong.textContent = 'Understanding this chart:';
-    frag.appendChild(strong);
 
-    const ul = document.createElement('ul');
-    ul.className = 'mt-1 list-disc list-inside space-y-1';
+    const heading = document.createElement('strong');
+    heading.textContent = 'Understanding these charts:';
+    frag.appendChild(heading);
 
-    const items = [
+    // Top chart section
+    const topLabel = document.createElement('div');
+    topLabel.className = 'mt-2 font-semibold text-blue-800';
+    topLabel.textContent = 'Top chart:';
+    frag.appendChild(topLabel);
+
+    const topList = document.createElement('ul');
+    topList.className = 'mt-1 list-disc list-inside space-y-1';
+
+    const topItems = [
       {
         bold: 'Total Subscribers',
-        text: ' \u2014 the full count of active subscribers each week (from the AllSubscriber report).',
+        text: ' \u2014 the full count of active subscribers each week (blue line, from the AllSubscriber report).',
       },
       {
-        bold: 'Starts',
-        text: ' \u2014 subscriptions that renewed during the week (from the Renewal Churn report).',
-      },
-      {
-        bold: 'Stops',
-        text: ' \u2014 subscriptions that expired and were not renewed during the week.',
-      },
-      {
-        bold: 'New Starts',
-        text: ' \u2014 genuinely new first-time subscribers with no prior subscription history (purple bars). These are people subscribing for the very first time, not renewals or restarts.',
-      },
-      {
-        bold: 'Net',
-        text: ' \u2014 the actual week-over-week change in total subscribers. This is the most accurate measure of growth or decline. Starts, Stops, and New Starts data is only available from December 2025 onward.',
+        bold: 'Renewals',
+        text: ' \u2014 existing subscribers whose subscriptions came up for renewal and they renewed (green bars, from the Renewal Churn report).',
       },
     ];
 
-    items.forEach(function (item) {
+    topItems.forEach(function (item) {
       const li = document.createElement('li');
       const b = document.createElement('strong');
       b.textContent = item.bold;
       li.appendChild(b);
       li.appendChild(document.createTextNode(item.text));
-      ul.appendChild(li);
+      topList.appendChild(li);
     });
+    frag.appendChild(topList);
 
-    frag.appendChild(ul);
+    // Bottom chart section
+    const bottomLabel = document.createElement('div');
+    bottomLabel.className = 'mt-2 font-semibold text-blue-800';
+    bottomLabel.textContent = 'Bottom chart:';
+    frag.appendChild(bottomLabel);
+
+    const bottomList = document.createElement('ul');
+    bottomList.className = 'mt-1 list-disc list-inside space-y-1';
+
+    const bottomItems = [
+      {
+        bold: 'Stops',
+        text: ' \u2014 subscriptions that expired and were not renewed during the week (red bars).',
+      },
+      {
+        bold: 'New Starts',
+        text: ' \u2014 genuinely new first-time subscribers with no prior subscription history (purple bars).',
+      },
+      {
+        bold: 'Net',
+        text: ' \u2014 the actual week-over-week change in total subscribers (orange dashed line).',
+      },
+    ];
+
+    bottomItems.forEach(function (item) {
+      const li = document.createElement('li');
+      const b = document.createElement('strong');
+      b.textContent = item.bold;
+      li.appendChild(b);
+      li.appendChild(document.createTextNode(item.text));
+      bottomList.appendChild(li);
+    });
+    frag.appendChild(bottomList);
+
+    // Availability note
+    const availability = document.createElement('p');
+    availability.className = 'mt-2 text-xs text-blue-700';
+    availability.textContent =
+      'Renewals, Stops, and New Starts data is only available from December 2025 onward.';
+    frag.appendChild(availability);
+
     return frag;
   }
 
@@ -225,9 +284,13 @@
     overlay.classList.add('hidden');
     document.body.style.overflow = '';
 
-    if (chartInstance) {
-      chartInstance.destroy();
-      chartInstance = null;
+    if (topChartInstance) {
+      topChartInstance.destroy();
+      topChartInstance = null;
+    }
+    if (bottomChartInstance) {
+      bottomChartInstance.destroy();
+      bottomChartInstance = null;
     }
   }
 
@@ -266,7 +329,13 @@
       '    overflow: visible !important; max-height: none !important;' +
       '  }' +
       '  body.printing-trend-detail #trend-detail-chart-wrap {' +
-      '    height: 280px !important; max-height: 280px !important; min-height: 280px !important;' +
+      '    height: auto !important; max-height: none !important;' +
+      '  }' +
+      '  body.printing-trend-detail #trend-detail-chart-top-wrap {' +
+      '    height: 200px !important; max-height: 200px !important; min-height: 200px !important;' +
+      '  }' +
+      '  body.printing-trend-detail #trend-detail-chart-bottom-wrap {' +
+      '    height: 140px !important; max-height: 140px !important; min-height: 140px !important;' +
       '  }' +
       '  body.printing-trend-detail #trend-detail-close,' +
       '  body.printing-trend-detail #trend-detail-print { display: none !important; }' +
@@ -330,14 +399,16 @@
     tbody.appendChild(tr);
   }
 
-  // --- Render Chart.js mixed chart ---
+  // --- Render dual-panel Chart.js charts ---
   function renderChart(data) {
-    if (chartInstance) {
-      chartInstance.destroy();
-      chartInstance = null;
+    if (topChartInstance) {
+      topChartInstance.destroy();
+      topChartInstance = null;
     }
-
-    const ctx = document.getElementById('trend-detail-chart').getContext('2d');
+    if (bottomChartInstance) {
+      bottomChartInstance.destroy();
+      bottomChartInstance = null;
+    }
 
     const labels = data.map(function (d) {
       return d.label;
@@ -358,15 +429,30 @@
       return d.net;
     });
 
-    // Compute smart Y-axis min: round down to nearest 100 below the data minimum
-    // This zooms in on the variation instead of starting at 0
+    // Compute smart Y-axis min for total subscribers: round down to nearest 100
     const validTotals = totals.filter(function (v) {
       return v !== null;
     });
     const yMin =
       validTotals.length > 0 ? Math.floor(Math.min.apply(null, validTotals) / 100) * 100 : 0;
 
-    chartInstance = new Chart(ctx, {
+    // Shared tooltip title callback
+    function tooltipTitle(items) {
+      const idx = items[0].dataIndex;
+      const d = data[idx];
+      return d.label + '  (' + d.snapshot_date + ')';
+    }
+
+    function tooltipLabel(item) {
+      const val = item.raw;
+      if (val === null || val === undefined) return item.dataset.label + ': \u2014';
+      return item.dataset.label + ': ' + fmtNum(val);
+    }
+
+    // --- Top chart: Total Subscribers (line) + Renewals (bars) ---
+    const topCtx = document.getElementById('trend-detail-chart-top').getContext('2d');
+
+    topChartInstance = new Chart(topCtx, {
       type: 'bar',
       data: {
         labels: labels,
@@ -387,48 +473,12 @@
           },
           {
             type: 'bar',
-            label: 'Starts',
+            label: 'Renewals',
             data: starts,
             yAxisID: 'y2',
             backgroundColor: 'rgba(34, 197, 94, 0.6)',
             borderColor: 'rgba(34, 197, 94, 0.9)',
             borderWidth: 1,
-            order: 3,
-          },
-          {
-            type: 'bar',
-            label: 'Stops',
-            data: stops,
-            yAxisID: 'y2',
-            backgroundColor: 'rgba(239, 68, 68, 0.6)',
-            borderColor: 'rgba(239, 68, 68, 0.9)',
-            borderWidth: 1,
-            order: 4,
-          },
-          {
-            type: 'bar',
-            label: 'New Starts',
-            data: newStarts,
-            yAxisID: 'y2',
-            backgroundColor: 'rgba(147, 51, 234, 0.6)',
-            borderColor: 'rgba(147, 51, 234, 0.9)',
-            borderWidth: 1,
-            order: 5,
-          },
-          {
-            type: 'line',
-            label: 'Net',
-            data: nets,
-            yAxisID: 'y2',
-            borderColor: '#F59E0B',
-            backgroundColor: '#F59E0B',
-            borderWidth: 2,
-            borderDash: [6, 3],
-            pointRadius: 3,
-            pointHoverRadius: 5,
-            tension: 0.3,
-            fill: false,
-            spanGaps: false,
             order: 2,
           },
         ],
@@ -447,16 +497,8 @@
           },
           tooltip: {
             callbacks: {
-              title: function (items) {
-                const idx = items[0].dataIndex;
-                const d = data[idx];
-                return d.label + '  (' + d.snapshot_date + ')';
-              },
-              label: function (item) {
-                const val = item.raw;
-                if (val === null || val === undefined) return item.dataset.label + ': \u2014';
-                return item.dataset.label + ': ' + fmtNum(val);
-              },
+              title: tooltipTitle,
+              label: tooltipLabel,
             },
           },
         },
@@ -479,9 +521,98 @@
           y2: {
             type: 'linear',
             position: 'right',
-            title: { display: true, text: 'Starts / Stops / New / Net' },
-            beginAtZero: false,
+            title: { display: true, text: 'Renewals' },
+            beginAtZero: true,
             grid: { drawOnChartArea: false },
+          },
+        },
+      },
+    });
+
+    // --- Bottom chart: Stops (bars) + New Starts (bars) + Net (line) ---
+    const bottomCtx = document.getElementById('trend-detail-chart-bottom').getContext('2d');
+
+    bottomChartInstance = new Chart(bottomCtx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Stops',
+            data: stops,
+            yAxisID: 'y',
+            backgroundColor: 'rgba(239, 68, 68, 0.6)',
+            borderColor: 'rgba(239, 68, 68, 0.9)',
+            borderWidth: 1,
+            order: 2,
+          },
+          {
+            type: 'bar',
+            label: 'New Starts',
+            data: newStarts,
+            yAxisID: 'y',
+            backgroundColor: 'rgba(147, 51, 234, 0.6)',
+            borderColor: 'rgba(147, 51, 234, 0.9)',
+            borderWidth: 1,
+            order: 3,
+          },
+          {
+            type: 'line',
+            label: 'Net',
+            data: nets,
+            yAxisID: 'y',
+            borderColor: '#F59E0B',
+            backgroundColor: '#F59E0B',
+            borderWidth: 2,
+            borderDash: [6, 3],
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0,
+            fill: false,
+            spanGaps: false,
+            order: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { usePointStyle: true, padding: 16 },
+          },
+          tooltip: {
+            callbacks: {
+              title: tooltipTitle,
+              label: tooltipLabel,
+            },
+          },
+        },
+        scales: {
+          x: {
+            display: false,
+          },
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: { display: true, text: 'Stops / New / Net' },
+            beginAtZero: false,
+            grace: '15%',
+            grid: {
+              drawOnChartArea: true,
+              color: function (context) {
+                return context.tick.value === 0 ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.08)';
+              },
+              lineWidth: function (context) {
+                return context.tick.value === 0 ? 2 : 1;
+              },
+            },
           },
         },
       },
@@ -504,7 +635,7 @@
       appendCell(tr, d.snapshot_date, 'px-3 py-2 text-gray-500');
       // Total
       appendCell(tr, fmtNum(d.total_active), 'px-3 py-2 text-right font-medium');
-      // Starts
+      // Renewals (data field is still d.starts from API)
       appendCell(
         tr,
         d.starts !== null ? fmtNum(d.starts) : '\u2014',

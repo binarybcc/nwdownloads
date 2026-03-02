@@ -79,6 +79,13 @@ require_once 'auth_check.php';
                     >
                         📊 Renewal Churns
                     </button>
+                    <button
+                        class="tab-button"
+                        data-tab="newstarts"
+                        onclick="switchTab('newstarts')"
+                    >
+                        🆕 New Starts
+                    </button>
                 </div>
 
                 <!-- Tab Content -->
@@ -288,6 +295,71 @@ require_once 'auth_check.php';
                             </div>
                         </div>
                     </div>
+
+                    <!-- New Starts Tab -->
+                    <div id="newstarts-tab" class="tab-content">
+                        <h2 class="text-xl font-semibold mb-4">Upload New Subscription Starts</h2>
+
+                        <form id="newstartsForm" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    🆕 New Subscription Starts CSV (required)
+                                </label>
+                                <input type="file"
+                                       name="newstarts_csv"
+                                       id="newstartsFileInput"
+                                       accept=".csv"
+                                       required
+                                       class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none p-2">
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Format: NewSubscriptionStarts<strong>YYYYMMDDHHMMSS</strong>.csv from Newzware
+                                </p>
+                                <p id="newstartsFileInfo" class="text-xs text-blue-600 mt-1 hidden"></p>
+                            </div>
+
+                            <div class="pt-4">
+                                <button type="submit" id="newstartsUploadBtn"
+                                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200">
+                                    🚀 Upload and Process New Starts Data
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Progress/Results -->
+                        <div id="newstartsProgress" class="mt-6 hidden">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div class="flex items-center">
+                                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+                                    <span class="text-blue-800 font-medium" id="newstartsProgressText">Processing file...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="newstartsResult" class="mt-6 hidden"></div>
+
+                        <!-- Instructions -->
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <h3 class="text-lg font-semibold mb-3">📋 How to Upload New Starts Data</h3>
+                            <ol class="list-decimal list-inside space-y-2 text-gray-700 text-sm">
+                                <li>Run "New Subscription Starts" report in Newzware (newstarts macro)</li>
+                                <li>Settings: All editions, Include Restarts: N, Transaction Types: S</li>
+                                <li>Export results as CSV file</li>
+                                <li>Click "Choose File" above and select the CSV file</li>
+                                <li>Click "Upload and Process New Starts Data"</li>
+                                <li>Review the import summary showing new vs restart classifications</li>
+                            </ol>
+
+                            <div class="mt-4 p-3 bg-purple-50 border border-purple-200 rounded text-sm">
+                                <p class="text-purple-800 font-semibold mb-1">🆕 New Starts Classification:</p>
+                                <ul class="text-purple-700 space-y-1 list-disc list-inside text-xs">
+                                    <li><strong>Truly New:</strong> Subscribers with no prior renewal/expiration history</li>
+                                    <li><strong>Restarts:</strong> Subscribers who previously expired and came back</li>
+                                    <li>Cross-references against renewal churn data automatically</li>
+                                    <li>Feeds into BU Trend Detail chart for growth analysis</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -298,7 +370,7 @@ require_once 'auth_check.php';
         // Check for hash in URL and switch to that tab on page load
         window.addEventListener("DOMContentLoaded", function() {
             const hash = window.location.hash.substring(1);
-            if (hash && ["subscribers", "vacations", "renewals"].includes(hash)) {
+            if (hash && ["subscribers", "vacations", "renewals", "newstarts"].includes(hash)) {
                 switchTab(hash);
             }
         });
@@ -576,6 +648,135 @@ require_once 'auth_check.php';
                 renewalsUploadBtn.disabled = false;
             }
         });
+
+        // ============================================
+        // NEW STARTS UPLOAD FUNCTIONALITY
+        // ============================================
+        const newstartsForm = document.getElementById("newstartsForm");
+        const newstartsUploadBtn = document.getElementById("newstartsUploadBtn");
+        const newstartsFileInput = document.getElementById("newstartsFileInput");
+        const newstartsFileInfo = document.getElementById("newstartsFileInfo");
+        const newstartsProgress = document.getElementById("newstartsProgress");
+        const newstartsProgressText = document.getElementById("newstartsProgressText");
+        const newstartsResult = document.getElementById("newstartsResult");
+
+        newstartsFileInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+                newstartsFileInfo.textContent = "Selected: " + file.name + " (" + sizeMB + " MB)";
+                newstartsFileInfo.classList.remove("hidden");
+            }
+        });
+
+        newstartsForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            newstartsProgress.classList.remove("hidden");
+            newstartsResult.classList.add("hidden");
+            newstartsResult.textContent = "";
+            newstartsUploadBtn.disabled = true;
+            newstartsUploadBtn.classList.add("opacity-50", "cursor-not-allowed");
+
+            try {
+                const formData = new FormData(newstartsForm);
+                newstartsProgressText.textContent = "Uploading and cross-referencing...";
+
+                const response = await fetch("upload_new_starts.php", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+                newstartsProgress.classList.add("hidden");
+
+                if (data.success) {
+                    renderNewStartsSuccess(data);
+                    newstartsForm.reset();
+                    newstartsFileInfo.classList.add("hidden");
+                } else {
+                    newstartsResult.textContent = "❌ Error: " + (data.error || "Unknown error");
+                    newstartsResult.className = "mt-6 p-4 bg-red-50 border border-red-200 rounded text-red-800";
+                }
+                newstartsResult.classList.remove("hidden");
+            } catch (error) {
+                newstartsProgress.classList.add("hidden");
+                newstartsResult.textContent = "❌ Upload failed: " + error.message;
+                newstartsResult.className = "mt-6 p-4 bg-red-50 border border-red-200 rounded text-red-800";
+                newstartsResult.classList.remove("hidden");
+            } finally {
+                newstartsUploadBtn.disabled = false;
+                newstartsUploadBtn.classList.remove("opacity-50", "cursor-not-allowed");
+            }
+        });
+
+        function renderNewStartsSuccess(data) {
+            // Build result display using DOM methods (safe, no innerHTML with untrusted content)
+            const container = document.createElement("div");
+            container.className = "bg-green-50 border border-green-200 rounded-lg p-6";
+
+            const title = document.createElement("h3");
+            title.className = "text-green-800 font-semibold text-lg mb-2";
+            title.textContent = "✅ New Starts Imported!";
+            container.appendChild(title);
+
+            const info = document.createElement("div");
+            info.className = "text-green-700 space-y-1 mb-4 text-sm";
+            const fields = [
+                ["Date Range", data.date_range],
+                ["Total Processed", data.total_processed],
+                ["New Records", data.new_records],
+                ["Duplicates Updated", data.updated_records],
+                ["Processing Time", data.processing_time]
+            ];
+            fields.forEach(([label, value]) => {
+                const p = document.createElement("p");
+                const strong = document.createElement("strong");
+                strong.textContent = label + ": ";
+                p.appendChild(strong);
+                p.appendChild(document.createTextNode(value));
+                info.appendChild(p);
+            });
+            container.appendChild(info);
+
+            // Classification boxes
+            const classGrid = document.createElement("div");
+            classGrid.className = "grid grid-cols-2 gap-4 text-sm mb-4";
+
+            const newBox = document.createElement("div");
+            newBox.className = "bg-purple-50 rounded p-3 text-center";
+            const newNum = document.createElement("div");
+            newNum.className = "text-2xl font-bold text-purple-700";
+            newNum.textContent = data.truly_new;
+            const newLabel = document.createElement("div");
+            newLabel.className = "text-purple-600 text-xs";
+            newLabel.textContent = "Truly New Subscribers";
+            newBox.appendChild(newNum);
+            newBox.appendChild(newLabel);
+            classGrid.appendChild(newBox);
+
+            const restartBox = document.createElement("div");
+            restartBox.className = "bg-orange-50 rounded p-3 text-center";
+            const restartNum = document.createElement("div");
+            restartNum.className = "text-2xl font-bold text-orange-700";
+            restartNum.textContent = data.restarts;
+            const restartLabel = document.createElement("div");
+            restartLabel.className = "text-orange-600 text-xs";
+            restartLabel.textContent = "Restarts / Overlaps";
+            restartBox.appendChild(restartNum);
+            restartBox.appendChild(restartLabel);
+            classGrid.appendChild(restartBox);
+
+            container.appendChild(classGrid);
+
+            const link = document.createElement("a");
+            link.href = "index.php";
+            link.className = "inline-block bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded text-sm";
+            link.textContent = "View Dashboard →";
+            container.appendChild(link);
+
+            newstartsResult.textContent = "";
+            newstartsResult.appendChild(container);
+            newstartsResult.className = "mt-6";
+        }
     </script>
 </body>
 </html>

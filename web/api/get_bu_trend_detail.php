@@ -11,6 +11,7 @@
  * Data sources:
  *   - daily_snapshots: total_active per paper per week (Jan 2025+)
  *   - churn_daily_summary: renewed_count (starts) and stopped_count (stops) per paper per day (Dec 2025+)
+ *   - new_starts_daily_summary: new subscription starts per paper per day (Dec 2025+)
  */
 
 // Suppress HTML error output — this is a JSON API endpoint
@@ -147,6 +148,29 @@ try {
         }
     }
 
+    // Step 2b: Batch-fetch all new starts data in a single query
+    $newstarts_by_sunday = [];
+    if (!empty($rows)) {
+        $ns_sql = "
+            SELECT
+                DATE_SUB(ns.snapshot_date, INTERVAL (DAYOFWEEK(ns.snapshot_date) - 1) DAY) as week_sunday,
+                SUM(ns.total_new_starts) as total_new_starts,
+                SUM(ns.truly_new_count) as truly_new,
+                SUM(ns.restart_count) as restarts
+            FROM new_starts_daily_summary ns
+            WHERE ns.paper_code IN ($placeholders)
+              AND ns.snapshot_date BETWEEN ? AND ?
+            GROUP BY week_sunday
+        ";
+        $ns_params = array_merge($papers, [$range_sunday, $range_saturday]);
+        $ns_stmt = $pdo->prepare($ns_sql);
+        $ns_stmt->execute($ns_params);
+
+        foreach ($ns_stmt->fetchAll() as $nr) {
+            $newstarts_by_sunday[$nr['week_sunday']] = $nr;
+        }
+    }
+
     // Step 3: Build result array (reverse to oldest-first for chart rendering)
     $rows = array_reverse($rows);
     $result = [];
@@ -164,6 +188,11 @@ try {
         $starts = ($churn !== null) ? (int) $churn['starts'] : null;
         $stops  = ($churn !== null) ? (int) $churn['stops']  : null;
 
+        // Look up new starts data
+        $ns = $newstarts_by_sunday[$sunday] ?? null;
+        $new_starts   = ($ns !== null) ? (int) $ns['truly_new'] : null;
+        $new_restarts = ($ns !== null) ? (int) $ns['restarts']  : null;
+
         // Net = week-over-week change in total_active
         $total = (int) $row['total_active'];
         $net = ($prev_total !== null) ? ($total - $prev_total) : null;
@@ -180,6 +209,8 @@ try {
             'total_active'  => $total,
             'starts'        => $starts,
             'stops'         => $stops,
+            'new_starts'    => $new_starts,
+            'new_restarts'  => $new_restarts,
             'net'           => $net,
         ];
     }

@@ -332,10 +332,10 @@
       '    height: auto !important; max-height: none !important;' +
       '  }' +
       '  body.printing-trend-detail #trend-detail-chart-top-wrap {' +
-      '    height: 200px !important; max-height: 200px !important; min-height: 200px !important;' +
+      '    height: 280px !important; max-height: 280px !important; min-height: 280px !important;' +
       '  }' +
       '  body.printing-trend-detail #trend-detail-chart-bottom-wrap {' +
-      '    height: 140px !important; max-height: 140px !important; min-height: 140px !important;' +
+      '    height: 160px !important; max-height: 160px !important; min-height: 160px !important;' +
       '  }' +
       '  body.printing-trend-detail #trend-detail-close,' +
       '  body.printing-trend-detail #trend-detail-print { display: none !important; }' +

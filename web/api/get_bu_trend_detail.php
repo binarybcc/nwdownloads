@@ -10,7 +10,8 @@
  *
  * Data sources:
  *   - daily_snapshots: total_active per paper per week (Jan 2025+)
- *   - churn_daily_summary: renewed_count (starts) and stopped_count (stops) per paper per day (Dec 2025+)
+ *   - churn_daily_summary: renewed_count (starts/renewals) per paper per day (Dec 2025+)
+ *   - stop_events: individual stop records per subscriber (Dec 2025+) — used for stops count
  *   - new_starts_daily_summary: new subscription starts per paper per day (Dec 2025+)
  */
 
@@ -114,9 +115,10 @@ try {
     $stmt->execute($papers);
     $rows = $stmt->fetchAll();
 
-    // Step 2: Batch-fetch all churn data in a single query
+    // Step 2: Batch-fetch renewals from churn data + stops from stop_events
     // Group by week-Sunday so we can look up per snapshot in O(1)
     $churn_by_sunday = [];
+    $stops_by_sunday = [];
     if (!empty($rows)) {
         // $rows is still DESC order — first = newest, last = oldest
         $newest_date  = $rows[0]['snapshot_date'];
@@ -127,12 +129,11 @@ try {
         $range_sunday   = (clone $dt_oldest)->modify('-' . $dt_oldest->format('w') . ' days')->format('Y-m-d');
         $range_saturday = (clone $dt_newest)->modify('+' . (6 - (int) $dt_newest->format('w')) . ' days')->format('Y-m-d');
 
-        // Single query: group by the Sunday of each churn row's week
+        // Renewals from churn_daily_summary (starts only)
         $churn_sql = "
             SELECT
                 DATE_SUB(cds.snapshot_date, INTERVAL (DAYOFWEEK(cds.snapshot_date) - 1) DAY) as week_sunday,
-                SUM(cds.renewed_count) as starts,
-                SUM(cds.stopped_count) as stops
+                SUM(cds.renewed_count) as starts
             FROM churn_daily_summary cds
             WHERE cds.paper_code IN ($placeholders)
               AND cds.snapshot_date BETWEEN ? AND ?
@@ -142,9 +143,26 @@ try {
         $churn_stmt = $pdo->prepare($churn_sql);
         $churn_stmt->execute($churn_params);
 
-        // Key by Sunday date string for O(1) lookup
         foreach ($churn_stmt->fetchAll() as $cr) {
             $churn_by_sunday[$cr['week_sunday']] = $cr;
+        }
+
+        // Stops from stop_events (more complete than churn stopped_count)
+        $stops_sql = "
+            SELECT
+                DATE_SUB(se.stop_date, INTERVAL (DAYOFWEEK(se.stop_date) - 1) DAY) as week_sunday,
+                COUNT(*) as stops
+            FROM stop_events se
+            WHERE se.paper_code IN ($placeholders)
+              AND se.stop_date BETWEEN ? AND ?
+            GROUP BY week_sunday
+        ";
+        $stops_params = array_merge($papers, [$range_sunday, $range_saturday]);
+        $stops_stmt = $pdo->prepare($stops_sql);
+        $stops_stmt->execute($stops_params);
+
+        foreach ($stops_stmt->fetchAll() as $sr) {
+            $stops_by_sunday[$sr['week_sunday']] = $sr;
         }
     }
 
@@ -183,10 +201,13 @@ try {
         $dt = new DateTime($snapshot_date);
         $sunday = (clone $dt)->modify('-' . $dt->format('w') . ' days')->format('Y-m-d');
 
-        // Look up churn data — key existence = data available (even if values are 0)
+        // Look up renewals from churn data
         $churn = $churn_by_sunday[$sunday] ?? null;
         $starts = ($churn !== null) ? (int) $churn['starts'] : null;
-        $stops  = ($churn !== null) ? (int) $churn['stops']  : null;
+
+        // Look up stops from stop_events (more complete source)
+        $stop_row = $stops_by_sunday[$sunday] ?? null;
+        $stops = ($stop_row !== null) ? (int) $stop_row['stops'] : null;
 
         // Look up new starts data
         $ns = $newstarts_by_sunday[$sunday] ?? null;

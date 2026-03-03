@@ -12,6 +12,7 @@
  *   SubscribersOnVacation*.csv    → VacationImporter
  *   RenewalChurnReport*.csv       → RenewalImporter
  *   NewSubscriptionStarts*.csv    → NewStartsImporter
+ *   StopAnalysisReport*.csv       → StopAnalysisImporter
  *
  * Run via Synology Task Scheduler:
  *   Command: /var/packages/PHP8.2/target/usr/local/bin/php82 /volume1/web/circulation/auto_process.php
@@ -34,12 +35,14 @@ require_once __DIR__ . '/lib/AllSubscriberImporter.php';
 require_once __DIR__ . '/lib/VacationImporter.php';
 require_once __DIR__ . '/lib/RenewalImporter.php';
 require_once __DIR__ . '/lib/NewStartsImporter.php';
+require_once __DIR__ . '/lib/StopAnalysisImporter.php';
 require_once __DIR__ . '/SimpleCache.php';
 
 use CirculationDashboard\AllSubscriberImporter;
 use CirculationDashboard\VacationImporter;
 use CirculationDashboard\RenewalImporter;
 use CirculationDashboard\NewStartsImporter;
+use CirculationDashboard\StopAnalysisImporter;
 use CirculationDashboard\SimpleCache;
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -141,6 +144,9 @@ function run_importer(PDO $pdo, string $filepath, string $filename): array
     }
     if (str_starts_with($filename, 'NewSubscriptionStarts') || str_starts_with($filename, 'NewStart')) {
         return (new NewStartsImporter($pdo))->import($filepath, $filename);
+    }
+    if (str_starts_with($filename, 'StopAnalysisReport') || str_starts_with($filename, 'StopAnalysis')) {
+        return (new StopAnalysisImporter($pdo))->import($filepath, $filename);
     }
     throw new Exception("Unknown file type: $filename");
 }

@@ -25,83 +25,89 @@
  * @param {object} options - Export options
  */
 function exportToExcel(data, filename, options = {}) {
-    if (!data || data.length === 0) {
-        alert('No data to export');
-        return;
+  if (!data || data.length === 0) {
+    alert('No data to export');
+    return;
+  }
+
+  // Check if SheetJS is loaded
+  if (typeof XLSX === 'undefined') {
+    console.error('SheetJS library not loaded');
+    alert('Excel export library not available. Please refresh the page.');
+    return;
+  }
+
+  try {
+    // Create worksheet from data
+    const ws = XLSX.utils.json_to_sheet(data);
+
+    // Get range for styling
+    const range = XLSX.utils.decode_range(ws['!ref']);
+
+    // Apply header styling
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
+      if (!ws[cellRef]) continue;
+
+      ws[cellRef].s = {
+        fill: { fgColor: { rgb: '0891B2' } },
+        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
     }
 
-    // Check if SheetJS is loaded
-    if (typeof XLSX === 'undefined') {
-        console.error('SheetJS library not loaded');
-        alert('Excel export library not available. Please refresh the page.');
-        return;
+    // Apply alternating row colors
+    for (let row = range.s.r + 1; row <= range.e.r; row++) {
+      const isAlternate = row % 2 === 0;
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+        if (!ws[cellRef]) continue;
+
+        ws[cellRef].s = {
+          ...(ws[cellRef].s || {}),
+          fill: isAlternate ? { fgColor: { rgb: 'F0FDFA' } } : {},
+          border: {
+            top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            right: { style: 'thin', color: { rgb: 'E5E7EB' } },
+          },
+        };
+      }
     }
 
-    try {
-        // Create worksheet from data
-        const ws = XLSX.utils.json_to_sheet(data);
+    // Calculate column widths
+    const colWidths = calculateColumnWidths(data);
+    ws['!cols'] = colWidths;
 
-        // Get range for styling
-        const range = XLSX.utils.decode_range(ws['!ref']);
+    // Freeze header row
+    ws['!freeze'] = {
+      xSplit: 0,
+      ySplit: 1,
+      topLeftCell: 'A2',
+      activePane: 'bottomLeft',
+      state: 'frozen',
+    };
 
-        // Apply header styling
-        for (let col = range.s.c; col <= range.e.c; col++) {
-            const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
-            if (!ws[cellRef]) continue;
+    // Add auto-filter
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
 
-            ws[cellRef].s = {
-                fill: { fgColor: { rgb: "0891B2" } },
-                font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 },
-                alignment: { horizontal: "center", vertical: "center" }
-            };
-        }
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, options.sheetName || 'Subscribers');
 
-        // Apply alternating row colors
-        for (let row = range.s.r + 1; row <= range.e.r; row++) {
-            const isAlternate = row % 2 === 0;
-            for (let col = range.s.c; col <= range.e.c; col++) {
-                const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
-                if (!ws[cellRef]) continue;
+    // Generate filename with timestamp
+    const timestamp = formatDateForFilename(new Date());
+    const finalFilename = `${filename}_${timestamp}.xlsx`;
 
-                ws[cellRef].s = {
-                    ...(ws[cellRef].s || {}),
-                    fill: isAlternate ? { fgColor: { rgb: "F0FDFA" } } : {},
-                    border: {
-                        top: { style: "thin", color: { rgb: "E5E7EB" } },
-                        bottom: { style: "thin", color: { rgb: "E5E7EB" } },
-                        left: { style: "thin", color: { rgb: "E5E7EB" } },
-                        right: { style: "thin", color: { rgb: "E5E7EB" } }
-                    }
-                };
-            }
-        }
+    // Write file
+    XLSX.writeFile(wb, finalFilename);
 
-        // Calculate column widths
-        const colWidths = calculateColumnWidths(data);
-        ws['!cols'] = colWidths;
-
-        // Freeze header row
-        ws['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft', state: 'frozen' };
-
-        // Add auto-filter
-        ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
-
-        // Create workbook
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, options.sheetName || "Subscribers");
-
-        // Generate filename with timestamp
-        const timestamp = formatDateForFilename(new Date());
-        const finalFilename = `${filename}_${timestamp}.xlsx`;
-
-        // Write file
-        XLSX.writeFile(wb, finalFilename);
-
-        console.log(`✅ Excel export successful: ${finalFilename}`);
-    } catch (error) {
-        console.error('Excel export error:', error);
-        alert('Failed to export to Excel. Please try again.');
-    }
+    console.log(`✅ Excel export successful: ${finalFilename}`);
+  } catch (error) {
+    console.error('Excel export error:', error);
+    alert('Failed to export to Excel. Please try again.');
+  }
 }
 
 /**
@@ -112,46 +118,46 @@ function exportToExcel(data, filename, options = {}) {
  * @param {string} filename - Output filename (without extension)
  */
 function exportToCSV(data, filename) {
-    if (!data || data.length === 0) {
-        alert('No data to export');
-        return;
+  if (!data || data.length === 0) {
+    alert('No data to export');
+    return;
+  }
+
+  try {
+    const headers = Object.keys(data[0]);
+    const csvRows = [];
+
+    // Header row
+    csvRows.push(headers.map(h => `"${h}"`).join(','));
+
+    // Data rows
+    for (const row of data) {
+      const values = headers.map(header => {
+        const val = row[header] ?? '';
+        // Escape double quotes and wrap in quotes
+        return `"${String(val).replace(/"/g, '""')}"`;
+      });
+      csvRows.push(values.join(','));
     }
 
-    try {
-        const headers = Object.keys(data[0]);
-        const csvRows = [];
+    // Add BOM for Excel compatibility (UTF-8)
+    const csvString = '\uFEFF' + csvRows.join('\n');
 
-        // Header row
-        csvRows.push(headers.map(h => `"${h}"`).join(','));
+    // Create blob
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
 
-        // Data rows
-        for (const row of data) {
-            const values = headers.map(header => {
-                const val = row[header] ?? '';
-                // Escape double quotes and wrap in quotes
-                return `"${String(val).replace(/"/g, '""')}"`;
-            });
-            csvRows.push(values.join(','));
-        }
+    // Generate filename with timestamp
+    const timestamp = formatDateForFilename(new Date());
+    const finalFilename = `${filename}_${timestamp}.csv`;
 
-        // Add BOM for Excel compatibility (UTF-8)
-        const csvString = '\uFEFF' + csvRows.join('\n');
+    // Download
+    downloadBlob(blob, finalFilename);
 
-        // Create blob
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-
-        // Generate filename with timestamp
-        const timestamp = formatDateForFilename(new Date());
-        const finalFilename = `${filename}_${timestamp}.csv`;
-
-        // Download
-        downloadBlob(blob, finalFilename);
-
-        console.log(`✅ CSV export successful: ${finalFilename}`);
-    } catch (error) {
-        console.error('CSV export error:', error);
-        alert('Failed to export to CSV. Please try again.');
-    }
+    console.log(`✅ CSV export successful: ${finalFilename}`);
+  } catch (error) {
+    console.error('CSV export error:', error);
+    alert('Failed to export to CSV. Please try again.');
+  }
 }
 
 /**
@@ -159,26 +165,27 @@ function exportToCSV(data, filename) {
  * Based on content length
  */
 function calculateColumnWidths(data) {
-    if (!data || data.length === 0) return [];
+  if (!data || data.length === 0) return [];
 
-    const headers = Object.keys(data[0]);
-    const widths = headers.map(header => {
-        // Start with header length
-        let maxLen = header.length;
+  const headers = Object.keys(data[0]);
+  const widths = headers.map(header => {
+    // Start with header length
+    let maxLen = header.length;
 
-        // Check data for maximum length
-        for (const row of data.slice(0, 100)) { // Sample first 100 rows for performance
-            const val = String(row[header] || '');
-            maxLen = Math.max(maxLen, val.length);
-        }
+    // Check data for maximum length
+    for (const row of data.slice(0, 100)) {
+      // Sample first 100 rows for performance
+      const val = String(row[header] || '');
+      maxLen = Math.max(maxLen, val.length);
+    }
 
-        // Add padding and constrain to reasonable range
-        const width = Math.min(Math.max(maxLen + 2, 12), 50);
+    // Add padding and constrain to reasonable range
+    const width = Math.min(Math.max(maxLen + 2, 12), 50);
 
-        return { wch: width };
-    });
+    return { wch: width };
+  });
 
-    return widths;
+  return widths;
 }
 
 /**
@@ -186,33 +193,33 @@ function calculateColumnWidths(data) {
  * Returns: YYYYMMDD_HHMMSS
  */
 function formatDateForFilename(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
 
-    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+  return `${year}${month}${day}_${hours}${minutes}${seconds}`;
 }
 
 /**
  * Download blob as file
  */
 function downloadBlob(blob, filename) {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.style.display = 'none';
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.style.display = 'none';
 
-    document.body.appendChild(link);
-    link.click();
+  document.body.appendChild(link);
+  link.click();
 
-    // Cleanup
-    setTimeout(() => {
-        URL.revokeObjectURL(link.href);
-        document.body.removeChild(link);
-    }, 100);
+  // Cleanup
+  setTimeout(() => {
+    URL.revokeObjectURL(link.href);
+    document.body.removeChild(link);
+  }, 100);
 }
 
 /**
@@ -220,19 +227,19 @@ function downloadBlob(blob, filename) {
  * Ensures consistent column order and formatting
  */
 function formatSubscriberDataForExport(subscribers) {
-    return subscribers.map(sub => ({
-        'Account ID': sub.account_id,
-        'Subscriber Name': sub.subscriber_name,
-        'Phone': sub.phone,
-        'Email': sub.email,
-        'Mailing Address': sub.mailing_address,
-        'Paper': sub.paper_name,
-        'Current Rate': sub.current_rate,
-        'Rate Amount': `$${sub.rate_amount}`,
-        'Last Payment': `$${sub.last_payment_amount}`,
-        'Expiration Date': sub.expiration_date,
-        'Delivery Type': sub.delivery_type
-    }));
+  return subscribers.map(sub => ({
+    'Account ID': sub.account_id,
+    'Subscriber Name': sub.subscriber_name,
+    Phone: sub.phone,
+    Email: sub.email,
+    'Mailing Address': sub.mailing_address,
+    Paper: sub.paper_name,
+    'Current Rate': sub.current_rate,
+    'Rate Amount': `$${sub.rate_amount}`,
+    'Last Payment': `$${sub.last_payment_amount}`,
+    'Expiration Date': sub.expiration_date,
+    'Delivery Type': sub.delivery_type,
+  }));
 }
 
 /**
@@ -240,24 +247,69 @@ function formatSubscriberDataForExport(subscribers) {
  * High-level wrapper for common use case
  */
 function exportSubscriberList(subscriberData, exportType = 'excel') {
-    const { business_unit, metric, count, snapshot_date, subscribers } = subscriberData;
+  const { business_unit, metric, count, snapshot_date, subscribers } = subscriberData;
 
-    // Format filename
-    const filename = `${business_unit}_${metric}_${snapshot_date}`.replace(/[^a-z0-9_-]/gi, '_');
+  // Format filename
+  const filename = `${business_unit}_${metric}_${snapshot_date}`.replace(/[^a-z0-9_-]/gi, '_');
 
-    // Format data for export
-    const formattedData = formatSubscriberDataForExport(subscribers);
+  // Format data for export
+  const formattedData = formatSubscriberDataForExport(subscribers);
 
-    // Export based on type
-    if (exportType === 'excel') {
-        exportToExcel(formattedData, filename, {
-            sheetName: `${metric} (${count})`
-        });
-    } else if (exportType === 'csv') {
-        exportToCSV(formattedData, filename);
-    } else {
-        console.error('Invalid export type:', exportType);
-    }
+  // Export based on type
+  if (exportType === 'excel') {
+    exportToExcel(formattedData, filename, {
+      sheetName: `${metric} (${count})`,
+    });
+  } else if (exportType === 'csv') {
+    exportToCSV(formattedData, filename);
+  } else {
+    console.error('Invalid export type:', exportType);
+  }
+}
+
+/**
+ * Format stop event data for export
+ * Ensures consistent column order and formatting
+ */
+function formatStopDataForExport(stops) {
+  return stops.map(function (s) {
+    return {
+      'Account ID': s.sub_num || '',
+      'Subscriber Name': (s.subscriber_name || '').trim(),
+      Phone: s.phone || '',
+      Email: s.email || '',
+      Address: s.mailing_address || '',
+      Paper: s.paper_code || '',
+      Rate: s.rate || '',
+      'Start Date': s.start_date || '',
+      'Stop Date': s.stop_date || '',
+      'Paid Through': s.paid_date || '',
+      'Stop Reason': s.stop_reason || '',
+      Remarks: s.remark || '',
+    };
+  });
+}
+
+/**
+ * Export stop events list with proper formatting
+ * High-level wrapper for stop analysis exports
+ */
+function exportStopEventsList(stopData, exportType) {
+  const bu = stopData.business_unit || 'Unknown';
+  const weekNum = stopData.week_num || '';
+  const year = stopData.year || '';
+  const stops = stopData.stops || [];
+
+  const filename = (bu + '_Stops_W' + weekNum + '_' + year).replace(/[^a-z0-9_-]/gi, '_');
+  const formattedData = formatStopDataForExport(stops);
+
+  if (exportType === 'excel') {
+    exportToExcel(formattedData, filename, {
+      sheetName: 'Stops W' + weekNum + ' (' + stops.length + ')',
+    });
+  } else if (exportType === 'csv') {
+    exportToCSV(formattedData, filename);
+  }
 }
 
 // Export functions globally
@@ -265,5 +317,6 @@ window.exportToExcel = exportToExcel;
 window.exportToCSV = exportToCSV;
 window.exportSubscriberList = exportSubscriberList;
 window.formatSubscriberDataForExport = formatSubscriberDataForExport;
+window.exportStopEventsList = exportStopEventsList;
 
 // console.log('Export utilities loaded');

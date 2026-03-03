@@ -1212,7 +1212,7 @@ require_once 'auth_check.php';
 
     <!-- PHASE 3: Contextual Chart Menus -->
     <script src="assets/js/components/context-menu.js?v=20251207"></script>
-    <script src="assets/js/utils/export-utils.js?v=20251207"></script>
+    <script src="assets/js/utils/export-utils.js?v=20260303"></script>
     <script src="assets/js/components/subscriber-table-panel.js?v=20251207"></script>
     <script src="assets/js/components/trend-slider.js?v=20251207"></script>
     <script src="assets/js/charts/chart-context-integration.js?v=20251207"></script>

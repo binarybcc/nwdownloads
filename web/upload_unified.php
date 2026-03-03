@@ -86,6 +86,13 @@ require_once 'auth_check.php';
                     >
                         🆕 New Starts
                     </button>
+                    <button
+                        class="tab-button"
+                        data-tab="stopanalysis"
+                        onclick="switchTab('stopanalysis')"
+                    >
+                        🛑 Stop Analysis
+                    </button>
                 </div>
 
                 <!-- Tab Content -->
@@ -360,6 +367,71 @@ require_once 'auth_check.php';
                             </div>
                         </div>
                     </div>
+
+                    <!-- Stop Analysis Tab -->
+                    <div id="stopanalysis-tab" class="tab-content">
+                        <h2 class="text-xl font-semibold mb-4">Upload Stop Analysis Report</h2>
+
+                        <form id="stopanalysisForm" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    🛑 Stop Analysis Report CSV (required)
+                                </label>
+                                <input type="file"
+                                       name="stop_analysis_csv"
+                                       id="stopanalysisFileInput"
+                                       accept=".csv"
+                                       required
+                                       class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none p-2">
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Format: StopAnalysisReport<strong>YYYYMMDDHHMMSS</strong>.csv from Newzware
+                                </p>
+                                <p id="stopanalysisFileInfo" class="text-xs text-blue-600 mt-1 hidden"></p>
+                            </div>
+
+                            <div class="pt-4">
+                                <button type="submit" id="stopanalysisUploadBtn"
+                                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200">
+                                    🚀 Upload and Process Stop Analysis Data
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Progress/Results -->
+                        <div id="stopanalysisProgress" class="mt-6 hidden">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div class="flex items-center">
+                                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+                                    <span class="text-blue-800 font-medium" id="stopanalysisProgressText">Processing file...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="stopanalysisResult" class="mt-6 hidden"></div>
+
+                        <!-- Instructions -->
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <h3 class="text-lg font-semibold mb-3">📋 How to Upload Stop Analysis Data</h3>
+                            <ol class="list-decimal list-inside space-y-2 text-gray-700 text-sm">
+                                <li>Run "Stop Analysis Report" in Newzware (recentstopsfordashboard macro)</li>
+                                <li>Settings: All editions, date range covering recent weeks</li>
+                                <li>Export results as CSV file</li>
+                                <li>Click "Choose File" above and select the CSV file</li>
+                                <li>Click "Upload and Process Stop Analysis Data"</li>
+                                <li>Review the import summary showing stops by publication and reason</li>
+                            </ol>
+
+                            <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm">
+                                <p class="text-red-800 font-semibold mb-1">🛑 Stop Analysis Data:</p>
+                                <ul class="text-red-700 space-y-1 list-disc list-inside text-xs">
+                                    <li><strong>Per-subscriber detail:</strong> Name, address, phone, email for each stopped subscriber</li>
+                                    <li><strong>Stop reasons:</strong> AUTO EXPIRE, NON-PAY, COST, DECEASED, and more</li>
+                                    <li><strong>Remarks:</strong> Customer service notes explaining why they stopped</li>
+                                    <li>Click on red Stops bars in BU Trend Detail to drill down into individual stops</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -370,7 +442,7 @@ require_once 'auth_check.php';
         // Check for hash in URL and switch to that tab on page load
         window.addEventListener("DOMContentLoaded", function() {
             const hash = window.location.hash.substring(1);
-            if (hash && ["subscribers", "vacations", "renewals", "newstarts"].includes(hash)) {
+            if (hash && ["subscribers", "vacations", "renewals", "newstarts", "stopanalysis"].includes(hash)) {
                 switchTab(hash);
             }
         });
@@ -707,6 +779,104 @@ require_once 'auth_check.php';
                 newstartsUploadBtn.classList.remove("opacity-50", "cursor-not-allowed");
             }
         });
+
+        // ============================================
+        // STOP ANALYSIS UPLOAD FUNCTIONALITY
+        // ============================================
+        const stopanalysisForm = document.getElementById("stopanalysisForm");
+        const stopanalysisUploadBtn = document.getElementById("stopanalysisUploadBtn");
+        const stopanalysisFileInput = document.getElementById("stopanalysisFileInput");
+        const stopanalysisFileInfo = document.getElementById("stopanalysisFileInfo");
+        const stopanalysisProgress = document.getElementById("stopanalysisProgress");
+        const stopanalysisProgressText = document.getElementById("stopanalysisProgressText");
+        const stopanalysisResult = document.getElementById("stopanalysisResult");
+
+        stopanalysisFileInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+                stopanalysisFileInfo.textContent = "Selected: " + file.name + " (" + sizeMB + " MB)";
+                stopanalysisFileInfo.classList.remove("hidden");
+            }
+        });
+
+        stopanalysisForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            stopanalysisProgress.classList.remove("hidden");
+            stopanalysisResult.classList.add("hidden");
+            stopanalysisResult.textContent = "";
+            stopanalysisUploadBtn.disabled = true;
+            stopanalysisUploadBtn.classList.add("opacity-50", "cursor-not-allowed");
+
+            try {
+                const formData = new FormData(stopanalysisForm);
+                stopanalysisProgressText.textContent = "Uploading and processing stop data...";
+
+                const response = await fetch("upload_stop_analysis.php", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await response.json();
+                stopanalysisProgress.classList.add("hidden");
+
+                if (data.success) {
+                    renderStopAnalysisSuccess(data);
+                    stopanalysisForm.reset();
+                    stopanalysisFileInfo.classList.add("hidden");
+                } else {
+                    stopanalysisResult.textContent = "❌ Error: " + (data.error || "Unknown error");
+                    stopanalysisResult.className = "mt-6 p-4 bg-red-50 border border-red-200 rounded text-red-800";
+                }
+                stopanalysisResult.classList.remove("hidden");
+            } catch (error) {
+                stopanalysisProgress.classList.add("hidden");
+                stopanalysisResult.textContent = "❌ Upload failed: " + error.message;
+                stopanalysisResult.className = "mt-6 p-4 bg-red-50 border border-red-200 rounded text-red-800";
+                stopanalysisResult.classList.remove("hidden");
+            } finally {
+                stopanalysisUploadBtn.disabled = false;
+                stopanalysisUploadBtn.classList.remove("opacity-50", "cursor-not-allowed");
+            }
+        });
+
+        function renderStopAnalysisSuccess(data) {
+            const container = document.createElement("div");
+            container.className = "bg-green-50 border border-green-200 rounded-lg p-6";
+
+            const title = document.createElement("h3");
+            title.className = "text-green-800 font-semibold text-lg mb-2";
+            title.textContent = "✅ Stop Analysis Data Imported!";
+            container.appendChild(title);
+
+            const info = document.createElement("div");
+            info.className = "text-green-700 space-y-1 mb-4 text-sm";
+            const fields = [
+                ["Date Range", data.date_range],
+                ["Total Processed", data.total_processed],
+                ["New Records", data.new_records],
+                ["Updated Records", data.updated_records],
+                ["Processing Time", data.processing_time]
+            ];
+            fields.forEach(([label, value]) => {
+                const p = document.createElement("p");
+                const strong = document.createElement("strong");
+                strong.textContent = label + ": ";
+                p.appendChild(strong);
+                p.appendChild(document.createTextNode(value));
+                info.appendChild(p);
+            });
+            container.appendChild(info);
+
+            const link = document.createElement("a");
+            link.href = "index.php";
+            link.className = "inline-block bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded text-sm";
+            link.textContent = "View Dashboard →";
+            container.appendChild(link);
+
+            stopanalysisResult.textContent = "";
+            stopanalysisResult.appendChild(container);
+            stopanalysisResult.className = "mt-6";
+        }
 
         function renderNewStartsSuccess(data) {
             // Build result display using DOM methods (safe, no innerHTML with untrusted content)

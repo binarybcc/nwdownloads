@@ -8,7 +8,7 @@
  * Globals provided: openTrendDetail(businessUnit), closeTrendDetail()
  */
 
-/* global Chart, formatNumber */
+/* global Chart, formatNumber, exportStopEventsList */
 
 (function () {
   'use strict';
@@ -292,6 +292,9 @@
       bottomChartInstance.destroy();
       bottomChartInstance = null;
     }
+
+    // Close stops drill-down panel if open
+    closeStopsDrillDown();
   }
 
   // Print the modal content to a single Letter-size page, portrait mode
@@ -375,6 +378,10 @@
           showTableError('No trend data available for this business unit.');
           return;
         }
+
+        // Store data for click-to-drill-down on Stops bars
+        const overlay = document.getElementById('trend-detail-overlay');
+        overlay.dataset.trendData = JSON.stringify(json.data);
 
         renderChart(json.data);
         renderTable(json.data);
@@ -617,6 +624,62 @@
         },
       },
     });
+
+    // Attach click/cursor listeners for Stops drill-down
+    attachBottomChartListeners();
+  }
+
+  // --- Click handler on bottom chart for Stops bar drill-down ---
+  function attachBottomChartListeners() {
+    const canvas = document.getElementById('trend-detail-chart-bottom');
+    if (!canvas || !bottomChartInstance) return;
+
+    // Click: drill into Stops bar
+    canvas.addEventListener('click', function (evt) {
+      if (!bottomChartInstance) return;
+      const elements = bottomChartInstance.getElementsAtEventForMode(
+        evt,
+        'nearest',
+        { intersect: true },
+        false
+      );
+      if (elements.length === 0) return;
+
+      const el = elements[0];
+      // Dataset index 0 = Stops (red bars) in the bottom chart
+      if (el.datasetIndex !== 0) return;
+
+      const overlay = document.getElementById('trend-detail-overlay');
+      const bu = overlay.dataset.businessUnit;
+      const dataStr = overlay.dataset.trendData;
+      if (!bu || !dataStr) return;
+
+      const data = JSON.parse(dataStr);
+      const point = data[el.index];
+      if (!point || point.stops === null || point.stops === 0) return;
+
+      showStopsDrillDown(bu, point.week_num, point.year, point.label);
+    });
+
+    // Cursor hint: pointer only on Stops bars
+    canvas.addEventListener('mousemove', function (evt) {
+      if (!bottomChartInstance) return;
+      const elements = bottomChartInstance.getElementsAtEventForMode(
+        evt,
+        'nearest',
+        { intersect: true },
+        false
+      );
+      if (elements.length > 0 && elements[0].datasetIndex === 0) {
+        canvas.style.cursor = 'pointer';
+      } else {
+        canvas.style.cursor = '';
+      }
+    });
+
+    canvas.addEventListener('mouseleave', function () {
+      canvas.style.cursor = '';
+    });
   }
 
   // --- Render data table using safe DOM methods ---
@@ -686,5 +749,538 @@
   function fmtNum(n) {
     if (n === null || n === undefined) return '\u2014';
     return typeof formatNumber === 'function' ? formatNumber(n) : n.toLocaleString();
+  }
+
+  // ==========================================================================
+  // Stops Drill-Down Panel (standalone slide-out)
+  // Mirrors SubscriberTablePanel design with red color scheme
+  // ==========================================================================
+
+  let stopsPanelEl = null; // reference to the panel DOM element
+  let currentStopsData = null; // cached for export
+
+  /**
+   * Fetch stop events for a given BU + week and display in a slide-out panel.
+   */
+  function showStopsDrillDown(businessUnit, weekNum, year, weekLabel) {
+    ensureStopsPanel();
+    const panel = stopsPanelEl;
+    const backdrop = document.getElementById('stops-drilldown-backdrop');
+
+    // Reset export data
+    currentStopsData = null;
+
+    // Show with animation
+    backdrop.style.opacity = '0';
+    backdrop.classList.remove('hidden');
+    requestAnimationFrame(function () {
+      backdrop.style.opacity = '1';
+      panel.style.right = '0';
+    });
+
+    // Set title
+    const titleEl = panel.querySelector('[data-stops-title]');
+    titleEl.textContent = 'Stops \u2014 ' + businessUnit;
+    const subtitleEl = panel.querySelector('[data-stops-subtitle]');
+    subtitleEl.textContent = weekLabel + ' \u00B7 Loading\u2026';
+
+    // Hide export bar during loading
+    const exportBar = panel.querySelector('[data-stops-export-bar]');
+    if (exportBar) exportBar.style.display = 'none';
+
+    // Loading state
+    const bodyEl = panel.querySelector('[data-stops-body]');
+    bodyEl.textContent = '';
+    const spinner = document.createElement('div');
+    spinner.style.cssText =
+      'display:flex;align-items:center;justify-content:center;padding:3rem 0;';
+    const spinnerInner = document.createElement('div');
+    spinnerInner.style.cssText =
+      'width:2rem;height:2rem;border-radius:50%;border:3px solid #FEE2E2;' +
+      'border-top-color:#DC2626;animation:spin 0.8s linear infinite;';
+    spinner.appendChild(spinnerInner);
+    const spinText = document.createElement('span');
+    spinText.style.cssText = 'margin-left:0.75rem;color:#6B7280;';
+    spinText.textContent = 'Loading stop events\u2026';
+    spinner.appendChild(spinText);
+    bodyEl.appendChild(spinner);
+
+    // Fetch
+    const url =
+      'api/get_stop_events.php?business_unit=' +
+      encodeURIComponent(businessUnit) +
+      '&week_num=' +
+      weekNum +
+      '&year=' +
+      year;
+
+    fetch(url, { credentials: 'same-origin' })
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (json) {
+        if (!json.success) {
+          bodyEl.textContent = '';
+          const err = document.createElement('p');
+          err.style.cssText = 'color:#DC2626;padding:2rem 0;text-align:center;';
+          err.textContent = json.error || 'Failed to load stop events';
+          bodyEl.appendChild(err);
+          return;
+        }
+
+        subtitleEl.textContent = weekLabel + ' \u00B7 ' + json.count + ' stops';
+
+        // Cache data for export
+        currentStopsData = {
+          business_unit: businessUnit,
+          week_num: weekNum,
+          year: year,
+          stops: json.stops,
+        };
+
+        // Show export bar with count
+        if (exportBar) {
+          exportBar.style.display = 'flex';
+          const countEl = panel.querySelector('[data-stops-count]');
+          if (countEl) countEl.textContent = 'Total: ' + json.count + ' stops';
+        }
+
+        renderStopsTable(bodyEl, json.stops);
+      })
+      .catch(function (err) {
+        console.error('Stop events fetch error:', err);
+        bodyEl.textContent = '';
+        const errEl = document.createElement('p');
+        errEl.style.cssText = 'color:#DC2626;padding:2rem 0;text-align:center;';
+        errEl.textContent = 'Network error loading stop events';
+        bodyEl.appendChild(errEl);
+      });
+  }
+
+  /** Helper: build a button with icon + label (safe DOM, no innerHTML). */
+  function buildExportButton(iconText, labelText, styles) {
+    const btn = document.createElement('button');
+    btn.style.cssText = styles;
+    const icon = document.createElement('span');
+    icon.style.cssText = 'font-size:16px;';
+    icon.textContent = iconText;
+    const lbl = document.createElement('span');
+    lbl.textContent = labelText;
+    btn.appendChild(icon);
+    btn.appendChild(lbl);
+    return btn;
+  }
+
+  /**
+   * Create the stops drill-down panel DOM (once).
+   * Uses inline styles to match SubscriberTablePanel design with red color scheme.
+   */
+  function ensureStopsPanel() {
+    if (stopsPanelEl) return;
+
+    // Backdrop
+    const backdrop = document.createElement('div');
+    backdrop.id = 'stops-drilldown-backdrop';
+    backdrop.style.cssText =
+      'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);' +
+      'z-index:9998;opacity:0;transition:opacity 300ms cubic-bezier(0.4,0,0.2,1);' +
+      'backdrop-filter:blur(2px);';
+    backdrop.classList.add('hidden');
+    backdrop.addEventListener('click', closeStopsDrillDown);
+
+    // Panel
+    const panel = document.createElement('div');
+    panel.id = 'stops-drilldown-panel';
+    panel.style.cssText =
+      'position:fixed;top:0;right:-75%;width:75%;height:100vh;' +
+      'background:#FEF2F2;box-shadow:-8px 0 32px rgba(0,0,0,0.15);' +
+      'z-index:9999;display:flex;flex-direction:column;' +
+      'transition:right 350ms cubic-bezier(0.4,0,0.2,1);';
+
+    panel.addEventListener('click', function (e) {
+      e.stopPropagation();
+    });
+
+    // ── Header (red gradient) ──
+    const header = document.createElement('div');
+    header.style.cssText =
+      'background:linear-gradient(135deg,#DC2626 0%,#991B1B 100%);' +
+      'color:white;padding:2rem;box-shadow:0 4px 12px rgba(0,0,0,0.1);flex-shrink:0;';
+
+    // Top row: title + close
+    const topRow = document.createElement('div');
+    topRow.style.cssText =
+      'display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;';
+
+    const titleWrap = document.createElement('div');
+    titleWrap.style.cssText = 'flex:1;';
+    const title = document.createElement('h2');
+    title.style.cssText = 'font-size:1.75rem;font-weight:700;margin:0 0 0.5rem 0;';
+    title.setAttribute('data-stops-title', '');
+    const subtitle = document.createElement('p');
+    subtitle.style.cssText = 'font-size:0.95rem;margin:0;opacity:0.95;';
+    subtitle.setAttribute('data-stops-subtitle', '');
+    titleWrap.appendChild(title);
+    titleWrap.appendChild(subtitle);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.style.cssText =
+      'background:rgba(255,255,255,0.2);border:none;color:white;width:40px;height:40px;' +
+      'border-radius:50%;cursor:pointer;transition:background 200ms;display:flex;align-items:center;' +
+      'justify-content:center;font-size:24px;line-height:1;flex-shrink:0;';
+    closeBtn.textContent = '\u00D7';
+    closeBtn.title = 'Close (ESC)';
+    closeBtn.addEventListener('click', closeStopsDrillDown);
+    closeBtn.addEventListener('mouseover', function () {
+      this.style.background = 'rgba(255,255,255,0.3)';
+    });
+    closeBtn.addEventListener('mouseout', function () {
+      this.style.background = 'rgba(255,255,255,0.2)';
+    });
+
+    topRow.appendChild(titleWrap);
+    topRow.appendChild(closeBtn);
+    header.appendChild(topRow);
+
+    // Bottom row: export buttons + count badge
+    const exportBar = document.createElement('div');
+    exportBar.style.cssText = 'display:none;gap:0.75rem;flex-wrap:wrap;align-items:center;';
+    exportBar.setAttribute('data-stops-export-bar', '');
+
+    // Excel button (safe DOM)
+    const excelBtn = buildExportButton(
+      '\uD83D\uDCD7',
+      'Export to Excel',
+      'background:white;color:#DC2626;border:none;padding:0.625rem 1.25rem;border-radius:8px;' +
+        'cursor:pointer;font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:0.5rem;' +
+        'transition:all 200ms;box-shadow:0 2px 6px rgba(0,0,0,0.1);'
+    );
+    excelBtn.addEventListener('mouseover', function () {
+      this.style.transform = 'translateY(-2px)';
+      this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    });
+    excelBtn.addEventListener('mouseout', function () {
+      this.style.transform = 'translateY(0)';
+      this.style.boxShadow = '0 2px 6px rgba(0,0,0,0.1)';
+    });
+    excelBtn.addEventListener('click', function () {
+      if (currentStopsData && typeof exportStopEventsList !== 'undefined') {
+        exportStopEventsList(currentStopsData, 'excel');
+      } else {
+        alert('No stop data available to export.');
+      }
+    });
+
+    // CSV button (safe DOM)
+    const csvBtn = buildExportButton(
+      '\uD83D\uDCCA',
+      'Export to CSV',
+      'background:rgba(255,255,255,0.15);color:white;border:2px solid white;' +
+        'padding:0.625rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.9rem;' +
+        'display:flex;align-items:center;gap:0.5rem;transition:all 200ms;'
+    );
+    csvBtn.addEventListener('mouseover', function () {
+      this.style.background = 'rgba(255,255,255,0.25)';
+    });
+    csvBtn.addEventListener('mouseout', function () {
+      this.style.background = 'rgba(255,255,255,0.15)';
+    });
+    csvBtn.addEventListener('click', function () {
+      if (currentStopsData && typeof exportStopEventsList !== 'undefined') {
+        exportStopEventsList(currentStopsData, 'csv');
+      } else {
+        alert('No stop data available to export.');
+      }
+    });
+
+    // Count badge
+    const countBadge = document.createElement('div');
+    countBadge.style.cssText =
+      'margin-left:auto;background:rgba(255,255,255,0.2);padding:0.625rem 1rem;' +
+      'border-radius:8px;font-weight:600;font-size:0.9rem;';
+    countBadge.setAttribute('data-stops-count', '');
+
+    exportBar.appendChild(excelBtn);
+    exportBar.appendChild(csvBtn);
+    exportBar.appendChild(countBadge);
+    header.appendChild(exportBar);
+
+    // ── Body (scrollable) ──
+    const body = document.createElement('div');
+    body.style.cssText = 'flex:1;overflow-y:auto;padding:2rem;min-height:0;';
+    body.setAttribute('data-stops-body', '');
+
+    panel.appendChild(header);
+    panel.appendChild(body);
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+    stopsPanelEl = panel;
+
+    // ESC to close
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !backdrop.classList.contains('hidden')) {
+        closeStopsDrillDown();
+      }
+    });
+  }
+
+  function closeStopsDrillDown() {
+    const backdrop = document.getElementById('stops-drilldown-backdrop');
+    const panel = document.getElementById('stops-drilldown-panel');
+    if (!backdrop || !panel) return;
+
+    backdrop.style.opacity = '0';
+    panel.style.right = '-75%';
+
+    setTimeout(function () {
+      backdrop.classList.add('hidden');
+    }, 350);
+  }
+
+  /**
+   * Render the stops table inside the panel body.
+   * Matches SubscriberTablePanel styling with red color scheme.
+   */
+  function renderStopsTable(container, stops) {
+    container.textContent = '';
+
+    if (!stops || stops.length === 0) {
+      const emptyWrap = document.createElement('div');
+      emptyWrap.style.cssText =
+        'text-align:center;padding:4rem 2rem;background:white;border-radius:12px;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,0.08);';
+      const emptyIcon = document.createElement('div');
+      emptyIcon.style.cssText = 'font-size:4rem;margin-bottom:1rem;opacity:0.3;';
+      emptyIcon.textContent = '\uD83D\uDED1';
+      const emptyTitle = document.createElement('h3');
+      emptyTitle.style.cssText =
+        'font-size:1.25rem;font-weight:600;color:#1F2937;margin:0 0 0.5rem 0;';
+      emptyTitle.textContent = 'No Stop Events Found';
+      const emptyText = document.createElement('p');
+      emptyText.style.cssText = 'color:#6B7280;margin:0;';
+      emptyText.textContent = 'There are no stop events for this week.';
+      emptyWrap.appendChild(emptyIcon);
+      emptyWrap.appendChild(emptyTitle);
+      emptyWrap.appendChild(emptyText);
+      container.appendChild(emptyWrap);
+      return;
+    }
+
+    // ── Stop Reason Summary ──
+    const reasonCounts = {};
+    stops.forEach(function (s) {
+      const r = s.stop_reason || 'Unknown';
+      reasonCounts[r] = (reasonCounts[r] || 0) + 1;
+    });
+
+    const summaryWrap = document.createElement('div');
+    summaryWrap.style.cssText =
+      'margin-bottom:1rem;padding:0.75rem 1rem;background:#FEF2F2;border:1px solid #FECACA;' +
+      'border-radius:8px;font-size:0.8rem;';
+    const summaryTitle = document.createElement('strong');
+    summaryTitle.style.cssText = 'color:#991B1B;';
+    summaryTitle.textContent = 'Stop Reasons:';
+    summaryWrap.appendChild(summaryTitle);
+
+    const summaryList = document.createElement('div');
+    summaryList.style.cssText = 'margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.5rem;';
+
+    const sortedReasons = Object.keys(reasonCounts).sort(function (a, b) {
+      return reasonCounts[b] - reasonCounts[a];
+    });
+    sortedReasons.forEach(function (reason) {
+      const badge = document.createElement('span');
+      const bStyle = getReasonBadgeStyle(reason);
+      badge.style.cssText =
+        'display:inline-block;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.7rem;font-weight:600;' +
+        'background:' +
+        bStyle.bg +
+        ';color:' +
+        bStyle.text +
+        ';';
+      badge.textContent = reason + ' (' + reasonCounts[reason] + ')';
+      summaryList.appendChild(badge);
+    });
+    summaryWrap.appendChild(summaryList);
+    container.appendChild(summaryWrap);
+
+    // ── Table ──
+    const tableWrap = document.createElement('div');
+    tableWrap.style.cssText =
+      'background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);' +
+      'overflow-x:auto;overflow-y:visible;';
+
+    const table = document.createElement('table');
+    table.style.cssText =
+      'width:100%;border-collapse:collapse;font-size:0.75rem;table-layout:auto;';
+
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headerRow.style.cssText = 'background:#DC2626;color:white;';
+
+    const columns = [
+      { label: 'Acct', align: 'left' },
+      { label: 'Name', align: 'left' },
+      { label: 'Phone', align: 'left' },
+      { label: 'Email', align: 'left' },
+      { label: 'Paper', align: 'center' },
+      { label: 'Rate', align: 'center' },
+      { label: 'Stop Date', align: 'center' },
+      { label: 'Paid Thru', align: 'center' },
+      { label: 'Stop Reason', align: 'left' },
+      { label: 'Remarks', align: 'left' },
+    ];
+
+    columns.forEach(function (col) {
+      const th = document.createElement('th');
+      th.style.cssText =
+        'padding:0.5rem;text-align:' +
+        col.align +
+        ';font-weight:600;white-space:nowrap;' +
+        'border-right:1px solid rgba(255,255,255,0.2);position:sticky;top:0;z-index:10;background:#DC2626;';
+      th.textContent = col.label;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+
+    stops.forEach(function (s, index) {
+      const isAlt = index % 2 === 1;
+      const bgColor = isAlt ? '#FEF2F2' : 'white';
+      const tr = document.createElement('tr');
+      tr.style.cssText = 'background:' + bgColor + ';transition:background 150ms;';
+      tr.addEventListener('mouseover', function () {
+        this.style.background = '#FEE2E2';
+      });
+      tr.addEventListener('mouseout', function () {
+        this.style.background = bgColor;
+      });
+
+      // Account ID — monospace, bold, red
+      stopsAppendStyledCell(
+        tr,
+        s.sub_num || '',
+        'font-family:monospace;font-weight:600;color:#DC2626;white-space:nowrap;'
+      );
+
+      // Name — bold
+      stopsAppendStyledCell(
+        tr,
+        (s.subscriber_name || '').trim(),
+        'font-weight:500;white-space:nowrap;'
+      );
+
+      // Phone — monospace
+      stopsAppendStyledCell(
+        tr,
+        s.phone || '\u2014',
+        'font-family:monospace;white-space:nowrap;' + (!s.phone ? 'color:#D1D5DB;' : '')
+      );
+
+      // Email — clickable mailto link
+      const emailTd = document.createElement('td');
+      emailTd.style.cssText =
+        'padding:0.35rem 0.5rem;border-bottom:1px solid #E5E7EB;white-space:nowrap;';
+      if (s.email) {
+        const emailLink = document.createElement('a');
+        emailLink.href = 'mailto:' + s.email;
+        emailLink.style.cssText = 'color:#DC2626;text-decoration:none;';
+        emailLink.textContent = s.email;
+        emailTd.appendChild(emailLink);
+      } else {
+        emailTd.style.color = '#D1D5DB';
+        emailTd.textContent = '\u2014';
+      }
+      tr.appendChild(emailTd);
+
+      // Paper — bold
+      stopsAppendStyledCell(
+        tr,
+        s.paper_code || '',
+        'font-weight:600;white-space:nowrap;text-align:center;'
+      );
+
+      // Rate
+      stopsAppendStyledCell(
+        tr,
+        s.rate || '\u2014',
+        'text-align:center;white-space:nowrap;' + (!s.rate ? 'color:#D1D5DB;' : '')
+      );
+
+      // Stop Date — monospace
+      stopsAppendStyledCell(
+        tr,
+        s.stop_date || '',
+        'font-family:monospace;text-align:center;white-space:nowrap;'
+      );
+
+      // Paid Thru — monospace
+      stopsAppendStyledCell(
+        tr,
+        s.paid_date || '\u2014',
+        'font-family:monospace;text-align:center;white-space:nowrap;' +
+          (!s.paid_date ? 'color:#D1D5DB;' : '')
+      );
+
+      // Stop reason — color-coded pill badge
+      const reasonTd = document.createElement('td');
+      reasonTd.style.cssText = 'padding:0.35rem 0.5rem;border-bottom:1px solid #E5E7EB;';
+      if (s.stop_reason) {
+        const reasonBadge = document.createElement('span');
+        const rStyle = getReasonBadgeStyle(s.stop_reason);
+        reasonBadge.style.cssText =
+          'display:inline-block;padding:0.15rem 0.5rem;border-radius:9999px;font-size:0.7rem;font-weight:600;' +
+          'background:' +
+          rStyle.bg +
+          ';color:' +
+          rStyle.text +
+          ';';
+        reasonBadge.textContent = s.stop_reason;
+        reasonTd.appendChild(reasonBadge);
+      } else {
+        reasonTd.style.color = '#D1D5DB';
+        reasonTd.textContent = '\u2014';
+      }
+      tr.appendChild(reasonTd);
+
+      // Remarks — truncated with tooltip
+      const remarkTd = document.createElement('td');
+      remarkTd.style.cssText =
+        'padding:0.35rem 0.5rem;border-bottom:1px solid #E5E7EB;max-width:200px;' +
+        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' +
+        (s.remark ? 'color:#4B5563;' : 'color:#D1D5DB;');
+      remarkTd.textContent = s.remark || '\u2014';
+      if (s.remark) remarkTd.title = s.remark;
+      tr.appendChild(remarkTd);
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    container.appendChild(tableWrap);
+  }
+
+  /** Append a styled table cell with base padding + border. */
+  function stopsAppendStyledCell(tr, text, extraStyle) {
+    const td = document.createElement('td');
+    td.style.cssText = 'padding:0.35rem 0.5rem;border-bottom:1px solid #E5E7EB;' + extraStyle;
+    td.textContent = text;
+    tr.appendChild(td);
+  }
+
+  /** Return inline-style color values for stop reason badges by category. */
+  function getReasonBadgeStyle(reason) {
+    const r = (reason || '').toUpperCase();
+    if (r.indexOf('EXPIRE') !== -1) return { bg: '#FFEDD5', text: '#C2410C' };
+    if (r.indexOf('NON-PAY') !== -1) return { bg: '#FEE2E2', text: '#B91C1C' };
+    if (r.indexOf('COST') !== -1) return { bg: '#FEF3C7', text: '#92400E' };
+    if (r.indexOf('DECEASED') !== -1) return { bg: '#E5E7EB', text: '#4B5563' };
+    if (r.indexOf('HOSPITAL') !== -1) return { bg: '#DBEAFE', text: '#1E40AF' };
+    if (r.indexOf('MOVED') !== -1) return { bg: '#EDE9FE', text: '#6D28D9' };
+    return { bg: '#FEF2F2', text: '#DC2626' };
   }
 })();

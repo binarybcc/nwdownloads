@@ -938,12 +938,6 @@ function renderBusinessUnits() {
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div class="progress-bar h-2 rounded-full" style="width: ${percentage}%; background-color: ${config.color}"></div>
-                    </div>
-                </div>
-
                 <div class="mt-4 pt-4 border-t border-gray-100 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors"
                      onclick="event.stopPropagation(); openTrendDetail('${unitName}');"
                      title="Click to view detailed trend">

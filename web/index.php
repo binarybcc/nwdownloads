@@ -1147,6 +1147,50 @@ require_once 'auth_check.php';
                     </div>
                 </div>
 
+                <!-- Zone Trend Chart (Subscribers by Zone over time) -->
+                <div class="bg-white rounded-lg shadow p-6" id="zoneTrendSection">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-lg font-semibold text-gray-900">📊 Subscribers by Zone</h3>
+                        <select id="zoneTrendPaperSelect" class="text-sm border border-gray-300 rounded-md px-2 py-1"></select>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-3">Weekly trends by rate/zone code</p>
+                    <!-- Totals bar -->
+                    <div id="zoneTrendTotalBar" class="flex justify-center gap-3 flex-wrap mb-3 text-xs"></div>
+                    <!-- Controls -->
+                    <div class="flex gap-3 items-center justify-center flex-wrap mb-3">
+                        <label class="text-xs text-gray-500">Filter:</label>
+                        <select id="zoneTrendFilter" class="text-xs border border-gray-300 rounded-md px-2 py-1">
+                            <option value="top10">Top 10 Zones</option>
+                            <option value="all">All Zones</option>
+                            <option value="no-top">All Except #1</option>
+                            <option value="under500">Under 500 Subs</option>
+                            <option value="under100">Under 100 Subs</option>
+                            <option value="growing">Growing Zones</option>
+                            <option value="declining">Declining Zones</option>
+                            <option value="new">New Zones</option>
+                            <option value="retired">Retired Zones</option>
+                            <option value="stable">Stable (changed &lt;5)</option>
+                            <option value="small">Small (&lt;50)</option>
+                            <option value="small25">Small (&lt;25)</option>
+                            <option value="digital">Digital Zones</option>
+                            <option value="comp">Comp/Free Zones</option>
+                        </select>
+                        <label class="text-xs text-gray-500">Min subs:</label>
+                        <input type="number" id="zoneTrendMinSubs" value="0" min="0" class="text-xs border border-gray-300 rounded-md px-2 py-1 w-16">
+                        <button class="text-xs border border-gray-300 rounded-md px-3 py-1 bg-white hover:bg-gray-100" id="zoneTrendBtnStacked">Stacked</button>
+                        <button class="text-xs border border-gray-300 rounded-md px-3 py-1 bg-gray-800 text-white" id="zoneTrendBtnLine">Line</button>
+                    </div>
+                    <!-- Chart -->
+                    <div id="zoneTrendChartContainer" style="height: 400px; position: relative;">
+                        <div id="zoneTrendLoading" class="flex items-center justify-center h-full">
+                            <span class="text-gray-400 text-sm">Loading zone data...</span>
+                        </div>
+                        <canvas id="zoneTrendChart" style="display:none;"></canvas>
+                    </div>
+                    <!-- Legend -->
+                    <div id="zoneTrendLegend" class="flex flex-wrap gap-1 justify-center mt-3"></div>
+                </div>
+
                 <!-- Rate Distribution Chart -->
                 <div class="bg-white rounded-lg shadow p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">💰 Rate Distribution (All Rates)</h3>
@@ -1206,6 +1250,7 @@ require_once 'auth_check.php';
     <!-- Detail Panel -->
     <script src="assets/js/components/detail_panel.js?v=20251207"></script>
     <!-- BU Trend Detail Drill-Down Modal -->
+    <script src="assets/js/features/zone-trend-chart.js?v=20260309"></script>
     <script src="assets/js/features/bu-trend-detail.js?v=20260302"></script>
     <!-- UI/UX Quick Wins -->
     <script src="assets/js/utils/ui-enhancements.js?v=20251207"></script>

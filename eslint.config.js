@@ -71,6 +71,11 @@ export default [
         cleanupChartContextMenus: 'readonly',
         displayLongestVacationsOverall: 'readonly',
         displayLongestVacationsForUnit: 'readonly',
+        BUSINESS_UNITS: 'readonly',
+        PAPER_INFO: 'readonly',
+        formatNumber: 'readonly',
+        loadZoneTrendChart: 'readonly',
+        destroyZoneTrendChart: 'readonly',
       },
     },
     rules: {

@@ -2554,6 +2554,78 @@ function sendError(string $message): void
     ], JSON_PRETTY_PRINT);
 }
 
+/**
+ * Get zone/rate trend data for a specific paper across weekly snapshots.
+ * Returns weekly snapshot dates and subscriber counts per zone (rate_name).
+ */
+function getZoneTrends(PDO $pdo, string $paperCode, int $weeks = 13): array
+{
+    // Get the distinct snapshot dates for this paper (most recent N weeks)
+    $dates_stmt = $pdo->prepare("
+        SELECT DISTINCT snapshot_date
+        FROM subscriber_snapshots
+        WHERE paper_code = ?
+        ORDER BY snapshot_date DESC
+        LIMIT ?
+    ");
+    $dates_stmt->execute([$paperCode, $weeks]);
+    $dates = array_reverse(array_column($dates_stmt->fetchAll(PDO::FETCH_ASSOC), 'snapshot_date'));
+
+    if (empty($dates)) {
+        return ['weeks' => [], 'zones' => [], 'paper_code' => $paperCode];
+    }
+
+    $datePlaceholders = str_repeat('?,', count($dates) - 1) . '?';
+
+    // Get zone counts per snapshot date
+    $zone_stmt = $pdo->prepare("
+        SELECT snapshot_date, rate_name, COUNT(*) as count
+        FROM subscriber_snapshots
+        WHERE paper_code = ?
+          AND snapshot_date IN ($datePlaceholders)
+          AND rate_name IS NOT NULL
+          AND rate_name != ''
+        GROUP BY snapshot_date, rate_name
+        ORDER BY snapshot_date, rate_name
+    ");
+    $zone_stmt->execute(array_merge([$paperCode], $dates));
+    $rows = $zone_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Build a map: zone => [date => count]
+    $zoneMap = [];
+    foreach ($rows as $row) {
+        $zone = $row['rate_name'];
+        $date = $row['snapshot_date'];
+        if (!isset($zoneMap[$zone])) {
+            $zoneMap[$zone] = [];
+        }
+        $zoneMap[$zone][$date] = (int)$row['count'];
+    }
+
+    // Build output: zones as { zoneName: [count_week1, count_week2, ...] }
+    // Fill missing weeks with 0
+    $zones = [];
+    foreach ($zoneMap as $zone => $dateCounts) {
+        $series = [];
+        foreach ($dates as $d) {
+            $series[] = $dateCounts[$d] ?? 0;
+        }
+        $zones[$zone] = $series;
+    }
+
+    // Format dates as M/D/YYYY for display
+    $formattedWeeks = array_map(function ($d) {
+        $ts = strtotime($d);
+        return date('m/d/Y', $ts);
+    }, $dates);
+
+    return [
+        'weeks' => $formattedWeeks,
+        'zones' => $zones,
+        'paper_code' => $paperCode
+    ];
+}
+
 // Main execution
 try {
     $pdo = connectDB($db_config);
@@ -2680,6 +2752,17 @@ try {
             $endDate = $_GET['end_date'] ?? null;
             $limit = isset($_GET['limit']) ? min((int)$_GET['limit'], 1000) : 1000;
             $data = getRenewalEvents($pdo, $status, $paperCode, $subscriptionType, $startDate, $endDate, $limit);
+            sendResponse($data);
+            break;
+
+        case 'get_zone_trends':
+            $paperCode = $_GET['paper_code'] ?? '';
+            $weeks = isset($_GET['weeks']) ? max(4, min(52, (int)$_GET['weeks'])) : 13;
+            if (empty($paperCode)) {
+                sendError('paper_code parameter is required');
+                break;
+            }
+            $data = getZoneTrends($pdo, $paperCode, $weeks);
             sendResponse($data);
             break;
 

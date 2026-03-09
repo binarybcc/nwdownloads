@@ -2561,14 +2561,16 @@ function sendError(string $message): void
 function getZoneTrends(PDO $pdo, string $paperCode, int $weeks = 13): array
 {
     // Get the distinct snapshot dates for this paper (most recent N weeks)
+    // Note: MariaDB doesn't support parameterized LIMIT, so we cast to int and interpolate
+    $weeks = (int)$weeks;
     $dates_stmt = $pdo->prepare("
         SELECT DISTINCT snapshot_date
         FROM subscriber_snapshots
         WHERE paper_code = ?
         ORDER BY snapshot_date DESC
-        LIMIT ?
+        LIMIT $weeks
     ");
-    $dates_stmt->execute([$paperCode, $weeks]);
+    $dates_stmt->execute([$paperCode]);
     $dates = array_reverse(array_column($dates_stmt->fetchAll(PDO::FETCH_ASSOC), 'snapshot_date'));
 
     if (empty($dates)) {

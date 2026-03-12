@@ -96,7 +96,7 @@
     chartWrap.id = 'trend-detail-chart-wrap';
     chartWrap.style.cssText = 'position: relative; flex-shrink: 0;';
 
-    // Top chart panel: Total Subscribers line + Renewals bars
+    // Top chart panel: Paid Subscribers line + Renewals bars
     const topChartWrap = document.createElement('div');
     topChartWrap.id = 'trend-detail-chart-top-wrap';
     topChartWrap.style.cssText = 'height: 280px; position: relative;';
@@ -211,8 +211,8 @@
 
     const topItems = [
       {
-        bold: 'Total Subscribers',
-        text: ' \u2014 the full count of active subscribers each week (blue line, from the AllSubscriber report).',
+        bold: 'Paid Subscribers',
+        text: ' \u2014 paying subscribers each week, excluding complimentary (blue line, from the AllSubscriber report).',
       },
       {
         bold: 'Renewals',
@@ -250,7 +250,7 @@
       },
       {
         bold: 'Net',
-        text: ' \u2014 the actual week-over-week change in total subscribers (orange dashed line).',
+        text: ' \u2014 the actual week-over-week change in paid subscribers (orange dashed line).',
       },
     ];
 
@@ -432,7 +432,7 @@
       return d.label;
     });
     const totals = data.map(function (d) {
-      return d.total_active;
+      return d.paid_active !== null && d.paid_active !== undefined ? d.paid_active : d.total_active;
     });
     const starts = data.map(function (d) {
       return d.starts;
@@ -444,7 +444,7 @@
       return d.new_starts;
     });
     const nets = data.map(function (d) {
-      return d.net;
+      return d.paid_net !== null && d.paid_net !== undefined ? d.paid_net : d.net;
     });
 
     // Compute smart Y-axis min for total subscribers: round down to nearest 100
@@ -467,7 +467,7 @@
       return item.dataset.label + ': ' + fmtNum(val);
     }
 
-    // --- Top chart: Total Subscribers (line) + Renewals (bars) ---
+    // --- Top chart: Paid Subscribers (line) + Renewals (bars) ---
     const topCtx = document.getElementById('trend-detail-chart-top').getContext('2d');
 
     topChartInstance = new Chart(topCtx, {
@@ -477,7 +477,7 @@
         datasets: [
           {
             type: 'line',
-            label: 'Total Subscribers',
+            label: 'Paid Subscribers',
             data: totals,
             yAxisID: 'y',
             borderColor: '#3B82F6',
@@ -528,7 +528,7 @@
             type: 'linear',
             position: 'left',
             min: yMin,
-            title: { display: true, text: 'Total Subscribers' },
+            title: { display: true, text: 'Paid Subscribers' },
             ticks: {
               callback: function (v) {
                 return fmtNum(v);

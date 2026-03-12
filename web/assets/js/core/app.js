@@ -488,13 +488,14 @@ function renderKeyMetrics() {
   const current = dashboardData.current;
   const comparison = dashboardData.comparison;
 
-  // Total Active
-  document.getElementById('totalActive').textContent = formatNumber(current.total_active);
+  // Total Active (paid subscribers as primary number)
+  const paidActive = current.paid_active ?? current.total_active;
+  document.getElementById('totalActive').textContent = formatNumber(paidActive);
 
   // Comp count subtitle
   const compSubtitle = document.getElementById('compSubtitle');
   if (compSubtitle && current.comp_count > 0) {
-    compSubtitle.textContent = `${formatNumber(current.total_active - current.comp_count)} paid · ${formatNumber(current.comp_count)} comp`;
+    compSubtitle.textContent = `${formatNumber(current.comp_count)} comp · ${formatNumber(current.total_active)} total`;
     compSubtitle.classList.remove('hidden');
   } else if (compSubtitle) {
     compSubtitle.classList.add('hidden');
@@ -618,14 +619,15 @@ function renderTrendChart() {
   // Prepare data - use week labels instead of dates (handles missing weeks)
   const labels = trend.map(d => `W${d.week_num}`);
 
-  const activeData = trend.map(d => d.total_active); // null for missing weeks
+  const activeData = trend.map(d => d.paid_active ?? d.total_active); // paid as primary
   const deliverableData = trend.map(d => d.deliverable);
   const vacationData = trend.map(d => d.on_vacation);
 
-  // Calculate smart scale (filter out null values)
-  const validTrend = trend.filter(d => d.total_active !== null);
+  // Calculate smart scale using paid values
+  const validTrend = trend.filter(d => (d.paid_active ?? d.total_active) !== null);
+  const paidTrend = validTrend.map(d => ({ ...d, total_active: d.paid_active ?? d.total_active }));
   const scale =
-    validTrend.length > 0 ? calculateSmartScale(validTrend, 'total_active') : { min: 0, max: 100 };
+    paidTrend.length > 0 ? calculateSmartScale(paidTrend, 'total_active') : { min: 0, max: 100 };
 
   trendChart = CircDashboard.state.charts.trend = new Chart(ctx, {
     type: 'line',
@@ -633,7 +635,7 @@ function renderTrendChart() {
       labels: labels,
       datasets: [
         {
-          label: 'Total Active',
+          label: 'Paid Subscribers',
           data: activeData,
           borderColor: '#3b82f6',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -922,7 +924,9 @@ function renderBusinessUnits() {
     const data = byUnit[unitName];
     if (!data) continue;
 
-    const percentage = ((data.total / dashboardData.current.total_active) * 100).toFixed(1);
+    const buPaid = data.paid_active ?? data.total;
+    const overallPaid = dashboardData.current.paid_active ?? dashboardData.current.total_active;
+    const percentage = ((buPaid / overallPaid) * 100).toFixed(1);
     const vacPercent = ((data.on_vacation / data.total) * 100).toFixed(2);
     const chartId = `chart-${unitName.replace(/\s+/g, '-').toLowerCase()}`;
     const trendChartId = `bu-trend-${unitName.replace(/\s+/g, '-').toLowerCase()}`;
@@ -941,9 +945,9 @@ function renderBusinessUnits() {
                         <div class="text-sm text-gray-500">${config.papers.join(', ')}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-3xl font-bold text-gray-900">${formatNumber(data.total)}</div>
+                        <div class="text-3xl font-bold text-gray-900">${formatNumber(buPaid)}</div>
                         <div class="text-sm text-gray-500">${percentage}% of total</div>
-                        ${data.comp_count > 0 ? `<div class="text-xs text-gray-400">${formatNumber(data.total - data.comp_count)} paid · ${formatNumber(data.comp_count)} comp</div>` : ''}
+                        ${data.comp_count > 0 ? `<div class="text-xs text-gray-400">${formatNumber(data.comp_count)} comp · ${formatNumber(data.total)} total</div>` : ''}
                         ${comparison && (compareMode === 'yoy' ? comparison.yoy : comparison.previous_week) && (compareMode === 'yoy' ? comparison.yoy : comparison.previous_week).change !== undefined ? `<div class="mt-1">${renderComparisonBadge((compareMode === 'yoy' ? comparison.yoy : comparison.previous_week).change, (compareMode === 'yoy' ? comparison.yoy : comparison.previous_week).change_percent, 'vs comparison')}</div>` : ''}
                     </div>
                 </div>
@@ -1113,8 +1117,8 @@ function renderPaperCards() {
                 <div class="space-y-3">
                     <div>
                         <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-600">Total Active</span>
-                            <span class="font-semibold text-gray-900">${formatNumber(data.total)}</span>
+                            <span class="text-gray-600">Paid Subscribers</span>
+                            <span class="font-semibold text-gray-900">${formatNumber(data.total - (data.comp_count || 0))}${data.comp_count > 0 ? ` <span class="text-gray-400 text-xs">(${formatNumber(data.comp_count)} comp)</span>` : ''}</span>
                         </div>
                         <div class="flex justify-between text-sm mb-1">
                             <span class="text-gray-600">On Vacation</span>
@@ -1245,7 +1249,9 @@ function exportToExcel() {
     ['Date Range', data.week.date_range],
     [''],
     ['Overall Metrics', ''],
-    ['Total Active', data.current.total_active],
+    ['Paid Subscribers', data.current.paid_active ?? data.current.total_active],
+    ['Comp Subscribers', data.current.comp_count ?? 0],
+    ['Total Active (incl comp)', data.current.total_active],
     ['On Vacation', data.current.on_vacation],
     ['Deliverable', data.current.deliverable],
     [''],
@@ -1258,8 +1264,8 @@ function exportToExcel() {
   if (data.comparison) {
     summaryData.push(['']);
     summaryData.push(['Comparison', data.comparison.label]);
-    summaryData.push(['Change', data.comparison.changes.total_active]);
-    summaryData.push(['Change %', data.comparison.changes.total_active_percent + '%']);
+    summaryData.push(['Paid Change', data.comparison.changes.total_active]);
+    summaryData.push(['Paid Change %', data.comparison.changes.total_active_percent + '%']);
   }
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
@@ -1317,9 +1323,17 @@ function exportToExcel() {
   XLSX.utils.book_append_sheet(wb, paperSheet, 'By Publication');
 
   // Sheet 4: 12-Week Trend
-  const trendData = [['Date', 'Total Active', 'Deliverable', 'On Vacation']];
+  const trendData = [
+    ['Date', 'Paid Subscribers', 'Total (incl comp)', 'Deliverable', 'On Vacation'],
+  ];
   for (const week of data.trend) {
-    trendData.push([week.snapshot_date, week.total_active, week.deliverable, week.on_vacation]);
+    trendData.push([
+      week.snapshot_date,
+      week.paid_active ?? week.total_active,
+      week.total_active,
+      week.deliverable,
+      week.on_vacation,
+    ]);
   }
   const trendSheet = XLSX.utils.aoa_to_sheet(trendData);
   XLSX.utils.book_append_sheet(wb, trendSheet, '12-Week Trend');

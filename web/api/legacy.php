@@ -188,6 +188,7 @@ function getBusinessUnitComparison(PDO $pdo, string $unitName, string $currentDa
     $stmt = $pdo->prepare("
         SELECT
             SUM(total_active) as total,
+            SUM(comp_count) as comp_count,
             SUM(deliverable) as deliverable,
             SUM(mail_delivery) as mail,
             SUM(digital_only) as digital,
@@ -201,11 +202,14 @@ function getBusinessUnitComparison(PDO $pdo, string $unitName, string $currentDa
     $stmt->execute([$unitName, $lastYearWeek['week_num'], $lastYearWeek['year']]);
     $yoyData = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    $currentPaid = ($currentData['total'] ?? 0) - ($currentData['comp_count'] ?? 0);
+
     if ($yoyData && $yoyData['total'] > 0) {
+        $yoyPaid = (int)$yoyData['total'] - (int)($yoyData['comp_count'] ?? 0);
         $comparison['yoy'] = [
-            'total' => (int)$yoyData['total'],
-            'change' => $currentData['total'] - (int)$yoyData['total'],
-            'change_percent' => round((($currentData['total'] - (int)$yoyData['total']) / (int)$yoyData['total']) * 100, 1)
+            'total' => $yoyPaid,
+            'change' => $currentPaid - $yoyPaid,
+            'change_percent' => $yoyPaid > 0 ? round((($currentPaid - $yoyPaid) / $yoyPaid) * 100, 1) : 0
         ];
     }
 
@@ -223,6 +227,7 @@ function getBusinessUnitComparison(PDO $pdo, string $unitName, string $currentDa
     $stmt = $pdo->prepare("
         SELECT
             SUM(total_active) as total,
+            SUM(comp_count) as comp_count,
             SUM(deliverable) as deliverable
         FROM daily_snapshots
         WHERE business_unit = ?
@@ -238,6 +243,7 @@ function getBusinessUnitComparison(PDO $pdo, string $unitName, string $currentDa
         $stmt = $pdo->prepare("
             SELECT
                 SUM(total_active) as total,
+                SUM(comp_count) as comp_count,
                 SUM(deliverable) as deliverable
             FROM daily_snapshots
             WHERE business_unit = ?
@@ -252,10 +258,11 @@ function getBusinessUnitComparison(PDO $pdo, string $unitName, string $currentDa
     }
 
     if ($prevWeekData && $prevWeekData['total'] > 0) {
+        $prevPaid = (int)$prevWeekData['total'] - (int)($prevWeekData['comp_count'] ?? 0);
         $comparison['previous_week'] = [
-            'total' => (int)$prevWeekData['total'],
-            'change' => $currentData['total'] - (int)$prevWeekData['total'],
-            'change_percent' => round((($currentData['total'] - (int)$prevWeekData['total']) / (int)$prevWeekData['total']) * 100, 1)
+            'total' => $prevPaid,
+            'change' => $currentPaid - $prevPaid,
+            'change_percent' => $prevPaid > 0 ? round((($currentPaid - $prevPaid) / $prevPaid) * 100, 1) : 0
         ];
     }
 
@@ -387,7 +394,7 @@ function forecastNextWeek(array $trend): ?array
 {
     // Filter out NULL weeks (weeks with no data)
     $validWeeks = array_filter($trend, function ($week) {
-        return $week['total_active'] !== null;
+        return ($week['paid_active'] ?? $week['total_active']) !== null;
     });
 
     $n = count($validWeeks);
@@ -404,7 +411,7 @@ function forecastNextWeek(array $trend): ?array
     $validWeeks = array_values($validWeeks);
     foreach ($validWeeks as $i => $week) {
         $x = $i + 1;
-        $y = $week['total_active'];
+        $y = $week['paid_active'] ?? $week['total_active'];
         $sumX += $x;
         $sumY += $y;
         $sumXY += $x * $y;
@@ -415,12 +422,12 @@ function forecastNextWeek(array $trend): ?array
     $intercept = ($sumY - $slope * $sumX) / $n;
 // Forecast next week (x = n + 1)
     $forecast = round($slope * ($n + 1) + $intercept);
-    $lastActual = $validWeeks[$n - 1]['total_active'];
+    $lastActual = $validWeeks[$n - 1]['paid_active'] ?? $validWeeks[$n - 1]['total_active'];
 // Calculate confidence based on variance
     $variance = 0;
     foreach ($validWeeks as $i => $week) {
         $predicted = $slope * ($i + 1) + $intercept;
-        $variance += pow($week['total_active'] - $predicted, 2);
+        $variance += pow(($week['paid_active'] ?? $week['total_active']) - $predicted, 2);
     }
     $stdDev = sqrt($variance / $n);
     $avgValue = $sumY / $n;
@@ -449,16 +456,18 @@ function forecastNextWeek(array $trend): ?array
  */
 function detectAnomalies(array $trend): array
 {
-    // Filter out NULL weeks (weeks with no data)
+    // Filter out NULL weeks (weeks with no data) — use paid_active
     $validWeeks = array_filter($trend, function ($week) {
-        return $week['total_active'] !== null;
+        return ($week['paid_active'] ?? $week['total_active']) !== null;
     });
 
     if (count($validWeeks) < 4) {
         return [];
     }
 
-    $values = array_column($validWeeks, 'total_active');
+    $values = array_map(function ($w) {
+        return $w['paid_active'] ?? $w['total_active'];
+    }, $validWeeks);
     $mean = array_sum($values) / count($values);
     $variance = 0;
     foreach ($values as $value) {
@@ -467,11 +476,12 @@ function detectAnomalies(array $trend): array
     $stdDev = sqrt($variance / count($values));
     $anomalies = [];
     foreach ($validWeeks as $i => $week) {
-        $zScore = $stdDev > 0 ? ($week['total_active'] - $mean) / $stdDev : 0;
+        $paidVal = $week['paid_active'] ?? $week['total_active'];
+        $zScore = $stdDev > 0 ? ($paidVal - $mean) / $stdDev : 0;
         if (abs($zScore) > 2) {
             $anomalies[] = [
                 'date' => $week['snapshot_date'],
-                'value' => $week['total_active'],
+                'value' => $paidVal,
                 'z_score' => round($zScore, 2),
                 'severity' => abs($zScore) > 3 ? 'high' : 'medium'
             ];
@@ -590,12 +600,13 @@ function getBusinessUnitTrendData(PDO $pdo, string $businessUnit, int $weekNum, 
         if ($weekData && $weekData['total_active'] !== null) {
             $totalActive = (int)$weekData['total_active'];
             $compCount = (int)($weekData['comp_count'] ?? 0);
-            $change = ($lastNonNullValue !== null) ? $totalActive - $lastNonNullValue : null;
-            $lastNonNullValue = $totalActive;
+            $paidActive = $totalActive - $compCount;
+            $change = ($lastNonNullValue !== null) ? $paidActive - $lastNonNullValue : null;
+            $lastNonNullValue = $paidActive;
 
             $trend[] = [
                 'label' => $label,
-                'total_active' => $totalActive,
+                'total_active' => $paidActive,
                 'comp_count' => $compCount,
                 'change' => $change
             ];
@@ -745,6 +756,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                 SELECT
                     snapshot_date,
                     SUM(total_active) as total_active,
+                    SUM(comp_count) as comp_count,
                     SUM(on_vacation) as on_vacation,
                     SUM(deliverable) as deliverable
                 FROM daily_snapshots
@@ -760,6 +772,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                     $stmt = $pdo->prepare("
                 SELECT
                     SUM(total_active) as total_active,
+                    SUM(comp_count) as comp_count,
                     SUM(on_vacation) as on_vacation,
                     SUM(deliverable) as deliverable
                 FROM daily_snapshots
@@ -771,6 +784,8 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
             $stmt->execute($params);
             $currentComparable = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($compareData && $currentComparable) {
+                    $curPaid = (int)$currentComparable['total_active'] - (int)($currentComparable['comp_count'] ?? 0);
+                    $prevPaid = (int)$compareData['total_active'] - (int)($compareData['comp_count'] ?? 0);
                     $comparison = [
                                     'type' => 'yoy',
                                     'label' => 'Year-over-Year',
@@ -783,13 +798,14 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                                     ],
                                     'data' => [
                                         'total_active' => (int)$compareData['total_active'],
+                                        'paid_active' => $prevPaid,
                                         'on_vacation' => (int)$compareData['on_vacation'],
                                         'deliverable' => (int)$compareData['deliverable'],
                                     ],
                                     'changes' => [
-                                        'total_active' => (int)$currentComparable['total_active'] - (int)$compareData['total_active'],
-                                        'total_active_percent' => $compareData['total_active'] > 0 ?
-                                            round((((int)$currentComparable['total_active'] - (int)$compareData['total_active']) / (int)$compareData['total_active']) * 100, 2) : 0,
+                                        'total_active' => $curPaid - $prevPaid,
+                                        'total_active_percent' => $prevPaid > 0 ?
+                                            round((($curPaid - $prevPaid) / $prevPaid) * 100, 2) : 0,
                                         'on_vacation' => (int)$currentComparable['on_vacation'] - (int)$compareData['on_vacation'],
                                         'deliverable' => (int)$currentComparable['deliverable'] - (int)$compareData['deliverable'],
                                     ]
@@ -817,6 +833,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                 week_num,
                 year,
                 SUM(total_active) as total_active,
+                SUM(comp_count) as comp_count,
                 SUM(on_vacation) as on_vacation,
                 SUM(deliverable) as deliverable
             FROM daily_snapshots
@@ -835,6 +852,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                     week_num,
                     year,
                     SUM(total_active) as total_active,
+                    SUM(comp_count) as comp_count,
                     SUM(on_vacation) as on_vacation,
                     SUM(deliverable) as deliverable
                 FROM daily_snapshots
@@ -849,6 +867,8 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
         }
 
         if ($compareData) {
+            $curPaid = (int)$current['total_active'] - (int)($current['comp_count'] ?? 0);
+            $prevPaid = (int)$compareData['total_active'] - (int)($compareData['comp_count'] ?? 0);
             $prevWeekBoundaries = getWeekBoundaries($compareData['snapshot_date']);
             $isFallback = ($compareData['week_num'] != $targetWeekNum);
             $comparison = [
@@ -866,13 +886,14 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                 ],
                 'data' => [
                     'total_active' => (int)$compareData['total_active'],
+                    'paid_active' => $prevPaid,
                     'on_vacation' => (int)$compareData['on_vacation'],
                     'deliverable' => (int)$compareData['deliverable'],
                 ],
                 'changes' => [
-                    'total_active' => (int)$current['total_active'] - (int)$compareData['total_active'],
-                    'total_active_percent' => $compareData['total_active'] > 0 ?
-                        round((((int)$current['total_active'] - (int)$compareData['total_active']) / (int)$compareData['total_active']) * 100, 2) : 0,
+                    'total_active' => $curPaid - $prevPaid,
+                    'total_active_percent' => $prevPaid > 0 ?
+                        round((($curPaid - $prevPaid) / $prevPaid) * 100, 2) : 0,
                     'on_vacation' => (int)$current['on_vacation'] - (int)$compareData['on_vacation'],
                     'deliverable' => (int)$current['deliverable'] - (int)$compareData['deliverable'],
                 ]
@@ -908,6 +929,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                 week_num,
                 year,
                 SUM(total_active) as total_active,
+                SUM(comp_count) as comp_count,
                 SUM(on_vacation) as on_vacation,
                 SUM(deliverable) as deliverable
             FROM daily_snapshots
@@ -924,6 +946,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                 'week_num' => (int)$weekData['week_num'],
                 'year' => (int)$weekData['year'],
                 'total_active' => (int)$weekData['total_active'],
+                'paid_active' => (int)$weekData['total_active'] - (int)($weekData['comp_count'] ?? 0),
                 'on_vacation' => (int)$weekData['on_vacation'],
                 'deliverable' => (int)$weekData['deliverable']
             ];
@@ -934,6 +957,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                 'week_num' => $currentWeekNum,
                 'year' => $currentYear,
                 'total_active' => null,
+                'paid_active' => null,
                 'on_vacation' => null,
                 'deliverable' => null
             ];
@@ -961,14 +985,16 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
     $by_business_unit = [];
     $unit_comparisons = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $compCount = (int)($row['comp_count'] ?? 0);
         $unitData = [
             'total' => (int)$row['total'],
+            'paid_active' => (int)$row['total'] - $compCount,
+            'comp_count' => $compCount,
             'on_vacation' => (int)$row['on_vacation'],
             'deliverable' => (int)$row['deliverable'],
             'mail' => (int)$row['mail'],
             'carrier' => (int)$row['carrier'],
             'digital' => (int)$row['digital'],
-            'comp_count' => (int)($row['comp_count'] ?? 0),
         ];
         $by_business_unit[$row['business_unit']] = $unitData;
     // Get comparison for this unit (use current snapshot_date)
@@ -1041,12 +1067,13 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
         'current' => [
             'snapshot_date' => $current['snapshot_date'],
             'total_active' => (int)$current['total_active'],
+            'paid_active' => (int)$current['total_active'] - (int)($current['comp_count'] ?? 0),
+            'comp_count' => (int)($current['comp_count'] ?? 0),
             'on_vacation' => (int)$current['on_vacation'],
             'deliverable' => (int)$current['deliverable'],
             'mail' => (int)$current['mail'],
             'carrier' => (int)$current['carrier'],
             'digital' => (int)$current['digital'],
-            'comp_count' => (int)($current['comp_count'] ?? 0),
         ],
         'backfill' => $backfill_info,
         'comparison' => $comparison,
@@ -1059,6 +1086,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
                 'week_num' => $row['week_num'],
                 'year' => $row['year'],
                 'total_active' => $row['total_active'], // null if missing
+                'paid_active' => $row['paid_active'] ?? $row['total_active'],
                 'on_vacation' => $row['on_vacation'],
                 'deliverable' => $row['deliverable'],
             ];

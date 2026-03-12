@@ -741,7 +741,7 @@ require_once 'auth_check.php';
                      role="region"
                      aria-labelledby="metric-total-active-label">
                     <div class="flex items-center justify-between mb-2">
-                        <div id="metric-total-active-label" class="text-sm font-medium text-gray-600">Total Active Subscribers</div>
+                        <div id="metric-total-active-label" class="text-sm font-medium text-gray-600">Paid Subscribers</div>
                         <div class="text-2xl" aria-hidden="true">📊</div>
                     </div>
                     <div class="text-3xl font-bold text-gray-900" id="totalActive" aria-live="polite">--</div>

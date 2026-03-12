@@ -296,12 +296,18 @@ class AllSubscriberImporter
                         'mail_delivery' => 0,
                         'carrier_delivery' => 0,
                         'digital_only' => 0,
+                        'comp_count' => 0,
                         'on_vacation' => 0
                     ];
                 }
 
                 // Count subscribers
                 $snapshots[$key]['total_active']++;
+
+                // Count complimentary (non-paying) subscribers
+                if (strtoupper($payment_status) === 'COMP') {
+                    $snapshots[$key]['comp_count']++;
+                }
 
                 // Count by delivery type
                 switch (strtoupper($delivery_type)) {
@@ -498,11 +504,11 @@ class AllSubscriberImporter
                 $stmt = $this->pdo->prepare("
                     INSERT INTO daily_snapshots (
                         snapshot_date, week_num, year, paper_code, paper_name, business_unit,
-                        total_active, deliverable, mail_delivery, carrier_delivery, digital_only, on_vacation,
+                        total_active, deliverable, mail_delivery, carrier_delivery, digital_only, comp_count, on_vacation,
                         source_filename, source_date, is_backfilled, backfill_weeks
                     ) VALUES (
                         :snapshot_date, :week_num, :year, :paper_code, :paper_name, :business_unit,
-                        :total_active, :deliverable, :mail_delivery, :carrier_delivery, :digital_only, :on_vacation,
+                        :total_active, :deliverable, :mail_delivery, :carrier_delivery, :digital_only, :comp_count, :on_vacation,
                         :source_filename, :source_date, :is_backfilled, :backfill_weeks
                     )
                 ");

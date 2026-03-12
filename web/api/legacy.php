@@ -567,7 +567,7 @@ function getBusinessUnitTrendData(PDO $pdo, string $businessUnit, int $weekNum, 
         // Query with subquery to ensure "latest snapshot date wins"
         // when multiple snapshots exist in the same calendar week
         $stmt = $pdo->prepare("
-            SELECT SUM(total_active) as total_active
+            SELECT SUM(total_active) as total_active, SUM(comp_count) as comp_count
             FROM daily_snapshots
             WHERE business_unit = ?
               AND paper_code != 'FN'
@@ -589,18 +589,21 @@ function getBusinessUnitTrendData(PDO $pdo, string $businessUnit, int $weekNum, 
 
         if ($weekData && $weekData['total_active'] !== null) {
             $totalActive = (int)$weekData['total_active'];
+            $compCount = (int)($weekData['comp_count'] ?? 0);
             $change = ($lastNonNullValue !== null) ? $totalActive - $lastNonNullValue : null;
             $lastNonNullValue = $totalActive;
 
             $trend[] = [
                 'label' => $label,
                 'total_active' => $totalActive,
+                'comp_count' => $compCount,
                 'change' => $change
             ];
         } else {
             $trend[] = [
                 'label' => $label,
                 'total_active' => null,
+                'comp_count' => null,
                 'change' => null
             ];
         }
@@ -666,6 +669,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
             SUM(mail_delivery) as mail,
             SUM(carrier_delivery) as carrier,
             SUM(digital_only) as digital,
+            SUM(comp_count) as comp_count,
             MAX(source_filename) as source_filename,
             MAX(source_date) as source_date,
             MAX(is_backfilled) as is_backfilled,
@@ -945,7 +949,8 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
             SUM(deliverable) as deliverable,
             SUM(mail_delivery) as mail,
             SUM(carrier_delivery) as carrier,
-            SUM(digital_only) as digital
+            SUM(digital_only) as digital,
+            SUM(comp_count) as comp_count
         FROM daily_snapshots
         WHERE paper_code != 'FN'
           AND week_num = ?
@@ -963,6 +968,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
             'mail' => (int)$row['mail'],
             'carrier' => (int)$row['carrier'],
             'digital' => (int)$row['digital'],
+            'comp_count' => (int)($row['comp_count'] ?? 0),
         ];
         $by_business_unit[$row['business_unit']] = $unitData;
     // Get comparison for this unit (use current snapshot_date)
@@ -980,7 +986,8 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
             deliverable,
             mail_delivery as mail,
             carrier_delivery as carrier,
-            digital_only as digital
+            digital_only as digital,
+            comp_count
         FROM daily_snapshots
         WHERE paper_code != 'FN'
           AND week_num = ?
@@ -999,6 +1006,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
             'mail' => (int)$row['mail'],
             'carrier' => (int)$row['carrier'],
             'digital' => (int)$row['digital'],
+            'comp_count' => (int)($row['comp_count'] ?? 0),
         ];
     }
 
@@ -1038,6 +1046,7 @@ function getOverviewEnhanced(PDO $pdo, array $params): array
             'mail' => (int)$current['mail'],
             'carrier' => (int)$current['carrier'],
             'digital' => (int)$current['digital'],
+            'comp_count' => (int)($current['comp_count'] ?? 0),
         ],
         'backfill' => $backfill_info,
         'comparison' => $comparison,

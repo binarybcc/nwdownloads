@@ -745,6 +745,7 @@ require_once 'auth_check.php';
                         <div class="text-2xl" aria-hidden="true">📊</div>
                     </div>
                     <div class="text-3xl font-bold text-gray-900" id="totalActive" aria-live="polite">--</div>
+                    <div class="text-xs text-gray-400 hidden" id="compSubtitle"></div>
                     <div class="text-sm mt-2" id="totalActiveComparison" role="status">
                         <span class="text-gray-500">Loading...</span>
                     </div>

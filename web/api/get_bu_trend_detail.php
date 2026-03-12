@@ -96,7 +96,8 @@ try {
             MAX(ds.snapshot_date) as snapshot_date,
             ds.week_num,
             ds.year,
-            SUM(ds.total_active) as total_active
+            SUM(ds.total_active) as total_active,
+            SUM(ds.comp_count) as comp_count
         FROM daily_snapshots ds
         WHERE ds.paper_code IN ($placeholders)
             AND ds.snapshot_date = (
@@ -193,6 +194,7 @@ try {
     $rows = array_reverse($rows);
     $result = [];
     $prev_total = null;
+    $prev_paid = null;
 
     foreach ($rows as $row) {
         $snapshot_date = $row['snapshot_date'];
@@ -216,8 +218,12 @@ try {
 
         // Net = week-over-week change in total_active
         $total = (int) $row['total_active'];
+        $comp = (int) ($row['comp_count'] ?? 0);
+        $paid = $total - $comp;
         $net = ($prev_total !== null) ? ($total - $prev_total) : null;
+        $paid_net = ($prev_paid !== null) ? ($paid - $prev_paid) : null;
         $prev_total = $total;
+        $prev_paid = $paid;
 
         // Short label for x-axis: "Wk 9 '26"
         $label = "Wk " . (int) $row['week_num'] . " '" . substr((string) $row['year'], 2);
@@ -228,11 +234,14 @@ try {
             'year'          => (int) $row['year'],
             'label'         => $label,
             'total_active'  => $total,
+            'comp_count'    => $comp,
+            'paid_active'   => $paid,
             'starts'        => $starts,
             'stops'         => $stops,
             'new_starts'    => $new_starts,
             'new_restarts'  => $new_restarts,
             'net'           => $net,
+            'paid_net'      => $paid_net,
         ];
     }
 

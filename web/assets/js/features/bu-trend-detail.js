@@ -133,7 +133,18 @@
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     headerRow.className = 'bg-gray-100 text-gray-700';
-    ['Week', 'Date', 'Total', 'Renewals', 'Stops', 'New', 'Net'].forEach(function (text, i) {
+    [
+      'Week',
+      'Date',
+      'Total',
+      'Comp',
+      'Paid',
+      'Renewals',
+      'Stops',
+      'New',
+      'Net',
+      'Paid Net',
+    ].forEach(function (text, i) {
       const th = document.createElement('th');
       th.className = i < 2 ? 'text-left px-3 py-2' : 'text-right px-3 py-2';
       th.textContent = text;
@@ -698,6 +709,15 @@
       appendCell(tr, d.snapshot_date, 'px-3 py-2 text-gray-500');
       // Total
       appendCell(tr, fmtNum(d.total_active), 'px-3 py-2 text-right font-medium');
+      // Comp
+      appendCell(
+        tr,
+        d.comp_count !== null && d.comp_count !== undefined ? fmtNum(d.comp_count) : '\u2014',
+        'px-3 py-2 text-right text-gray-400'
+      );
+      // Paid (total minus comp)
+      const paid = d.paid_active !== null && d.paid_active !== undefined ? d.paid_active : null;
+      appendCell(tr, paid !== null ? fmtNum(paid) : '\u2014', 'px-3 py-2 text-right font-medium');
       // Renewals (data field is still d.starts from API)
       appendCell(
         tr,
@@ -716,7 +736,7 @@
         d.new_starts !== null ? fmtNum(d.new_starts) : '\u2014',
         'px-3 py-2 text-right' + (d.new_starts !== null ? ' text-purple-600' : ' text-gray-300')
       );
-      // Net
+      // Net (total)
       let netClass = 'px-3 py-2 text-right text-gray-500';
       let netText = '\u2014';
       if (d.net !== null) {
@@ -733,6 +753,23 @@
         netClass = 'px-3 py-2 text-right text-gray-300';
       }
       appendCell(tr, netText, netClass);
+      // Paid Net (excludes comp changes)
+      let paidNetClass = 'px-3 py-2 text-right text-gray-500';
+      let paidNetText = '\u2014';
+      if (d.paid_net !== null && d.paid_net !== undefined) {
+        if (d.paid_net > 0) {
+          paidNetClass = 'px-3 py-2 text-right text-green-600 font-medium';
+          paidNetText = '+' + fmtNum(d.paid_net);
+        } else if (d.paid_net < 0) {
+          paidNetClass = 'px-3 py-2 text-right text-red-600 font-medium';
+          paidNetText = fmtNum(d.paid_net);
+        } else {
+          paidNetText = fmtNum(d.paid_net);
+        }
+      } else {
+        paidNetClass = 'px-3 py-2 text-right text-gray-300';
+      }
+      appendCell(tr, paidNetText, paidNetClass);
 
       tbody.appendChild(tr);
     }

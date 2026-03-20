@@ -4,7 +4,7 @@ milestone: v2.1
 milestone_name: Call Integration & Dashboard Enhancements
 status: unknown
 stopped_at: Completed 03-02-PLAN.md (call_logs table + phone_normalized migrations + AllSubscriberImporter normalization)
-last_updated: '2026-03-20T16:39:32.853Z'
+last_updated: '2026-03-20T17:10:42.745Z'
 progress:
   total_phases: 4
   completed_phases: 1

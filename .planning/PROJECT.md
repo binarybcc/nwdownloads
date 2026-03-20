@@ -1,12 +1,23 @@
-# Business Unit 12-Week Trend Charts
+# NWDownloads Circulation Dashboard
 
 ## What This Is
 
-A feature addition to the NWDownloads Circulation Dashboard that adds compact, interactive 12-week trend charts to each business unit card. Each card shows Total Active subscribers over time as a blue area-fill line chart with hover tooltips, positioned between the comparison bar and the donut chart.
+A newspaper circulation dashboard for tracking subscriber metrics across multiple business units (South Carolina, Wyoming, Michigan) and publications. Features interactive trend charts, subscription expiration tracking, renewal/churn analysis, new starts tracking, and automated data import from Newzware. Production runs on Synology NAS (native Apache/PHP/MariaDB).
 
 ## Core Value
 
-Each business unit card tells its own trend story at a glance — a compact sparkline-style chart showing 12 weeks of Total Active subscriber counts with hover tooltips for exact values.
+Circulation managers can see subscriber health at a glance and take action on retention — knowing who's expiring, who's been contacted, and where trends are heading.
+
+## Current Milestone: v2.1 Call Integration & Dashboard Enhancements
+
+**Goal:** Integrate VOIP call logs with expiration data so circulation staff can see which expiring subscribers have been contacted, plus fix import bugs and expand the expiration view.
+
+**Target features:**
+
+- Fix new starts CSV import (date format compatibility)
+- Expand subscription expiration chart from 4-week to 8-week view
+- MyCommPilot call log scraper with hourly automated collection
+- Call status overlay in expiration subscriber table with XLSX export
 
 ## Requirements
 
@@ -18,53 +29,54 @@ Each business unit card tells its own trend story at a glance — a compact spar
 - ✓ Chart.js 4.4.0 integration for data visualization — existing
 - ✓ Business unit grouping logic in API and frontend — existing
 - ✓ Compact 12-week trend chart in each business unit card — v1
-- ✓ Single Total Active line with area fill (simplified from company-wide chart) — v1
 - ✓ Interactive hover tooltips showing exact values per week — v1
-- ✓ Chart positioned between comparison bar and donut chart in card layout — v1
-- ✓ Data filtered to specific business unit (aggregate of all papers in that BU) — v1
+- ✓ BU detail slide-out with subscription expiration chart — v1.x
+- ✓ Right-click context menu on expiration chart for subscriber drill-down — v1.x
+- ✓ BU trend detail modal with mixed chart (starts/stops/net) — v1.x (PRs #32-35)
+- ✓ Automated weekly import of AllSubscriber, Vacation, Renewal CSVs — v1.x
+- ✓ New starts importer with renewal cross-reference classification — v1.x
+- ✓ Paid vs complimentary subscriber tracking — v1.x (PRs #43-44)
 
 ### Active
 
-(None — planning next milestone)
+See REQUIREMENTS.md for v2.1 requirements.
 
 ### Out of Scope
 
-- Multiple lines (Deliverable, On Vacation) in card chart — keep simplified to single Total Active line
-- Legend in card chart — not needed for single-line chart
-- Replacing the existing company-wide 12-week trend chart — it stays as-is
-- Configurable week range (8, 12, 24 weeks) — 12 weeks is the standard
+- Multiple lines (Deliverable, On Vacation) in card chart — keep simplified
+- XSI REST API for call logs — not enabled by carrier (Segra), using web scraping
+- Real-time call event push — BroadWorks XSI-Events not available
+- Call duration tracking — Basic Call Logs don't include duration
 
 ## Context
 
-Shipped v1 with 2 code files modified: `web/api/legacy.php` (BU trend API functions) and `web/assets/js/core/app.js` (chart rendering and card integration).
+Tech stack: PHP 8.2, Chart.js 4.4.0 (CDN), vanilla JavaScript, Tailwind CSS. Production on Synology NAS (native Apache/PHP/MariaDB). Development via Docker at localhost:8081.
 
-Tech stack: PHP 8.2, Chart.js 4.4.0 (CDN), vanilla JavaScript. Production on Synology NAS (native Apache/PHP/MariaDB).
+Since v1 milestone (2026-02-09), significant features shipped outside GSD: BU trend detail modal (PRs #32-35), stop analysis importer, new starts importer, paid/comp subscriber tracking (PRs #43-44). Current package.json version: v2.0.0.
 
-All 3 business units (South Carolina, Wyoming, Michigan) display interactive trend charts on dashboard load. Charts handle edge cases: no data, null-padded weeks, single data points.
+MyCommPilot (BroadWorks) VOIP system at ws2.mycommpilot.com provides call logs for two circulation staff lines (Brittany Carroll, Chloe Welch). Integration doc at `docs/MYCOMMPILOT-INTEGRATION.md` has complete PHP scraper class and auth flow. Key limitation: only 20 entries per call type visible at any time — must scrape frequently.
 
 ## Constraints
 
-- **Tech Stack**: Must use existing Chart.js 4.4.0 — no new dependencies
-- **Card Size**: Chart must fit compactly within existing card width without making cards excessively tall
-- **Performance**: Must not add significant API calls — batch or reuse existing trend data fetch
-- **Compatibility**: Must work on both development (Docker) and production (Synology native) environments
+- **Tech Stack**: Must use existing Chart.js 4.4.0 — no new JS dependencies
+- **VOIP API**: Web scraping only (no XSI API), 20-entry rolling window per call type
+- **Scheduling**: launchd on Mac (not Synology Task Scheduler — it deletes jobs)
+- **Compatibility**: Must work on both Docker dev and Synology NAS production
+- **Credentials**: MyCommPilot creds in `.env.mycommpilot` (gitignored)
+- **XLSX Export**: Must preserve row coloring for call status indicators
 
 ## Key Decisions
 
-| Decision                                           | Rationale                                                  | Outcome |
-| -------------------------------------------------- | ---------------------------------------------------------- | ------- |
-| Single line (Total Active only)                    | Keep card charts clean and readable at small size          | ✓ Good  |
-| Interactive hover tooltips                         | Users need exact values, not just visual trend shape       | ✓ Good  |
-| Reuse existing trend API                           | Minimize backend changes, data already available           | ✓ Good  |
-| Embed trends in overview response                  | Single HTTP request, data always in sync with current week | ✓ Good  |
-| MAX(snapshot_date) subquery for dedup              | Handles multiple CSV uploads in same week                  | ✓ Good  |
-| Sequential W1-W12 labels                           | Simpler for chart X-axis, matches spec                     | ✓ Good  |
-| data-bu-trend DOM attribute                        | Flexible access pattern for chart rendering                | ✓ Good  |
-| bu-trend- canvas ID prefix                         | Avoids collision with drill-down panel trend- IDs          | ✓ Good  |
-| Nulls with spanGaps instead of zeros               | Prevents misleading "dip to zero" visual for missing weeks | ✓ Good  |
-| Default animation instead of progressive line draw | Safer with fill:true, avoids rendering bugs                | ✓ Good  |
-| Tooltip reads pre-computed change via closure      | No duplicate calculation, consistent with API data         | ✓ Good  |
+| Decision                                    | Rationale                                                      | Outcome   |
+| ------------------------------------------- | -------------------------------------------------------------- | --------- |
+| Single line (Total Active only) in BU cards | Keep card charts clean and readable at small size              | ✓ Good    |
+| Embed trends in overview response           | Single HTTP request, data always in sync                       | ✓ Good    |
+| Web scraping for call logs (not XSI API)    | XSI not enabled by carrier                                     | — Pending |
+| Hourly scraping 8am-8pm ET                  | Covers business hours, captures 20-entry window before rolloff | — Pending |
+| Phone icon + row coloring for call status   | Option B from UI discussion — most info at a glance, sortable  | — Pending |
+| Row colors carry into XLSX export           | Staff need printable/shareable contact lists with status       | — Pending |
+| Balanced model profile for GSD agents       | No novel architecture — extending established patterns         | — Pending |
 
 ---
 
-_Last updated: 2026-02-09 after v1 milestone_
+_Last updated: 2026-03-20 after v2.1 milestone initialization_

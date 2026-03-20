@@ -358,6 +358,7 @@ class AllSubscriberImporter
                     'issue_code' => $issue_code,
                     'last_payment_amount' => !empty($last_payment) ? floatval($last_payment) : null,
                     'phone' => $phone,
+                    'phone_normalized' => $this->normalizePhone($phone),
                     'email' => $email,
                     'login_id' => $login_id,
                     'last_login' => $this->parseDate($last_login)
@@ -560,14 +561,14 @@ class AllSubscriberImporter
                             name, route, rate_name, subscription_length, delivery_type,
                             payment_status, begin_date, paid_thru, daily_rate, on_vacation,
                             address, city_state_postal, abc, issue_code, last_payment_amount,
-                            phone, email, login_id, last_login,
+                            phone, phone_normalized, email, login_id, last_login,
                             source_filename, source_date, is_backfilled, backfill_weeks
                         ) VALUES (
                             :upload_id, :snapshot_date, :week_num, :year, :sub_num, :paper_code, :paper_name, :business_unit,
                             :name, :route, :rate_name, :subscription_length, :delivery_type,
                             :payment_status, :begin_date, :paid_thru, :daily_rate, :on_vacation,
                             :address, :city_state_postal, :abc, :issue_code, :last_payment_amount,
-                            :phone, :email, :login_id, :last_login,
+                            :phone, :phone_normalized, :email, :login_id, :last_login,
                             :source_filename, :source_date, :is_backfilled, :backfill_weeks
                         )
                     ");
@@ -745,6 +746,22 @@ class AllSubscriberImporter
         }
 
         return null;
+    }
+
+    /**
+     * Normalize phone to bare 10-digit string for call log matching
+     *
+     * @param string $phone Raw phone from CSV
+     * @return string|null 10-digit bare number, or null if invalid
+     */
+    private function normalizePhone(string $phone): ?string
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+        // Strip leading country code '1' from 11-digit numbers
+        if (strlen($digits) === 11 && $digits[0] === '1') {
+            $digits = substr($digits, 1);
+        }
+        return (strlen($digits) === 10) ? $digits : null;
     }
 
     /**

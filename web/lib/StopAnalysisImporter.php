@@ -280,7 +280,11 @@ class StopAnalysisImporter
 
         while (($row = fgetcsv($handle)) !== false) {
             // Skip empty rows
-            if (empty(array_filter($row, function ($v) { return trim($v) !== ''; }))) {
+            if (
+                empty(array_filter($row, function ($v) {
+                    return trim($v) !== '';
+                }))
+            ) {
                 continue;
             }
 
@@ -512,7 +516,9 @@ class StopAnalysisImporter
             $shown = 0;
             foreach ($stats['by_reason'] as $reason => $count) {
                 $html .= '<li>' . htmlspecialchars($reason) . ": $count</li>";
-                if (++$shown >= 5) break;
+                if (++$shown >= 5) {
+                    break;
+                }
             }
             $html .= '</ul>';
         }

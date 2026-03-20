@@ -16,7 +16,7 @@
  * - Required Columns: SUB NUM, STARTED, Ed
  * - Header row contains "SUB NUM" (row 11 typically)
  * - Data rows end at "New,,Starts" summary section
- * - Date format: M/D/YY (e.g., 2/24/26)
+ * - Date format: M/D/YY (e.g., 2/24/26) or YYYY-MM-DD (e.g., 2025-12-19)
  *
  * Processing:
  * - Parses CSV with decorative header rows
@@ -421,9 +421,9 @@ class NewStartsImporter
     }
 
     /**
-     * Parse date in M/D/YY format
+     * Parse date in M/D/YY or YYYY-MM-DD format
      *
-     * @param string $dateStr Date string (e.g., "2/24/26")
+     * @param string $dateStr Date string (e.g., "2/24/26" or "2026-03-09")
      * @return string|null Formatted date (Y-m-d) or null
      */
     private function parseDate(string $dateStr): ?string
@@ -432,6 +432,16 @@ class NewStartsImporter
             return null;
         }
 
+        // Handle YYYY-MM-DD (auto-export format from launchd/Newzware)
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStr)) {
+            [$y, $m, $d] = explode('-', $dateStr);
+            if (checkdate((int)$m, (int)$d, (int)$y)) {
+                return $dateStr;
+            }
+            return null;
+        }
+
+        // Handle M/D/YY (manual export format)
         if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/', $dateStr, $matches)) {
             $month = (int)$matches[1];
             $day = (int)$matches[2];

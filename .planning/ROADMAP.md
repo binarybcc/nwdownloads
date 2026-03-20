@@ -128,6 +128,6 @@ Plans:
 | 1. Business Unit Trend Data             | v1        | 1/1            | Complete    | 2026-02-09 |
 | 2. Chart Rendering and Card Integration | v1        | 1/1            | Complete    | 2026-02-09 |
 | 3. Data Foundation                      | 2/2       | Complete       | 2026-03-20  | -          |
-| 4. Call Log Scraper                     | v2.1      | 0/2            | Not started | -          |
+| 4. Call Log Scraper                     | 1/2       | In Progress    |             | -          |
 | 5. Expiration Chart Expansion           | v2.1      | 0/1            | Not started | -          |
 | 6. Call Status UI and Export            | v2.1      | 0/2            | Not started | -          |

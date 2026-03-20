@@ -4,12 +4,12 @@ milestone: v2.1
 milestone_name: Call Integration & Dashboard Enhancements
 status: unknown
 stopped_at: Phase 4 context gathered
-last_updated: '2026-03-20T17:26:47.750Z'
+last_updated: '2026-03-20T17:48:37.972Z'
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,27 +19,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Circulation managers can see subscriber health at a glance and take action on retention
-**Current focus:** Phase 03 — data-foundation
+**Current focus:** Phase 04 — call-log-scraper
 
 ## Current Position
 
-Phase: 03 (data-foundation) — EXECUTING
-Plan: 2 of 2 (COMPLETE)
+Phase: 04 (call-log-scraper) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
 **Velocity (v1):**
 
-- Total plans completed: 2
-- Average duration: ~3.5 min
-- Total execution time: ~7 min
+- Total plans completed: 3
+- Average duration: ~3.3 min
+- Total execution time: ~10 min
 
 **By Phase:**
 
-| Phase              | Plans | Total    | Avg/Plan |
-| ------------------ | ----- | -------- | -------- |
-| 1. BU Trend Data   | 1     | ~3.5 min | ~3.5 min |
-| 2. Chart Rendering | 1     | ~3.5 min | ~3.5 min |
+| Phase               | Plans | Total    | Avg/Plan |
+| ------------------- | ----- | -------- | -------- |
+| 1. BU Trend Data    | 1     | ~3.5 min | ~3.5 min |
+| 2. Chart Rendering  | 1     | ~3.5 min | ~3.5 min |
+| 4. Call Log Scraper | 1/2   | ~3 min   | ~3 min   |
 
 _Updated after each plan completion_
 
@@ -58,6 +59,7 @@ Recent decisions affecting v2.1:
 - New starts import bug: parseDate() needs M/D/YY format support; two failed CSVs on NAS
 - [Phase 03-data-foundation]: parseDate() checks YYYY-MM-DD before M/D/YY — most specific pattern first, avoids ambiguity, returns dateStr unchanged for YYYY-MM-DD
 - [Phase 03-02]: REGEXP_REPLACE backfill uses RIGHT(x,10) to take rightmost 10 digits — matches PHP normalizePhone() leading-1-strip logic; phone_normalized populated at ingest via AllSubscriberImporter
+- [Phase 04-01]: Direct mail() for scraper alerts (EmailNotifier requires ProcessResult); JSON raw_payload for debugging; business-hours guard in PHP independent of scheduler
 
 ### Pending Todos
 
@@ -71,7 +73,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T17:26:47.747Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-call-log-scraper/04-CONTEXT.md
-Next step: Phase 03 complete — all plans done; proceed to Phase 04 (call log scraper)
+Last session: 2026-03-20T17:48:00Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: .planning/phases/04-call-log-scraper/04-01-SUMMARY.md
+Next step: Execute 04-02-PLAN.md (scheduling and deployment)

@@ -1139,9 +1139,9 @@ require_once 'auth_check.php';
                     </div>
                 </div>
 
-                <!-- 4-Week Expiration Chart -->
+                <!-- 8-Week Expiration Chart -->
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">📅 Subscription Expirations (4-Week View)</h3>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">📅 Subscription Expirations (8-Week View)</h3>
                     <p class="text-sm text-gray-500 mb-4">Click on any bar to see trend over time</p>
                     <div class="detail-chart-container" id="expirationChartContainer">
                         <canvas id="expirationChart"></canvas>

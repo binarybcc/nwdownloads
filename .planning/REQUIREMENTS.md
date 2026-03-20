@@ -65,31 +65,31 @@ Requirements for milestone v2.1: Call Integration & Dashboard Enhancements.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status  |
-| ----------- | ----- | ------- |
-| IMPORT-01   | —     | Pending |
-| IMPORT-02   | —     | Pending |
-| CHART-01    | —     | Pending |
-| CHART-02    | —     | Pending |
-| CHART-03    | —     | Pending |
-| CALL-01     | —     | Pending |
-| CALL-02     | —     | Pending |
-| CALL-03     | —     | Pending |
-| CALL-04     | —     | Pending |
-| UI-01       | —     | Pending |
-| UI-02       | —     | Pending |
-| UI-03       | —     | Pending |
-| UI-04       | —     | Pending |
-| UI-05       | —     | Pending |
-| UI-06       | —     | Pending |
+| Requirement | Phase   | Status  |
+| ----------- | ------- | ------- |
+| IMPORT-01   | Phase 3 | Pending |
+| IMPORT-02   | Phase 3 | Pending |
+| CALL-02     | Phase 3 | Pending |
+| CALL-01     | Phase 4 | Pending |
+| CALL-03     | Phase 4 | Pending |
+| CALL-04     | Phase 4 | Pending |
+| CHART-01    | Phase 5 | Pending |
+| CHART-02    | Phase 5 | Pending |
+| CHART-03    | Phase 5 | Pending |
+| UI-01       | Phase 6 | Pending |
+| UI-02       | Phase 6 | Pending |
+| UI-03       | Phase 6 | Pending |
+| UI-04       | Phase 6 | Pending |
+| UI-05       | Phase 6 | Pending |
+| UI-06       | Phase 6 | Pending |
 
 **Coverage:**
 
 - v2.1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-03-20_
-_Last updated: 2026-03-20 after initial definition_
+_Last updated: 2026-03-20 after roadmap creation (all 16 requirements mapped)_

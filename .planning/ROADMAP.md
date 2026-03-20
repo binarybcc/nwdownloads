@@ -89,11 +89,11 @@ Plans:
 2. Right-clicking any of the 8 bars opens the subscriber drill-down context menu with the correct week label
 3. Bar colors transition naturally from red (past due) through orange and yellow to green (furthest out)
 
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 
-- [ ] 05-01: Extend SQL CASE/interval, JS color array, and context menu labels from 4 to 8 weeks in one coordinated commit
+- [ ] 05-01-PLAN.md — Extend SQL CASE/interval, JS color array, context menu drill-down, and chart title from 4 to 8 weeks
 
 ---
 

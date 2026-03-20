@@ -8,7 +8,7 @@ tags: [php, csv, date-parsing, newstarts, newzware, auto-import]
 requires: []
 provides:
   - 'NewStartsImporter::parseDate() handles both M/D/YY and YYYY-MM-DD date formats'
-  - 'Failed Mar 9 and Mar 16 CSVs available for reprocessing after deploy'
+  - 'Failed Mar 9 (396 records) and Mar 16 (446 records) CSVs reprocessed successfully'
 affects: [auto-import, new-starts, newstarts-processor]
 
 # Tech tracking
@@ -45,22 +45,23 @@ completed: 2026-03-20
 - **Duration:** ~5 min
 - **Started:** 2026-03-20T16:35:54Z
 - **Completed:** 2026-03-20T16:41:00Z
-- **Tasks:** 1 of 2 complete (Task 2 at checkpoint — requires deploy + human verification)
+- **Tasks:** 2 of 2 complete
 - **Files modified:** 1
 
 ## Accomplishments
 
 - Fixed `parseDate()` to handle both `YYYY-MM-DD` (Newzware auto-export via launchd) and `M/D/YY` (manual Newzware export) formats
 - Updated docblock to document both supported date formats
-- Opened PR #46 (`fix/new-starts-date-parsing`) for code review before deploy
-- Prepared NAS reprocess commands for checkpoint execution
+- PR #46 squash-merged after code review (PHPCS fixes + migration review findings addressed)
+- Deployed to production NAS, applied migrations 014 + 015
+- Reprocessed Mar 9 CSV (396 new starts) and Mar 16 CSV (446 new starts) successfully
 
 ## Task Commits
 
 Each task committed atomically:
 
 1. **Task 1: Add YYYY-MM-DD format support to parseDate()** - `f80cfd8` (fix)
-2. **Task 2: Deploy fix and reprocess failed CSVs on NAS** - PENDING (checkpoint:human-verify)
+2. **Task 2: Deploy fix and reprocess failed CSVs on NAS** - `653596e` (squash-merge PR #46) + production deploy
 
 ## Files Created/Modified
 
@@ -86,14 +87,9 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- **Task 2 at checkpoint:** After PR #46 is reviewed and merged to master, run:
-  1. `~/deploy-circulation.sh` on the Mac (deploys to NAS via rsync)
-  2. `ssh nas "mv /volume1/homes/newzware/failed/NewSubscriptionStarts20260309021018.csv /volume1/homes/newzware/inbox/ && mv /volume1/homes/newzware/failed/NewSubscriptionStarts20260316021038.csv /volume1/homes/newzware/inbox/"`
-  3. `ssh nas "/var/packages/PHP8.2/target/usr/local/bin/php82 /volume1/web/circulation/auto_process.php"`
-  4. Verify both files appear in `completed/` and new starts data shows on https://cdash.upstatetoday.com
-- **Plan 02** can begin once this checkpoint is cleared
+- All tasks complete. Both plans in phase 03 finished.
 
 ---
 
 _Phase: 03-data-foundation_
-_Completed: 2026-03-20 (partial — at checkpoint after Task 1)_
+_Completed: 2026-03-20_

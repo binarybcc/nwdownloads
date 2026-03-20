@@ -514,13 +514,17 @@ function renderExpirationChart(chartData) {
   const labels = chartData.map(d => d.week_bucket);
   const counts = chartData.map(d => d.count);
 
-  // Color scheme: red for past due/this week, amber for next weeks, gray for later
+  // Color gradient: red (past due) -> amber -> yellow -> lime -> green (furthest out)
   const backgroundColors = labels.map(label => {
-    if (label === 'Past Due') return 'rgba(239, 68, 68, 0.8)';
-    if (label === 'This Week') return 'rgba(251, 146, 60, 0.8)';
-    if (label === 'Next Week') return 'rgba(251, 191, 36, 0.8)';
-    if (label === 'Week +2') return 'rgba(253, 224, 71, 0.8)';
-    return 'rgba(156, 163, 175, 0.8)';
+    if (label === 'Past Due') return 'rgba(239, 68, 68, 0.8)'; // red-500
+    if (label === 'This Week') return 'rgba(245, 158, 11, 0.8)'; // amber-500
+    if (label === 'Next Week') return 'rgba(251, 191, 36, 0.8)'; // amber-400
+    if (label === 'Week +2') return 'rgba(253, 224, 71, 0.8)'; // yellow-300
+    if (label === 'Week +3') return 'rgba(250, 240, 137, 0.8)'; // yellow-200
+    if (label === 'Week +4') return 'rgba(190, 242, 100, 0.8)'; // lime-300
+    if (label === 'Week +5') return 'rgba(134, 239, 128, 0.8)'; // green-300
+    if (label === 'Week +6') return 'rgba(74, 222, 128, 0.8)'; // green-400
+    return 'rgba(156, 163, 175, 0.8)'; // gray fallback
   });
 
   expirationChart = window.CircDashboard.detailPanel.charts.expiration = new Chart(ctx, {

@@ -139,13 +139,12 @@ function exportToExcel(data, filename, options = {}) {
     const colWidths = calculateColumnWidths(data);
     ws['!cols'] = colWidths;
 
-    // Freeze header row (with rowOffset)
-    ws['!freeze'] = {
+    // Freeze header row (with rowOffset) — xlsx-js-style uses !views not !freeze
+    if (!ws['!views']) ws['!views'] = [];
+    ws['!views'][0] = {
+      state: 'frozen',
       xSplit: 0,
       ySplit: rowOffset + 1,
-      topLeftCell: `A${rowOffset + 2}`,
-      activePane: 'bottomLeft',
-      state: 'frozen',
     };
 
     // Add auto-filter (with rowOffset)

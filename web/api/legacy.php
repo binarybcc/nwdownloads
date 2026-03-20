@@ -1444,7 +1444,7 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
             FROM call_logs
             WHERE call_timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
             AND phone_normalized IS NOT NULL
-        ) cl ON cl.phone_normalized = ss.phone_normalized AND cl.rn = 1
+        ) cl ON cl.phone_normalized COLLATE utf8mb4_general_ci = ss.phone_normalized AND cl.rn = 1
     ";
 
     // Calculate date range for bucket

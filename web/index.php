@@ -25,7 +25,7 @@ require_once 'auth_check.php';
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <!-- PHASE 2: Export Libraries -->
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -1258,8 +1258,8 @@ require_once 'auth_check.php';
 
     <!-- PHASE 3: Contextual Chart Menus -->
     <script src="assets/js/components/context-menu.js?v=20251207"></script>
-    <script src="assets/js/utils/export-utils.js?v=20260303"></script>
-    <script src="assets/js/components/subscriber-table-panel.js?v=20251207"></script>
+    <script src="assets/js/utils/export-utils.js?v=20260320"></script>
+    <script src="assets/js/components/subscriber-table-panel.js?v=20260320"></script>
     <script src="assets/js/components/trend-slider.js?v=20251207"></script>
     <script src="assets/js/charts/chart-context-integration.js?v=20251207"></script>
     <script src="assets/js/features/vacation-display.js?v=20251208"></script>

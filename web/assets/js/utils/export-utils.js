@@ -17,12 +17,23 @@
  */
 
 /**
+ * Get XLSX fill color for call status
+ * @param {object} sub - subscriber object with call_status field
+ * @returns {object} SheetJS fill object with fgColor rgb
+ */
+function getExportStatusFill(sub) {
+  if (!sub || !sub.call_status) return { fgColor: { rgb: 'FEE2E2' } }; // red - no contact
+  if (sub.call_status === 'placed') return { fgColor: { rgb: 'DCFCE7' } }; // green - placed
+  return { fgColor: { rgb: 'FEF9C3' } }; // yellow - received/missed
+}
+
+/**
  * Export data to formatted Excel file
- * Includes styling, frozen headers, auto-filters, and alternating row colors
+ * Includes styling, frozen headers, auto-filters, and status-based row colors
  *
  * @param {Array} data - Array of objects to export
  * @param {string} filename - Output filename (without extension)
- * @param {object} options - Export options
+ * @param {object} options - Export options (sheetName, syncTimestamp, subscribers)
  */
 function exportToExcel(data, filename, options = {}) {
   if (!data || data.length === 0) {
@@ -44,9 +55,53 @@ function exportToExcel(data, filename, options = {}) {
     // Get range for styling
     const range = XLSX.utils.decode_range(ws['!ref']);
 
-    // Apply header styling
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
+    const hasSyncTimestamp = options.syncTimestamp;
+    const rawSubscribers = options.subscribers || [];
+    let rowOffset = 0;
+
+    if (hasSyncTimestamp) {
+      // Shift all existing cells down by 1 row to make room for timestamp
+      const origRange = XLSX.utils.decode_range(ws['!ref']);
+      for (let R = origRange.e.r; R >= origRange.s.r; --R) {
+        for (let C = origRange.s.c; C <= origRange.e.c; ++C) {
+          const oldRef = XLSX.utils.encode_cell({ r: R, c: C });
+          const newRef = XLSX.utils.encode_cell({ r: R + 1, c: C });
+          if (ws[oldRef]) {
+            ws[newRef] = ws[oldRef];
+            delete ws[oldRef];
+          }
+        }
+      }
+
+      // Format: "Call data as of 2026-03-20 14:02"
+      const syncDt = new Date(options.syncTimestamp);
+      const pad = n => String(n).padStart(2, '0');
+      const syncStr = `Call data as of ${syncDt.getFullYear()}-${pad(syncDt.getMonth() + 1)}-${pad(syncDt.getDate())} ${pad(syncDt.getHours())}:${pad(syncDt.getMinutes())}`;
+
+      ws['A1'] = {
+        v: syncStr,
+        t: 's',
+        s: {
+          font: { italic: true, sz: 10, color: { rgb: '666666' } },
+          alignment: { horizontal: 'left' },
+        },
+      };
+
+      const lastCol = origRange.e.c;
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } }];
+      ws['!ref'] = XLSX.utils.encode_range({
+        s: { r: 0, c: 0 },
+        e: { r: origRange.e.r + 1, c: origRange.e.c },
+      });
+      rowOffset = 1;
+    }
+
+    const updatedRange = XLSX.utils.decode_range(ws['!ref']);
+
+    // Apply header styling (with rowOffset)
+    const headerRow = rowOffset;
+    for (let col = updatedRange.s.c; col <= updatedRange.e.c; col++) {
+      const cellRef = XLSX.utils.encode_cell({ r: headerRow, c: col });
       if (!ws[cellRef]) continue;
 
       ws[cellRef].s = {
@@ -56,16 +111,20 @@ function exportToExcel(data, filename, options = {}) {
       };
     }
 
-    // Apply alternating row colors
-    for (let row = range.s.r + 1; row <= range.e.r; row++) {
-      const isAlternate = row % 2 === 0;
-      for (let col = range.s.c; col <= range.e.c; col++) {
+    // Apply status-based row fills (replaces alternating teal when subscribers data available)
+    const dataStartRow = rowOffset + 1;
+    for (let row = dataStartRow; row <= updatedRange.e.r; row++) {
+      const dataIndex = row - dataStartRow;
+      const sub = rawSubscribers[dataIndex];
+      const fill = sub && rawSubscribers.length > 0 ? getExportStatusFill(sub) : {};
+
+      for (let col = updatedRange.s.c; col <= updatedRange.e.c; col++) {
         const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
         if (!ws[cellRef]) continue;
 
         ws[cellRef].s = {
           ...(ws[cellRef].s || {}),
-          fill: isAlternate ? { fgColor: { rgb: 'F0FDFA' } } : {},
+          fill: fill,
           border: {
             top: { style: 'thin', color: { rgb: 'E5E7EB' } },
             bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
@@ -80,17 +139,22 @@ function exportToExcel(data, filename, options = {}) {
     const colWidths = calculateColumnWidths(data);
     ws['!cols'] = colWidths;
 
-    // Freeze header row
+    // Freeze header row (with rowOffset)
     ws['!freeze'] = {
       xSplit: 0,
-      ySplit: 1,
-      topLeftCell: 'A2',
+      ySplit: rowOffset + 1,
+      topLeftCell: `A${rowOffset + 2}`,
       activePane: 'bottomLeft',
       state: 'frozen',
     };
 
-    // Add auto-filter
-    ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+    // Add auto-filter (with rowOffset)
+    ws['!autofilter'] = {
+      ref: XLSX.utils.encode_range({
+        s: { r: rowOffset, c: updatedRange.s.c },
+        e: { r: updatedRange.e.r, c: updatedRange.e.c },
+      }),
+    };
 
     // Create workbook
     const wb = XLSX.utils.book_new();
@@ -103,7 +167,7 @@ function exportToExcel(data, filename, options = {}) {
     // Write file
     XLSX.writeFile(wb, finalFilename);
 
-    console.log(`✅ Excel export successful: ${finalFilename}`);
+    console.log(`Excel export successful: ${finalFilename}`);
   } catch (error) {
     console.error('Excel export error:', error);
     alert('Failed to export to Excel. Please try again.');
@@ -153,7 +217,7 @@ function exportToCSV(data, filename) {
     // Download
     downloadBlob(blob, finalFilename);
 
-    console.log(`✅ CSV export successful: ${finalFilename}`);
+    console.log(`CSV export successful: ${finalFilename}`);
   } catch (error) {
     console.error('CSV export error:', error);
     alert('Failed to export to CSV. Please try again.');
@@ -225,6 +289,7 @@ function downloadBlob(blob, filename) {
 /**
  * Format subscriber data for export
  * Ensures consistent column order and formatting
+ * Includes 3 call status columns: Call Status, Last Contact, Agent
  */
 function formatSubscriberDataForExport(subscribers) {
   return subscribers.map(sub => ({
@@ -239,14 +304,23 @@ function formatSubscriberDataForExport(subscribers) {
     'Last Payment': `$${sub.last_payment_amount}`,
     'Expiration Date': sub.expiration_date,
     'Delivery Type': sub.delivery_type,
+    'Call Status': sub.call_status
+      ? sub.call_status.charAt(0).toUpperCase() + sub.call_status.slice(1)
+      : '',
+    'Last Contact': sub.last_call_datetime || '',
+    Agent: sub.call_agent || '',
   }));
 }
 
 /**
  * Export subscriber list with proper formatting
  * High-level wrapper for common use case
+ *
+ * @param {object} subscriberData - API response with subscribers array
+ * @param {string} exportType - 'excel' or 'csv'
+ * @param {string|null} syncTimestamp - call_data_as_of timestamp for XLSX header row
  */
-function exportSubscriberList(subscriberData, exportType = 'excel') {
+function exportSubscriberList(subscriberData, exportType = 'excel', syncTimestamp = null) {
   const { business_unit, metric, count, snapshot_date, subscribers } = subscriberData;
 
   // Format filename
@@ -259,6 +333,8 @@ function exportSubscriberList(subscriberData, exportType = 'excel') {
   if (exportType === 'excel') {
     exportToExcel(formattedData, filename, {
       sheetName: `${metric} (${count})`,
+      syncTimestamp: syncTimestamp,
+      subscribers: subscribers,
     });
   } else if (exportType === 'csv') {
     exportToCSV(formattedData, filename);

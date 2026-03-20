@@ -110,12 +110,12 @@ Plans:
 4. Downloading the XLSX export produces a file where each row's background fill color matches its call status color in the browser
 5. The subscriber table and XLSX export display a "Call data as of [timestamp]" line showing when call logs were last synced
 
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 
-- [ ] 06-01: Add LEFT JOIN on call_logs to getExpirationSubscribers() in legacy.php; return call_status, last_call_datetime, and agent fields in JSON response
-- [ ] 06-02: Update subscriber table rendering (row colors, phone icon column, tooltip, default sort) and XLSX export (fill colors, sync timestamp)
+- [ ] 06-01-PLAN.md — LEFT JOIN call_logs in getExpirationSubscribers(); add call_status, last_call_datetime, call_agent to API response
+- [ ] 06-02-PLAN.md — Status column with colored icons, sort toggle, tooltips, left border; XLSX export with status fills and timestamp row
 
 ---
 

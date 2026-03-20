@@ -2,42 +2,34 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-09)
+See: .planning/PROJECT.md (updated 2026-03-20)
 
-**Core value:** Each business unit card tells its own trend story at a glance
-**Current focus:** Planning next milestone
+**Core value:** Circulation managers can see subscriber health at a glance and take action on retention
+**Current focus:** Defining requirements for v2.1
 
 ## Current Position
 
-Phase: 2 of 2 (all phases complete)
-Plan: All plans complete
-Status: v1 milestone shipped
-Last activity: 2026-02-09 -- v1 milestone complete, deployed to production
-
-Progress: [##########] 100% (2/2 plans)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-20 — Milestone v2.1 started
 
 ## Performance Metrics
 
-**Velocity:**
+**Velocity (v1):**
 
 - Total plans completed: 2
 - Average duration: ~3.5 minutes
 - Total execution time: ~7 minutes
 
-**By Phase:**
-
-| Phase | Plans | Total  | Avg/Plan |
-| ----- | ----- | ------ | -------- |
-| 1     | 1/1   | ~4 min | ~4 min   |
-| 2     | 1/1   | ~3 min | ~3 min   |
-
-_Updated after v1 milestone completion_
-
 ## Accumulated Context
 
 ### Decisions
 
-All v1 decisions logged in PROJECT.md Key Decisions table with outcomes marked ✓ Good.
+- New starts import bug: Newzware auto-exports use YYYY-MM-DD dates, parser only handles M/D/YY
+- Two failed CSVs in NAS failed/ dir (Mar 9, Mar 16) — need reprocessing after fix
+- Call status UI: Option B (phone icon column + row coloring + XLSX colors)
+- Model profile: balanced (sonnet for most agents, opus for planner)
 
 ### Pending Todos
 
@@ -45,11 +37,12 @@ None.
 
 ### Blockers/Concerns
 
-None.
+- MyCommPilot only exposes 20 entries per call type — frequent scraping critical
+- No XSI API access (carrier hasn't enabled it)
 
 ## Session Continuity
 
-Last session: 2026-02-09
-Stopped at: v1 milestone complete, deployed to production
+Last session: 2026-03-20
+Stopped at: Defining v2.1 requirements
 Resume file: None
-Next step: /gsd:new-milestone (fresh context window recommended)
+Next step: Complete requirements → roadmap → /gsd:plan-phase 3

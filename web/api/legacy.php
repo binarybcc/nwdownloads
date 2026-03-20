@@ -1400,7 +1400,14 @@ function getSubscribers(PDO $pdo, array $params): array
             throw new Exception('Invalid metric_type: ' . $metricType);
     }
 
-    return [
+    // Get call log sync timestamp
+    $callDataAsOf = null;
+    if ($metricType === 'expiration') {
+        $syncStmt = $pdo->query("SELECT MAX(call_timestamp) as last_sync FROM call_logs");
+        $callDataAsOf = $syncStmt->fetchColumn();
+    }
+
+    $result = [
         'metric_type' => $metricType,
         'metric' => $metricValue,
         'count' => count($subscribers),
@@ -1409,6 +1416,12 @@ function getSubscribers(PDO $pdo, array $params): array
         'business_unit' => $businessUnit,
         'subscribers' => $subscribers
     ];
+
+    if ($callDataAsOf !== null) {
+        $result['call_data_as_of'] = $callDataAsOf;
+    }
+
+    return $result;
 }
 
 /**
@@ -1423,6 +1436,16 @@ function getSubscribers(PDO $pdo, array $params): array
  */
 function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapshotDate, string $bucket): array
 {
+    // Call status subquery: most recent call within 30 days per phone number
+    $callLogSubquery = "
+        LEFT JOIN (
+            SELECT phone_normalized, call_direction, call_timestamp, source_group,
+                   ROW_NUMBER() OVER (PARTITION BY phone_normalized ORDER BY call_timestamp DESC) as rn
+            FROM call_logs
+            WHERE call_timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            AND phone_normalized IS NOT NULL
+        ) cl ON cl.phone_normalized = ss.phone_normalized AND cl.rn = 1
+    ";
 
     // Calculate date range for bucket
     $today = new DateTime($snapshotDate);
@@ -1434,24 +1457,34 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
 
                                                                                                                                                             $stmt = $pdo->prepare("
                 SELECT
-                    sub_num as account_id,
-                    name as subscriber_name,
-                    phone,
-                    email,
-                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
-                    paper_code,
-                    paper_name,
-                    rate_name as current_rate,
-                    last_payment_amount as rate_amount,
-                    last_payment_amount,
-                    payment_status as payment_method,
-                    paid_thru as expiration_date,
-                    delivery_type
-                FROM subscriber_snapshots
-                WHERE business_unit = :business_unit
-                AND snapshot_date = :snapshot_date
-                AND paid_thru < :snapshot_date
-                ORDER BY paid_thru ASC
+                    ss.sub_num as account_id,
+                    ss.name as subscriber_name,
+                    ss.phone,
+                    ss.email,
+                    CONCAT(COALESCE(ss.address, ''), ', ', COALESCE(ss.city_state_postal, '')) as mailing_address,
+                    ss.paper_code,
+                    ss.paper_name,
+                    ss.rate_name as current_rate,
+                    ss.last_payment_amount as rate_amount,
+                    ss.last_payment_amount,
+                    ss.payment_status as payment_method,
+                    ss.paid_thru as expiration_date,
+                    ss.delivery_type,
+                    cl.call_direction as call_status,
+                    cl.call_timestamp as last_call_datetime,
+                    cl.source_group as call_agent
+                FROM subscriber_snapshots ss
+                {$callLogSubquery}
+                WHERE ss.business_unit = :business_unit
+                AND ss.snapshot_date = :snapshot_date
+                AND ss.paid_thru < :snapshot_date
+                ORDER BY
+                    CASE
+                        WHEN cl.call_direction IS NULL THEN 0
+                        WHEN cl.call_direction IN ('received', 'missed') THEN 1
+                        WHEN cl.call_direction = 'placed' THEN 2
+                    END ASC,
+                    ss.paid_thru ASC
                 LIMIT 1000
             ");
             $stmt->execute([
@@ -1466,25 +1499,35 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
                                                                                                                                                             $weekEnd->modify('+6 days');
             $stmt = $pdo->prepare("
                 SELECT
-                    sub_num as account_id,
-                    name as subscriber_name,
-                    phone,
-                    email,
-                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
-                    paper_code,
-                    paper_name,
-                    rate_name as current_rate,
-                    last_payment_amount as rate_amount,
-                    last_payment_amount,
-                    payment_status as payment_method,
-                    paid_thru as expiration_date,
-                    delivery_type
-                FROM subscriber_snapshots
-                WHERE business_unit = :business_unit
-                AND snapshot_date = :snapshot_date
-                AND paid_thru >= :start_date
-                AND paid_thru <= :end_date
-                ORDER BY paid_thru ASC
+                    ss.sub_num as account_id,
+                    ss.name as subscriber_name,
+                    ss.phone,
+                    ss.email,
+                    CONCAT(COALESCE(ss.address, ''), ', ', COALESCE(ss.city_state_postal, '')) as mailing_address,
+                    ss.paper_code,
+                    ss.paper_name,
+                    ss.rate_name as current_rate,
+                    ss.last_payment_amount as rate_amount,
+                    ss.last_payment_amount,
+                    ss.payment_status as payment_method,
+                    ss.paid_thru as expiration_date,
+                    ss.delivery_type,
+                    cl.call_direction as call_status,
+                    cl.call_timestamp as last_call_datetime,
+                    cl.source_group as call_agent
+                FROM subscriber_snapshots ss
+                {$callLogSubquery}
+                WHERE ss.business_unit = :business_unit
+                AND ss.snapshot_date = :snapshot_date
+                AND ss.paid_thru >= :start_date
+                AND ss.paid_thru <= :end_date
+                ORDER BY
+                    CASE
+                        WHEN cl.call_direction IS NULL THEN 0
+                        WHEN cl.call_direction IN ('received', 'missed') THEN 1
+                        WHEN cl.call_direction = 'placed' THEN 2
+                    END ASC,
+                    ss.paid_thru ASC
                 LIMIT 1000
             ");
             $stmt->execute([
@@ -1502,25 +1545,35 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
             $weekEnd->modify('+13 days');
             $stmt = $pdo->prepare("
                 SELECT
-                    sub_num as account_id,
-                    name as subscriber_name,
-                    phone,
-                    email,
-                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
-                    paper_code,
-                    paper_name,
-                    rate_name as current_rate,
-                    last_payment_amount as rate_amount,
-                    last_payment_amount,
-                    payment_status as payment_method,
-                    paid_thru as expiration_date,
-                    delivery_type
-                FROM subscriber_snapshots
-                WHERE business_unit = :business_unit
-                AND snapshot_date = :snapshot_date
-                AND paid_thru >= :start_date
-                AND paid_thru <= :end_date
-                ORDER BY paid_thru ASC
+                    ss.sub_num as account_id,
+                    ss.name as subscriber_name,
+                    ss.phone,
+                    ss.email,
+                    CONCAT(COALESCE(ss.address, ''), ', ', COALESCE(ss.city_state_postal, '')) as mailing_address,
+                    ss.paper_code,
+                    ss.paper_name,
+                    ss.rate_name as current_rate,
+                    ss.last_payment_amount as rate_amount,
+                    ss.last_payment_amount,
+                    ss.payment_status as payment_method,
+                    ss.paid_thru as expiration_date,
+                    ss.delivery_type,
+                    cl.call_direction as call_status,
+                    cl.call_timestamp as last_call_datetime,
+                    cl.source_group as call_agent
+                FROM subscriber_snapshots ss
+                {$callLogSubquery}
+                WHERE ss.business_unit = :business_unit
+                AND ss.snapshot_date = :snapshot_date
+                AND ss.paid_thru >= :start_date
+                AND ss.paid_thru <= :end_date
+                ORDER BY
+                    CASE
+                        WHEN cl.call_direction IS NULL THEN 0
+                        WHEN cl.call_direction IN ('received', 'missed') THEN 1
+                        WHEN cl.call_direction = 'placed' THEN 2
+                    END ASC,
+                    ss.paid_thru ASC
                 LIMIT 1000
             ");
             $stmt->execute([
@@ -1538,25 +1591,35 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
             $weekEnd->modify('+20 days');
             $stmt = $pdo->prepare("
                 SELECT
-                    sub_num as account_id,
-                    name as subscriber_name,
-                    phone,
-                    email,
-                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
-                    paper_code,
-                    paper_name,
-                    rate_name as current_rate,
-                    last_payment_amount as rate_amount,
-                    last_payment_amount,
-                    payment_status as payment_method,
-                    paid_thru as expiration_date,
-                    delivery_type
-                FROM subscriber_snapshots
-                WHERE business_unit = :business_unit
-                AND snapshot_date = :snapshot_date
-                AND paid_thru >= :start_date
-                AND paid_thru <= :end_date
-                ORDER BY paid_thru ASC
+                    ss.sub_num as account_id,
+                    ss.name as subscriber_name,
+                    ss.phone,
+                    ss.email,
+                    CONCAT(COALESCE(ss.address, ''), ', ', COALESCE(ss.city_state_postal, '')) as mailing_address,
+                    ss.paper_code,
+                    ss.paper_name,
+                    ss.rate_name as current_rate,
+                    ss.last_payment_amount as rate_amount,
+                    ss.last_payment_amount,
+                    ss.payment_status as payment_method,
+                    ss.paid_thru as expiration_date,
+                    ss.delivery_type,
+                    cl.call_direction as call_status,
+                    cl.call_timestamp as last_call_datetime,
+                    cl.source_group as call_agent
+                FROM subscriber_snapshots ss
+                {$callLogSubquery}
+                WHERE ss.business_unit = :business_unit
+                AND ss.snapshot_date = :snapshot_date
+                AND ss.paid_thru >= :start_date
+                AND ss.paid_thru <= :end_date
+                ORDER BY
+                    CASE
+                        WHEN cl.call_direction IS NULL THEN 0
+                        WHEN cl.call_direction IN ('received', 'missed') THEN 1
+                        WHEN cl.call_direction = 'placed' THEN 2
+                    END ASC,
+                    ss.paid_thru ASC
                 LIMIT 1000
             ");
             $stmt->execute([
@@ -1574,25 +1637,35 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
             $weekEnd->modify('+27 days');
             $stmt = $pdo->prepare("
                 SELECT
-                    sub_num as account_id,
-                    name as subscriber_name,
-                    phone,
-                    email,
-                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
-                    paper_code,
-                    paper_name,
-                    rate_name as current_rate,
-                    last_payment_amount as rate_amount,
-                    last_payment_amount,
-                    payment_status as payment_method,
-                    paid_thru as expiration_date,
-                    delivery_type
-                FROM subscriber_snapshots
-                WHERE business_unit = :business_unit
-                AND snapshot_date = :snapshot_date
-                AND paid_thru >= :start_date
-                AND paid_thru <= :end_date
-                ORDER BY paid_thru ASC
+                    ss.sub_num as account_id,
+                    ss.name as subscriber_name,
+                    ss.phone,
+                    ss.email,
+                    CONCAT(COALESCE(ss.address, ''), ', ', COALESCE(ss.city_state_postal, '')) as mailing_address,
+                    ss.paper_code,
+                    ss.paper_name,
+                    ss.rate_name as current_rate,
+                    ss.last_payment_amount as rate_amount,
+                    ss.last_payment_amount,
+                    ss.payment_status as payment_method,
+                    ss.paid_thru as expiration_date,
+                    ss.delivery_type,
+                    cl.call_direction as call_status,
+                    cl.call_timestamp as last_call_datetime,
+                    cl.source_group as call_agent
+                FROM subscriber_snapshots ss
+                {$callLogSubquery}
+                WHERE ss.business_unit = :business_unit
+                AND ss.snapshot_date = :snapshot_date
+                AND ss.paid_thru >= :start_date
+                AND ss.paid_thru <= :end_date
+                ORDER BY
+                    CASE
+                        WHEN cl.call_direction IS NULL THEN 0
+                        WHEN cl.call_direction IN ('received', 'missed') THEN 1
+                        WHEN cl.call_direction = 'placed' THEN 2
+                    END ASC,
+                    ss.paid_thru ASC
                 LIMIT 1000
             ");
             $stmt->execute([
@@ -1610,25 +1683,35 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
             $weekEnd->modify('+34 days');
             $stmt = $pdo->prepare("
                 SELECT
-                    sub_num as account_id,
-                    name as subscriber_name,
-                    phone,
-                    email,
-                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
-                    paper_code,
-                    paper_name,
-                    rate_name as current_rate,
-                    last_payment_amount as rate_amount,
-                    last_payment_amount,
-                    payment_status as payment_method,
-                    paid_thru as expiration_date,
-                    delivery_type
-                FROM subscriber_snapshots
-                WHERE business_unit = :business_unit
-                AND snapshot_date = :snapshot_date
-                AND paid_thru >= :start_date
-                AND paid_thru <= :end_date
-                ORDER BY paid_thru ASC
+                    ss.sub_num as account_id,
+                    ss.name as subscriber_name,
+                    ss.phone,
+                    ss.email,
+                    CONCAT(COALESCE(ss.address, ''), ', ', COALESCE(ss.city_state_postal, '')) as mailing_address,
+                    ss.paper_code,
+                    ss.paper_name,
+                    ss.rate_name as current_rate,
+                    ss.last_payment_amount as rate_amount,
+                    ss.last_payment_amount,
+                    ss.payment_status as payment_method,
+                    ss.paid_thru as expiration_date,
+                    ss.delivery_type,
+                    cl.call_direction as call_status,
+                    cl.call_timestamp as last_call_datetime,
+                    cl.source_group as call_agent
+                FROM subscriber_snapshots ss
+                {$callLogSubquery}
+                WHERE ss.business_unit = :business_unit
+                AND ss.snapshot_date = :snapshot_date
+                AND ss.paid_thru >= :start_date
+                AND ss.paid_thru <= :end_date
+                ORDER BY
+                    CASE
+                        WHEN cl.call_direction IS NULL THEN 0
+                        WHEN cl.call_direction IN ('received', 'missed') THEN 1
+                        WHEN cl.call_direction = 'placed' THEN 2
+                    END ASC,
+                    ss.paid_thru ASC
                 LIMIT 1000
             ");
             $stmt->execute([
@@ -1646,25 +1729,35 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
             $weekEnd->modify('+41 days');
             $stmt = $pdo->prepare("
                 SELECT
-                    sub_num as account_id,
-                    name as subscriber_name,
-                    phone,
-                    email,
-                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
-                    paper_code,
-                    paper_name,
-                    rate_name as current_rate,
-                    last_payment_amount as rate_amount,
-                    last_payment_amount,
-                    payment_status as payment_method,
-                    paid_thru as expiration_date,
-                    delivery_type
-                FROM subscriber_snapshots
-                WHERE business_unit = :business_unit
-                AND snapshot_date = :snapshot_date
-                AND paid_thru >= :start_date
-                AND paid_thru <= :end_date
-                ORDER BY paid_thru ASC
+                    ss.sub_num as account_id,
+                    ss.name as subscriber_name,
+                    ss.phone,
+                    ss.email,
+                    CONCAT(COALESCE(ss.address, ''), ', ', COALESCE(ss.city_state_postal, '')) as mailing_address,
+                    ss.paper_code,
+                    ss.paper_name,
+                    ss.rate_name as current_rate,
+                    ss.last_payment_amount as rate_amount,
+                    ss.last_payment_amount,
+                    ss.payment_status as payment_method,
+                    ss.paid_thru as expiration_date,
+                    ss.delivery_type,
+                    cl.call_direction as call_status,
+                    cl.call_timestamp as last_call_datetime,
+                    cl.source_group as call_agent
+                FROM subscriber_snapshots ss
+                {$callLogSubquery}
+                WHERE ss.business_unit = :business_unit
+                AND ss.snapshot_date = :snapshot_date
+                AND ss.paid_thru >= :start_date
+                AND ss.paid_thru <= :end_date
+                ORDER BY
+                    CASE
+                        WHEN cl.call_direction IS NULL THEN 0
+                        WHEN cl.call_direction IN ('received', 'missed') THEN 1
+                        WHEN cl.call_direction = 'placed' THEN 2
+                    END ASC,
+                    ss.paid_thru ASC
                 LIMIT 1000
             ");
             $stmt->execute([
@@ -1682,25 +1775,35 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
             $weekEnd->modify('+48 days');
             $stmt = $pdo->prepare("
                 SELECT
-                    sub_num as account_id,
-                    name as subscriber_name,
-                    phone,
-                    email,
-                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
-                    paper_code,
-                    paper_name,
-                    rate_name as current_rate,
-                    last_payment_amount as rate_amount,
-                    last_payment_amount,
-                    payment_status as payment_method,
-                    paid_thru as expiration_date,
-                    delivery_type
-                FROM subscriber_snapshots
-                WHERE business_unit = :business_unit
-                AND snapshot_date = :snapshot_date
-                AND paid_thru >= :start_date
-                AND paid_thru <= :end_date
-                ORDER BY paid_thru ASC
+                    ss.sub_num as account_id,
+                    ss.name as subscriber_name,
+                    ss.phone,
+                    ss.email,
+                    CONCAT(COALESCE(ss.address, ''), ', ', COALESCE(ss.city_state_postal, '')) as mailing_address,
+                    ss.paper_code,
+                    ss.paper_name,
+                    ss.rate_name as current_rate,
+                    ss.last_payment_amount as rate_amount,
+                    ss.last_payment_amount,
+                    ss.payment_status as payment_method,
+                    ss.paid_thru as expiration_date,
+                    ss.delivery_type,
+                    cl.call_direction as call_status,
+                    cl.call_timestamp as last_call_datetime,
+                    cl.source_group as call_agent
+                FROM subscriber_snapshots ss
+                {$callLogSubquery}
+                WHERE ss.business_unit = :business_unit
+                AND ss.snapshot_date = :snapshot_date
+                AND ss.paid_thru >= :start_date
+                AND ss.paid_thru <= :end_date
+                ORDER BY
+                    CASE
+                        WHEN cl.call_direction IS NULL THEN 0
+                        WHEN cl.call_direction IN ('received', 'missed') THEN 1
+                        WHEN cl.call_direction = 'placed' THEN 2
+                    END ASC,
+                    ss.paid_thru ASC
                 LIMIT 1000
             ");
             $stmt->execute([

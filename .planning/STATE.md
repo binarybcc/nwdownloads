@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Call Integration & Dashboard Enhancements
-status: complete
+status: unknown
 stopped_at: Completed 05-01-PLAN.md
-last_updated: '2026-03-20T19:17:11.102Z'
+last_updated: '2026-03-20T19:20:26.826Z'
 progress:
   total_phases: 4
   completed_phases: 3

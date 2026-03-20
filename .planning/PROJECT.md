@@ -50,7 +50,7 @@ See REQUIREMENTS.md for v2.1 requirements.
 
 ## Context
 
-Tech stack: PHP 8.2, Chart.js 4.4.0 (CDN), vanilla JavaScript, Tailwind CSS. Production on Synology NAS (native Apache/PHP/MariaDB). Development via Docker at localhost:8081.
+Tech stack: PHP 8.2, Chart.js 4.4.0 (CDN), vanilla JavaScript, Tailwind CSS. Production on Synology NAS (native Apache/PHP/MariaDB). No Docker — native stack only.
 
 Since v1 milestone (2026-02-09), significant features shipped outside GSD: BU trend detail modal (PRs #32-35), stop analysis importer, new starts importer, paid/comp subscriber tracking (PRs #43-44). Current package.json version: v2.0.0.
 
@@ -61,7 +61,7 @@ MyCommPilot (BroadWorks) VOIP system at ws2.mycommpilot.com provides call logs f
 - **Tech Stack**: Must use existing Chart.js 4.4.0 — no new JS dependencies
 - **VOIP API**: Web scraping only (no XSI API), 20-entry rolling window per call type
 - **Scheduling**: launchd on Mac (not Synology Task Scheduler — it deletes jobs)
-- **Compatibility**: Must work on both Docker dev and Synology NAS production
+- **Compatibility**: Native Synology NAS only (no Docker)
 - **Credentials**: MyCommPilot creds in `.env.mycommpilot` (gitignored)
 - **XLSX Export**: Must preserve row coloring for call status indicators
 

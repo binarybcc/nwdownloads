@@ -76,7 +76,7 @@ No blockers or warnings found in the modified files.
 
 ### 1. Visual Color Gradient Appearance
 
-**Test:** Open http://localhost:8081, click any business unit card, observe the expiration chart
+**Test:** Open http://192.168.1.254:8081, click any business unit card, observe the expiration chart
 **Expected:** 8 bars visible, visually graduating from red on the left (Past Due) to green on the right (Week +6) with distinct amber/yellow/lime intermediate stops
 **Why human:** Color perception and visual gradation quality cannot be verified programmatically from rgba values alone
 
@@ -84,7 +84,7 @@ No blockers or warnings found in the modified files.
 
 **Test:** Right-click each of the 8 bars in sequence; click "View subscribers" for "Week +3" and "Week +6"
 **Expected:** Context menu appears for each bar; subscriber table panel opens with data appropriate to that week bucket; no "Invalid metric_type" or empty results errors
-**Why human:** End-to-end interaction with live dev database — requires a browser with Docker running and data in the DB for the test date
+**Why human:** End-to-end interaction with live dev database — requires a browser with access to production NAS and data in the DB for the test date
 
 ---
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Test vacation API endpoint
 
-API_URL="http://localhost:8081/api.php?action=get_longest_vacations&snapshot_date=2025-12-01"
+API_URL="http://192.168.1.254:8081/api.php?action=get_longest_vacations&snapshot_date=2025-12-01"
 
 echo "🧪 Testing Vacation API Endpoint"
 echo "================================"

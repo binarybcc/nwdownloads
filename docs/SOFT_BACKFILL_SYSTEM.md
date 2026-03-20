@@ -22,13 +22,13 @@ The SoftBackfill system is an intelligent data backfilling algorithm that automa
 
 ### Quick Reference
 
-| Scenario | Behavior |
-|----------|----------|
-| Upload file for empty week | Creates REAL data, backfills empty weeks backward |
-| Upload file for week with BACKFILLED data | **Replaces** backfilled data with REAL data |
-| Upload file for week with REAL data | Only replaces if new file is newer |
-| Backfilling encounters REAL data | **Stops** - real data is protected |
-| Backfilling encounters BACKFILLED data | **Continues** - backfilled data can be replaced |
+| Scenario                                  | Behavior                                          |
+| ----------------------------------------- | ------------------------------------------------- |
+| Upload file for empty week                | Creates REAL data, backfills empty weeks backward |
+| Upload file for week with BACKFILLED data | **Replaces** backfilled data with REAL data       |
+| Upload file for week with REAL data       | Only replaces if new file is newer                |
+| Backfilling encounters REAL data          | **Stops** - real data is protected                |
+| Backfilling encounters BACKFILLED data    | **Continues** - backfilled data can be replaced   |
 
 ---
 
@@ -71,12 +71,14 @@ When you upload a CSV file (e.g., `AllSubscriberReport20251208120000.csv`):
 - **BACKFILLED data (is_backfilled = 1):** Can be REPLACED by real uploads - backfill is placeholder data
 
 **This ensures:**
+
 - Real data is always respected and never overwritten by backfill
 - Backfilled data can be replaced when you upload the actual historical files
 - Upload order doesn't matter - real data always wins over backfilled data
 - You can upload files in any order, and the system self-organizes correctly
 
 **Example:**
+
 ```
 Upload Dec 22 (Week 51):
 Week 48: Dec 22 (backfilled) ← Can be replaced
@@ -145,11 +147,13 @@ Week 40  Week 41  Week 42  Week 43  Week 44  Week 45  Week 46  Week 47  Week 48 
 ### Dashboard Badges
 
 **Backfilled Data (<2 weeks):**
+
 - Small amber badge next to week label
 - Shows number of weeks backfilled
 - Tooltip with source date
 
 **Backfilled Data (>2 weeks):**
+
 - Large amber warning banner at top of dashboard
 - Explains what backfilled data means
 - Shows source file and date
@@ -161,16 +165,18 @@ Week 40  Week 41  Week 42  Week 43  Week 44  Week 45  Week 46  Week 47  Week 48 
 
 ### Data Provenance Audit
 
-**URL:** `http://localhost:8081/admin_audit.php` (Development)
-**URL:** `http://192.168.1.254:8081/admin_audit.php` (Production)
+**URL:** https://cdash.upstatetoday.com/admin_audit.php (Production)
+**URL:** http://192.168.1.254:8081/admin_audit.php (alternate)
 
 **Features:**
+
 - View all upload sources
 - See which file owns which weeks
 - Identify backfilled vs. real data
 - Understand data freshness
 
 **Use Cases:**
+
 - Debugging upload issues
 - Verifying data accuracy
 - Understanding data gaps
@@ -205,14 +211,15 @@ Week 40  Week 41  Week 42  Week 43  Week 44  Week 45  Week 46  Week 47  Week 48 
 
 ### New Columns (both `daily_snapshots` and `subscriber_snapshots`)
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `source_filename` | VARCHAR(255) | Original CSV filename |
-| `source_date` | DATE | Date extracted from filename |
-| `is_backfilled` | TINYINT(1) | 1 if backfilled, 0 if real |
-| `backfill_weeks` | INT | Weeks backfilled (0 = real) |
+| Column            | Type         | Description                  |
+| ----------------- | ------------ | ---------------------------- |
+| `source_filename` | VARCHAR(255) | Original CSV filename        |
+| `source_date`     | DATE         | Date extracted from filename |
+| `is_backfilled`   | TINYINT(1)   | 1 if backfilled, 0 if real   |
+| `backfill_weeks`  | INT          | Weeks backfilled (0 = real)  |
 
 **Indexes:**
+
 - `idx_source_date` - For querying by source
 - `idx_backfilled` - For filtering backfilled data
 
@@ -223,12 +230,14 @@ Week 40  Week 41  Week 42  Week 43  Week 44  Week 45  Week 46  Week 47  Week 48 
 ### Over Previous System (Day-of-Week Precedence)
 
 **Old System:**
+
 - Complex rules (Saturday > Friday > Thursday...)
 - Upload order mattered
 - Could reject valid data
 - Hard to understand which data was current
 
 **SoftBackfill:**
+
 - ✅ Simple rule: "latest date wins"
 - ✅ Upload order doesn't matter
 - ✅ Never rejects data
@@ -300,7 +309,7 @@ private const MIN_BACKFILL_DATE = '2025-11-17';
 
 ```javascript
 if (backfillData.backfill_weeks > 2) {
-    this.showWarning(backfillData);
+  this.showWarning(backfillData);
 }
 ```
 
@@ -319,14 +328,12 @@ if (backfillData.backfill_weeks > 2) {
 ### Verification Commands
 
 ```bash
-# Check backfill status
-docker exec circulation_web php -r "
-\$pdo = new PDO('mysql:host=database;dbname=circulation_dashboard', 'circ_dash', 'Barnaby358@Jones!');
-\$stmt = \$pdo->query('SELECT week_num, source_date, is_backfilled, backfill_weeks FROM daily_snapshots GROUP BY week_num ORDER BY week_num');
-while (\$row = \$stmt->fetch(PDO::FETCH_ASSOC)) {
-    echo \"Week {\$row['week_num']}: from {\$row['source_date']} \" . (\$row['is_backfilled'] ? \"(backfilled {\$row['backfill_weeks']} weeks)\" : \"(real data)\") . \"\n\";
-}
-"
+# Check backfill status (SSH into NAS first: ssh nas)
+/usr/local/mariadb10/bin/mysql -uroot -p -S /run/mysqld/mysqld10.sock circulation_dashboard -e "
+  SELECT week_num, source_date, is_backfilled, backfill_weeks
+  FROM daily_snapshots
+  GROUP BY week_num
+  ORDER BY week_num;"
 ```
 
 ---
@@ -336,6 +343,7 @@ while (\$row = \$stmt->fetch(PDO::FETCH_ASSOC)) {
 ### Issue: Data Not Backfilling
 
 **Check:**
+
 1. Columns exist: `SHOW COLUMNS FROM daily_snapshots LIKE 'source%'`
 2. Upload succeeds without errors
 3. `source_filename` is populated after upload
@@ -343,6 +351,7 @@ while (\$row = \$stmt->fetch(PDO::FETCH_ASSOC)) {
 ### Issue: Wrong Week Ownership
 
 **Solution:**
+
 1. Visit `/admin_audit.php`
 2. Check which file owns which week
 3. Re-upload with correct filename date
@@ -357,12 +366,14 @@ while (\$row = \$stmt->fetch(PDO::FETCH_ASSOC)) {
 ## Migration Notes
 
 **From day-of-week system:**
+
 - Removed Monday adjustment
 - Removed day-of-week precedence logic
 - Added source tracking columns
 - Kept ISO week number calculation
 
 **Backward compatibility:**
+
 - Existing data remains unchanged
 - New uploads get source tracking
 - Old data shows as `source_filename = NULL`
@@ -372,6 +383,7 @@ while (\$row = \$stmt->fetch(PDO::FETCH_ASSOC)) {
 ## Future Enhancements
 
 **Potential additions:**
+
 - Maximum backfill limit (e.g., "don't backfill more than 8 weeks")
 - Email notifications for large backfills
 - Automatic suggestions for missing CSVs

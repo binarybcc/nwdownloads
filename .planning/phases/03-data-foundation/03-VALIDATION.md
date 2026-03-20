@@ -27,7 +27,7 @@ created: 2026-03-20
 
 ## Sampling Rate
 
-- **After every task commit:** Manual smoke test in Docker dev (upload CSV, query table)
+- **After every task commit:** Manual smoke test on NAS (upload CSV, query table)
 - **After every plan wave:** Full SQL verification queries on dev database
 - **Before `/gsd:verify-work`:** All 4 success criteria TRUE
 - **Max feedback latency:** ~60 seconds

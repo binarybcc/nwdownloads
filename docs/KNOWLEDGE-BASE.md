@@ -13,7 +13,7 @@
 - [Database Schema](#database-schema)
 - [Frontend Architecture](#frontend-architecture)
 - [API Endpoints](#api-endpoints)
-- [Docker & Deployment](#docker--deployment)
+- [Deployment](#deployment)
 - [Common Operations](#common-operations)
 - [Troubleshooting](#troubleshooting)
 
@@ -22,26 +22,29 @@
 ## Project Overview
 
 ### What It Is
-A Docker-based newspaper circulation tracking system for monitoring subscriber metrics across multiple business units and publications.
+
+A newspaper circulation tracking system for monitoring subscriber metrics across multiple business units and publications, running natively on Synology NAS.
 
 ### Tech Stack
+
 - **Backend:** PHP 8.2 (vanilla, no framework)
 - **Frontend:** Vanilla JavaScript ES6+ with Chart.js 4.4
-- **Database:** MariaDB 10.11
+- **Database:** MariaDB 10 (native on Synology NAS)
 - **Styling:** Tailwind CSS 3.4 (21KB optimized)
-- **Infrastructure:** Docker + Docker Compose
+- **Infrastructure:** Synology NAS (Apache + PHP 8.2 + MariaDB 10)
 
 ### Business Units & Publications
 
-| Business Unit | Publications | Codes |
-|---------------|-------------|-------|
-| **Wyoming** | The Ranger, Lander Journal, Wind River News | TR, LJ, WRN |
-| **Michigan** | The Advertiser | TA |
-| **South Carolina** | The Journal | TJ |
+| Business Unit      | Publications                                | Codes       |
+| ------------------ | ------------------------------------------- | ----------- |
+| **Wyoming**        | The Ranger, Lander Journal, Wind River News | TR, LJ, WRN |
+| **Michigan**       | The Advertiser                              | TA          |
+| **South Carolina** | The Journal                                 | TJ          |
 
 **Excluded:** FN (Former News - sold/discontinued)
 
 ### Current Data State
+
 - **Record Count:** ~250 snapshots
 - **Date Range:** January 1, 2025 onwards
 - **Why Limited History:** Rate system changed in Jan 2025, making pre-2025 data incomparable
@@ -73,16 +76,19 @@ A Docker-based newspaper circulation tracking system for monitoring subscriber m
 ### Data Flow
 
 **CSV Import:**
+
 ```
 CSV → upload.php → UPSERT → daily_snapshots → confirmation
 ```
 
 **Dashboard Render:**
+
 ```
 Browser → index.php → api.php?action=overview → SQL → JSON → Chart.js
 ```
 
 **Drill-Down:**
+
 ```
 Chart click → Context menu → TrendSlider/DetailPanel → api.php → data
 ```
@@ -99,21 +105,22 @@ Chart click → Context menu → TrendSlider/DetailPanel → api.php → data
 
 **Key Columns:**
 
-| Column | Type | Description | Example |
-|--------|------|-------------|---------|
-| `snapshot_date` | DATE | Date of snapshot | 2025-12-07 |
-| `paper_code` | VARCHAR(10) | Publication code | TJ, TA, TR, LJ, WRN |
-| `business_unit` | VARCHAR(50) | Business unit | Wyoming, Michigan, South Carolina |
-| `total_active` | INT | All active subscribers | 8100 |
-| `deliverable` | INT | Active minus vacation | 7900 |
-| `mail_delivery` | INT | USPS delivery | 7200 |
-| `carrier_delivery` | INT | Local carrier | 400 |
-| `digital_only` | INT | Internet-only | 500 |
-| `on_vacation` | INT | Vacation hold | 200 |
+| Column             | Type        | Description            | Example                           |
+| ------------------ | ----------- | ---------------------- | --------------------------------- |
+| `snapshot_date`    | DATE        | Date of snapshot       | 2025-12-07                        |
+| `paper_code`       | VARCHAR(10) | Publication code       | TJ, TA, TR, LJ, WRN               |
+| `business_unit`    | VARCHAR(50) | Business unit          | Wyoming, Michigan, South Carolina |
+| `total_active`     | INT         | All active subscribers | 8100                              |
+| `deliverable`      | INT         | Active minus vacation  | 7900                              |
+| `mail_delivery`    | INT         | USPS delivery          | 7200                              |
+| `carrier_delivery` | INT         | Local carrier          | 400                               |
+| `digital_only`     | INT         | Internet-only          | 500                               |
+| `on_vacation`      | INT         | Vacation hold          | 200                               |
 
 **UPSERT Logic:** `ON DUPLICATE KEY UPDATE` with week-based precedence (later day-of-week wins)
 
 **Indexes:**
+
 - Primary: `(snapshot_date, paper_code)`
 - Secondary: `snapshot_date`, `paper_code`, `business_unit`
 
@@ -139,6 +146,7 @@ db_migrations/
 ```
 
 **Tracking Table:** `schema_migrations`
+
 - Records which migrations have been applied
 - Prevents duplicate application
 - Shows deployment history
@@ -184,12 +192,13 @@ git pull
 ### Migration Scripts
 
 **Development:** `./scripts/run-migrations.sh`
-- Runs on local Docker database
-- Uses root credentials from container environment
+
+- Runs on local database
 - Colorized output with progress tracking
 - Shows migration history after completion
 
 **Production:** `./scripts/run-migrations-production.sh`
+
 - Runs on Synology NAS via SSH
 - Uses credentials from `.env.credentials`
 - Requires manual confirmation (`yes` to proceed)
@@ -198,6 +207,7 @@ git pull
 ### Best Practices
 
 **DO:**
+
 - ✅ Create separate migration for each logical change
 - ✅ Use descriptive migration names (`002_add_user_preferences.sql`)
 - ✅ Test on development before committing
@@ -205,6 +215,7 @@ git pull
 - ✅ Run migrations on both workstations after git pull
 
 **DON'T:**
+
 - ❌ Edit existing migration files (create new ones instead)
 - ❌ Skip migration numbers (use sequential: 002, 003, 004...)
 - ❌ Put data changes in migrations (schema only)
@@ -230,15 +241,18 @@ CREATE TABLE new_feature (
 ### Troubleshooting
 
 **"Migration already applied" error:**
+
 - Migration was run previously
 - Check: `SELECT * FROM schema_migrations;`
 - Fix: Create new migration instead of editing existing
 
 **"Table already exists" error:**
+
 - Use `CREATE TABLE IF NOT EXISTS` for safety
 - Or check schema_migrations table first
 
 **Different schema on workstations:**
+
 - Run `./scripts/run-migrations.sh` on both
 - Ensures both have same migrations applied
 - Check migration history: last step of script output
@@ -251,6 +265,7 @@ CREATE TABLE new_feature (
 - **Data sync** → `dump-db.sh` / `restore-db.sh`
 
 **Both workstations must:**
+
 1. Run migrations to sync schema (via Git)
 2. Optionally sync data (via Dropbox dumps)
 
@@ -273,12 +288,13 @@ CircDashboard.state = {
   charts: {
     trend: Chart.js instance,
     delivery: Chart.js instance,
-    businessUnits: {} 
+    businessUnits: {}
   }
 }
 ```
 
 **Benefits:**
+
 - Single source of truth
 - Easy debugging (`console.log(CircDashboard.state)`)
 - No scattered globals
@@ -307,11 +323,13 @@ CircDashboard.state = {
 **Entry Point:** Right-click any chart bar
 
 **Context Menu Options:**
+
 1. **View Historical Trend** → Opens TrendSlider (4/8/12/52 week views)
 2. **View Subscribers** → Opens SubscriberTablePanel (exportable list)
 3. **Export Data** → CSV/Excel/PDF export
 
 **Keyboard Shortcuts:**
+
 - `Ctrl+K` / `Cmd+K`: Export menu
 - `ESC`: Close panels
 - Arrow keys: Navigate time ranges
@@ -325,16 +343,17 @@ CircDashboard.state = {
 
 ### Core Endpoints
 
-| Action | Parameters | Returns | Use Case |
-|--------|-----------|---------|----------|
-| `overview` | `date` (optional) | Daily snapshot with comparisons | Main dashboard |
-| `weekly_summary` | `year`, `week` | Aggregated weekly data | Trend analysis |
-| `business_unit_detail` | `unit`, `date` (opt) | Unit breakdown with papers | Detail panel |
-| `paper_detail` | `code`, `date` (opt) | Paper metrics | Drill-down |
-| `get_trend` | `type`, `metric`, `time_range` | Historical data points | TrendSlider |
-| `view_subscribers` | `unit`, `metric_type` (opt) | Subscriber list (max 10k) | Table panel |
+| Action                 | Parameters                     | Returns                         | Use Case       |
+| ---------------------- | ------------------------------ | ------------------------------- | -------------- |
+| `overview`             | `date` (optional)              | Daily snapshot with comparisons | Main dashboard |
+| `weekly_summary`       | `year`, `week`                 | Aggregated weekly data          | Trend analysis |
+| `business_unit_detail` | `unit`, `date` (opt)           | Unit breakdown with papers      | Detail panel   |
+| `paper_detail`         | `code`, `date` (opt)           | Paper metrics                   | Drill-down     |
+| `get_trend`            | `type`, `metric`, `time_range` | Historical data points          | TrendSlider    |
+| `view_subscribers`     | `unit`, `metric_type` (opt)    | Subscriber list (max 10k)       | Table panel    |
 
 ### Security
+
 - **SQL Injection:** PDO prepared statements (all queries)
 - **Auth:** Newzware credentials via `auth_check.php`
 - **Session Timeout:** 2 hours
@@ -342,121 +361,77 @@ CircDashboard.state = {
 
 ---
 
-## Docker & Deployment
+## Deployment
 
-### Development vs Production Strategy
+### Production Environment
 
-| | Development | Production |
-|---|-------------|------------|
-| **Compose File** | `docker-compose.yml` | `docker-compose.prod.yml` |
-| **Code Source** | Volume mounts (`./web:/var/www/html`) | Baked into image |
-| **Benefits** | Fast iteration, hot reload | Immutable, portable |
-| **Drawbacks** | Requires local source | Slower deployment |
+**Location:** `/volume1/web/circulation/` on Synology NAS (192.168.1.254)
+**URL:** https://cdash.upstatetoday.com (also http://192.168.1.254:8081)
+**Web Server:** Synology Web Station (Apache + PHP 8.2)
+**Database:** MariaDB 10 via Unix socket
 
-### Multi-Platform Support
+### Deployment Workflow
 
 ```bash
-# Platforms supported
-- linux/amd64 (Synology NAS)
-- linux/arm64 (Apple Silicon Mac)
+# 1. Make changes locally and push to GitHub
+git push origin master
 
-# Auto-selects correct architecture from Docker Hub
+# 2. SSH into NAS
+ssh nas
+
+# 3. Run deployment script
+~/deploy-circulation.sh
+
+# 4. Verify at https://cdash.upstatetoday.com
 ```
 
-### Build & Push Workflow
+**What the deployment script does:**
 
-```bash
-# 1. Make changes in development
-cd $PROJECT_ROOT
-
-# 2. Test locally
-docker compose up -d
-# Test at http://localhost:8081
-
-# 3. Build multi-platform image
-./build-and-push.sh           # Tags as 'latest'
-./build-and-push.sh v1.2.3    # Tags as version + latest
-
-# 4. Deploy to production (see below)
-```
-
-### Production Deployment (Synology NAS)
-
-**Location:** `192.168.1.254:/volume1/docker/nwdownloads`
-
-```bash
-# 1. SSH into NAS
-sshpass -p 'Mojave48ice' ssh it@192.168.1.254
-
-# 2. Navigate to project
-cd /volume1/docker/nwdownloads
-
-# 3. Pull latest image
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull
-
-# 4. Deploy
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d
-
-# 5. Verify
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps
-```
+1. Pulls latest from GitHub master
+2. Syncs `web/` to `/volume1/web/circulation/` via rsync
+3. Preserves `.htaccess`, `.build_number`
+4. Fixes permissions (644 files, 755 directories)
 
 **Critical Rules:**
+
 - ❌ NEVER make changes directly in production
-- ✅ ALWAYS test in development first
-- ❌ NEVER copy code files to production (use Docker Hub only)
-- ✅ Configuration files only via SSH
+- ✅ ALWAYS test locally first
+- ✅ Deploy via git pull + rsync on NAS
 
 ---
 
 ## Common Operations
 
-### Check Container Status
-
-```bash
-# Development
-docker compose ps
-
-# Production
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps
-```
-
 ### View Logs
 
 ```bash
-# Development
-docker compose logs -f           # All services
-docker compose logs -f web       # Web only
-docker compose logs -f database  # DB only
+# SSH into NAS
+ssh nas
 
-# Production
-sudo /usr/local/bin/docker logs circulation_web
-sudo /usr/local/bin/docker logs circulation_db
+# Error logs
+tail -f /volume1/web/circulation/error.log
 ```
 
 ### Database Access
 
 ```bash
-# Development (interactive)
-docker exec -it circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' -D circulation_dashboard
+# SSH into NAS, then:
+/usr/local/mariadb10/bin/mysql -uroot -p -S /run/mysqld/mysqld10.sock circulation_dashboard
 
-# Query
-docker exec circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' -D circulation_dashboard -e "SELECT COUNT(*) FROM daily_snapshots;"
+# Query example
+/usr/local/mariadb10/bin/mysql -uroot -p -S /run/mysqld/mysqld10.sock circulation_dashboard -e "SELECT COUNT(*) FROM daily_snapshots;"
 ```
 
 ### Database Backup
 
 ```bash
-# Create backup
-docker exec circulation_db mariadb-dump -uroot -pRootPassword456! circulation_dashboard > backup_$(date +%Y%m%d).sql
-
-# Restore
-cat backup_20251207.sql | docker exec -i circulation_db mariadb -uroot -pRootPassword456! circulation_dashboard
+# SSH into NAS, then:
+/usr/local/mariadb10/bin/mysqldump -uroot -p -S /run/mysqld/mysqld10.sock circulation_dashboard > backup_$(date +%Y%m%d).sql
 ```
 
 ### Upload CSV Data
 
-**URL:** `http://localhost:8081/upload.html` (dev) or `http://192.168.1.254:8081/upload.html` (prod)
+**URL:** https://cdash.upstatetoday.com/upload_unified.php (Production)
 
 **File Format:** All Subscriber Report CSV from Newzware
 
@@ -468,57 +443,35 @@ cat backup_20251207.sql | docker exec -i circulation_db mariadb -uroot -pRootPas
 
 ## Troubleshooting
 
-### Build Failures
-
-**Error:** Cannot connect to Docker daemon  
-**Solution:** Start Docker Desktop or check service: `docker info`
-
-**Error:** COPY failed: no such file  
-**Solution:** Ensure in project root: `cd $PROJECT_ROOT && ./build-and-push.sh`
-
-**Error:** bad interpreter: `/bin/bash^M`  
-**Solution:** Fix line endings:
-```bash
-sed -i '' 's/\r$//' build-and-push.sh && chmod +x build-and-push.sh
-```
-
-### Push Failures
-
-**Error:** Access denied  
-**Solution:** `docker login` (username: binarybcc)
-
-**Error:** Repository not found  
-**Solution:** Verify at https://hub.docker.com/repository/docker/binarybcc/nwdownloads-circ
-
 ### Deployment Failures
 
-**Container won't start:**
-1. Check logs: `sudo /usr/local/bin/docker logs circulation_web`
-2. Wait for DB health check
-3. Check port 8081: `netstat -an | grep 8081`
-4. Verify environment variables in `docker-compose.prod.yml`
+**Site not loading:**
+
+1. SSH into NAS: `ssh nas`
+2. Check Apache is running
+3. Check error logs: `tail -f /volume1/web/circulation/error.log`
+4. Verify file permissions: `ls -la /volume1/web/circulation/`
 
 **Database connection failed:**
+
 ```bash
-# Test connectivity
-sudo /usr/local/bin/docker exec circulation_web php -r "\$pdo = new PDO('mysql:host=database;dbname=circulation_dashboard', 'circ_dash', 'Barnaby358@Jones!'); echo 'Connected!';"
+# SSH into NAS, then test:
+/usr/local/mariadb10/bin/mysql -uroot -p -S /run/mysqld/mysqld10.sock -e "SELECT 1;"
 ```
 
-**Old code still running:**
-```bash
-# Verify image digest
-sudo /usr/local/bin/docker inspect circulation_web | grep Image
+**Old code still running after deploy:**
 
-# Force recreate
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate
+```bash
+# SSH into NAS, re-run deploy
+~/deploy-circulation.sh
 ```
 
 ### CSV Upload Issues
 
-**Error:** CSV doesn't appear to be All Subscriber Report  
+**Error:** CSV doesn't appear to be All Subscriber Report
 **Solution:** Ensure query includes columns: `Ed`, `ISS`, `DEL`
 
-**Error:** Later-in-week data already exists  
+**Error:** Later-in-week data already exists
 **Solution:** Expected behavior - cannot overwrite Saturday with Tuesday data (week-based precedence)
 
 ---
@@ -530,6 +483,7 @@ sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recr
 **Day Order:** Monday < Tuesday < Wednesday < Thursday < Friday < Saturday < Sunday
 
 **Examples:**
+
 - ✅ Saturday replaces Friday
 - ✅ Friday replaces Thursday
 - ❌ Tuesday rejected if Friday exists
@@ -543,21 +497,19 @@ sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recr
 
 ## Critical Architecture Decisions
 
-### 1. Docker Hub Hybrid Approach (Dec 2025)
-**Decision:** Development uses volume mounts, Production uses pre-built images  
-**Rationale:** Fast iteration in dev, stability in prod
+### 1. Native NAS Deployment (Mar 2026)
+
+**Decision:** Run directly on Synology Apache + PHP 8.2 + MariaDB 10 (no Docker)
+**Rationale:** Simpler operations, direct file access, no container overhead
 
 ### 2. Week-Based Uploads (Dec 2025)
+
 **Decision:** Later day-of-week data replaces earlier in same week  
 **Rationale:** Prevents accidental overwrite of better data with stale snapshots  
 **Implementation:** `upload.php` lines 412-484
 
-### 3. Multi-Platform Builds (Dec 7, 2025)
-**Decision:** Build native images for AMD64 and ARM64  
-**Rationale:** Eliminate QEMU emulation overhead on NAS  
-**Performance Gain:** 10-30%
+### 3. Event-Based UI (Dec 7, 2025)
 
-### 4. Event-Based UI (Dec 7, 2025)
 **Decision:** Replace `setTimeout(500)` with `DashboardRendered` event  
 **Rationale:** Eliminate race conditions on slow connections  
 **Found By:** Gemini code review
@@ -567,20 +519,18 @@ sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recr
 ## Performance Characteristics
 
 ### Database
+
 - **Query Time:** <100ms for most operations
 - **CSV Import:** 10-30 seconds for ~8,000 rows
 - **Primary Key Lookup:** O(1) via composite key
 - **Index Usage:** All major queries use indexes
 
 ### Frontend
+
 - **Page Load (First Visit):** 2-3 seconds
 - **Page Load (Cached):** <500ms
 - **Chart Render:** ~100ms per chart
 - **Total Assets:** ~150KB JS + 21KB CSS
-
-### Docker
-- **Container Startup:** ~5s web, ~30s database
-- **Multi-arch Performance:** Native execution (no emulation)
 
 ---
 
@@ -588,39 +538,32 @@ sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recr
 
 ### URLs
 
-| Environment | Dashboard | Upload |
-|-------------|-----------|--------|
-| **Development** | http://localhost:8081/ | http://localhost:8081/upload.html |
-| **Production** | http://192.168.1.254:8081/ | http://192.168.1.254:8081/upload.html |
+| Environment         | Dashboard                      | Upload                                            |
+| ------------------- | ------------------------------ | ------------------------------------------------- |
+| **Production**      | https://cdash.upstatetoday.com | https://cdash.upstatetoday.com/upload_unified.php |
+| **Production (IP)** | http://192.168.1.254:8081/     | http://192.168.1.254:8081/upload_unified.php      |
 
-### Repositories
+### Repository
+
 - **GitHub:** https://github.com/binarybcc/nwdownloads
-- **Docker Hub:** https://hub.docker.com/repository/docker/binarybcc/nwdownloads-circ
 
-### Credentials
+### Access
 
-**Database (Development):**
-- Root: `RootPassword456!`
-- App User: `circ_dash` / `Barnaby358@Jones!`
-
-**Synology SSH:**
-- Host: `192.168.1.254`
-- User: `it`
-- Password: `Mojave48ice`
+- **SSH:** `ssh nas` (passwordless key auth)
+- **DB:** `/usr/local/mariadb10/bin/mysql` with socket on NAS
+- **Credentials:** See `.env.credentials` and `~/docs/CREDENTIALS.md`
 
 ---
 
 ## File Organization
 
 ### Root Files
-- `build-and-push.sh` - Multi-platform Docker build script
-- `docker-compose.yml` - Development config (volume mounts)
-- `docker-compose.prod.yml` - Production config (Docker Hub images)
-- `Dockerfile` - Web container build definition
+
 - `.envrc` - direnv config (auto-sets PROJECT_ROOT)
-- `.env` - Environment variables (NOT committed)
+- `.env.credentials` - Environment variables for deployment (NOT committed)
 
 ### Key Directories
+
 - `/web/` - PHP application and API
 - `/web/assets/` - Frontend JavaScript and CSS (11 JS files)
 - `/sql/` - Database schema files
@@ -629,6 +572,7 @@ sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recr
 - `/tests/` - Test infrastructure (Vitest)
 
 ### Critical Files
+
 - `/web/api.php` - 1,783 lines (REST API)
 - `/web/upload.php` - 628 lines (CSV processing)
 - `/web/index.php` - 38KB (Dashboard UI)
@@ -640,18 +584,19 @@ sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recr
 ## Recent Changes
 
 ### December 7, 2025
-- Multi-platform Docker builds (AMD64 + ARM64)
+
 - Fixed setTimeout race condition (event-based)
 - Environment variable migration (.env)
 - Week-based upload precedence system
-- Build script line ending fix
 
 ### December 6, 2025
+
 - Chart interactions system refactored
 - TrendSlider component (759 lines)
 - Replaced ChartTransitionManager
 
 ### December 2, 2025
+
 - Data cleanup - deleted all pre-2025 data
 - Reason: Rate system change made historical data incomparable
 

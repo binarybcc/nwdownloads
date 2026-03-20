@@ -5,6 +5,7 @@ Help create and manage database migrations for the Circulation Dashboard project
 ## When to use this skill
 
 Use this skill when:
+
 - Creating a new database table
 - Adding/modifying columns
 - Creating indexes or constraints
@@ -37,6 +38,7 @@ Use this skill when:
 Ask the user: "What database change do you need?" (e.g., "Add user preferences table")
 
 **Step 2: Find next migration number**
+
 ```bash
 ls -1 database/migrations/*.sql | grep -oE '^database/migrations/[0-9]+' | sed 's/database\/migrations\///' | sort -n | tail -1
 ```
@@ -46,6 +48,7 @@ Format: `{number}_{description}.sql`
 Example: `002_add_user_preferences.sql`
 
 **Step 4: Write SQL template**
+
 ```sql
 -- Migration: {Description}
 -- Created: {Date}
@@ -63,16 +66,19 @@ CREATE TABLE IF NOT EXISTS table_name (
 ```
 
 **Step 5: Test on development**
+
 ```bash
 ./scripts/run-migrations.sh
 ```
 
 **Step 6: Verify schema**
+
 ```bash
-docker exec circulation_db sh -c 'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" circulation_dashboard -e "DESCRIBE table_name;"'
+ssh nas "/usr/local/mariadb10/bin/mysql -uroot circulation_dashboard -e 'DESCRIBE table_name;'"
 ```
 
 **Step 7: Commit to Git**
+
 ```bash
 git add database/migrations/{number}_{description}.sql
 git commit -m "Migration: {description}"
@@ -81,16 +87,19 @@ git commit -m "Migration: {description}"
 ### Checking Migration Status
 
 **Development:**
+
 ```bash
 ./scripts/run-migrations.sh  # Shows status at the end
 ```
 
 **Or check directly:**
+
 ```bash
-docker exec circulation_db sh -c 'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" circulation_dashboard -e "SELECT * FROM schema_migrations ORDER BY migration_number;"'
+ssh nas "/usr/local/mariadb10/bin/mysql -uroot circulation_dashboard -e 'SELECT * FROM schema_migrations ORDER BY migration_number;'"
 ```
 
 **Production:**
+
 ```bash
 # Only from johncorbin workstation
 ./scripts/run-migrations-production.sh
@@ -99,6 +108,7 @@ docker exec circulation_db sh -c 'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" circul
 ### Best Practices Checklist
 
 Before creating migration, verify:
+
 - [ ] Migration is for SCHEMA changes only (not data)
 - [ ] Using sequential numbering (next available number)
 - [ ] Descriptive filename (e.g., `add_analytics_table` not `new_stuff`)
@@ -110,6 +120,7 @@ Before creating migration, verify:
 ### Common Migration Patterns
 
 **Add Table:**
+
 ```sql
 CREATE TABLE IF NOT EXISTS new_table (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -120,17 +131,20 @@ CREATE TABLE IF NOT EXISTS new_table (
 ```
 
 **Add Column:**
+
 ```sql
 ALTER TABLE existing_table
 ADD COLUMN new_column VARCHAR(100) DEFAULT NULL AFTER existing_column;
 ```
 
 **Add Index:**
+
 ```sql
 CREATE INDEX idx_column_name ON table_name(column_name);
 ```
 
 **Modify Column:**
+
 ```sql
 ALTER TABLE table_name
 MODIFY COLUMN column_name VARCHAR(500) NOT NULL;
@@ -139,6 +153,7 @@ MODIFY COLUMN column_name VARCHAR(500) NOT NULL;
 ### Error Handling
 
 **If migration fails:**
+
 1. Check SQL syntax
 2. Check for naming conflicts
 3. Verify dependencies (referenced tables exist)
@@ -147,6 +162,7 @@ MODIFY COLUMN column_name VARCHAR(500) NOT NULL;
 6. Re-run migrations
 
 **Never:**
+
 - Edit a migration file that's been committed and applied
 - Skip migration numbers
 - Combine schema and data changes
@@ -168,13 +184,17 @@ MODIFY COLUMN column_name VARCHAR(500) NOT NULL;
 ## Troubleshooting
 
 **Problem: "Migration already applied"**
+
 - Solution: Create a new migration instead of editing existing
 
 **Problem: "Table already exists"**
+
 - Solution: Use `CREATE TABLE IF NOT EXISTS`
 
 **Problem: Workstations out of sync**
+
 - Solution: Both workstations run `./scripts/run-migrations.sh`
 
 **Problem: Need to rollback**
+
 - Solution: Create new migration that reverses changes (don't delete old one)

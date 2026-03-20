@@ -38,7 +38,7 @@ Phase 3 has two independent workstreams: fixing a CSV import bug in `NewStartsIm
 
 | Library    | Version  | Purpose           | Why Standard                                           |
 | ---------- | -------- | ----------------- | ------------------------------------------------------ |
-| PHP 8.2    | 8.2      | Server-side logic | Production NAS Web Station + Docker container          |
+| PHP 8.2    | 8.2      | Server-side logic | Production NAS Web Station (native Apache)             |
 | MariaDB 10 | 10.x     | Database          | Production via Unix socket `/run/mysqld/mysqld10.sock` |
 | PDO        | built-in | Database access   | Established pattern in all importers                   |
 
@@ -250,18 +250,6 @@ The INSERT in `AllSubscriberImporter` must also include `phone_normalized` in th
 **What goes wrong:** After adding `phone_normalized` to `subscriber_snapshots`, the existing INSERT in `AllSubscriberImporter` will NOT fail (MariaDB accepts the omission, column defaults to NULL). But then new uploads won't populate `phone_normalized`.
 **How to avoid:** Must update both the column list AND the VALUES bind in the prepared statement AND the `$sub_stmt->execute($sub)` binding array.
 
-### Pitfall 5: Docker Dev DB Missing the New Columns
-
-**What goes wrong:** After running migrations in production, the Docker dev database won't have `phone_normalized` or `call_logs`. Tests/development will fail.
-**How to avoid:** Run the SQL migration files against the Docker container too:
-
-```bash
-docker exec -i circulation_db mariadb -uroot -pMojave48ice circulation_dashboard \
-  < database/migrations/014_add_call_logs_table.sql
-docker exec -i circulation_db mariadb -uroot -pMojave48ice circulation_dashboard \
-  < database/migrations/015_add_phone_normalized_to_subscriber_snapshots.sql
-```
-
 ---
 
 ## Code Examples
@@ -347,17 +335,17 @@ ssh nas "mv /volume1/homes/newzware/failed/NewSubscriptionStarts20260309021018.c
 
 ### Phase Requirements → Test Map
 
-| Req ID    | Behavior                                               | Test Type | Automated Command                                                                             | File Exists?   |
-| --------- | ------------------------------------------------------ | --------- | --------------------------------------------------------------------------------------------- | -------------- |
-| IMPORT-01 | M/D/YY date parses correctly                           | manual    | Upload `NewSubscriptionStarts20260302160619.csv` via http://localhost:8081/upload_unified.php | ❌ manual only |
-| IMPORT-01 | YYYY-MM-DD date parses correctly                       | manual    | Upload a failed CSV via dev UI and verify no parse errors                                     | ❌ manual only |
-| IMPORT-02 | Mar 9 + Mar 16 CSVs reprocess successfully             | manual    | Check `auto_process.log` on NAS after reprocessing                                            | ❌ manual only |
-| CALL-02   | `call_logs` table exists with `phone_normalized` index | SQL query | `SHOW CREATE TABLE call_logs`                                                                 | ❌ Wave 0      |
-| CALL-02   | `subscriber_snapshots.phone_normalized` populated      | SQL query | `SELECT COUNT(*) FROM subscriber_snapshots WHERE phone_normalized IS NOT NULL`                | ❌ Wave 0      |
+| Req ID    | Behavior                                               | Test Type | Automated Command                                                                                 | File Exists?   |
+| --------- | ------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------- | -------------- |
+| IMPORT-01 | M/D/YY date parses correctly                           | manual    | Upload `NewSubscriptionStarts20260302160619.csv` via http://192.168.1.254:8081/upload_unified.php | ❌ manual only |
+| IMPORT-01 | YYYY-MM-DD date parses correctly                       | manual    | Upload a failed CSV via dev UI and verify no parse errors                                         | ❌ manual only |
+| IMPORT-02 | Mar 9 + Mar 16 CSVs reprocess successfully             | manual    | Check `auto_process.log` on NAS after reprocessing                                                | ❌ manual only |
+| CALL-02   | `call_logs` table exists with `phone_normalized` index | SQL query | `SHOW CREATE TABLE call_logs`                                                                     | ❌ Wave 0      |
+| CALL-02   | `subscriber_snapshots.phone_normalized` populated      | SQL query | `SELECT COUNT(*) FROM subscriber_snapshots WHERE phone_normalized IS NOT NULL`                    | ❌ Wave 0      |
 
 ### Sampling Rate
 
-- **Per task commit:** Manual smoke test in Docker dev (upload a CSV, query the table)
+- **Per task commit:** Manual smoke test in NAS production (upload a CSV, query the table)
 - **Per wave merge:** Full SQL verification queries on production
 - **Phase gate:** All 4 success criteria TRUE before `/gsd:verify-work`
 

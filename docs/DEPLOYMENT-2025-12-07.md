@@ -1,91 +1,45 @@
 # Production Deployment Guide - December 7, 2025
 
-## 🎯 What's Being Deployed
+> **NOTE:** This deployment originally used Docker. The project has since migrated to native Synology Apache + PHP 8.2 + MariaDB 10. This document is kept for historical reference.
+
+## What Was Deployed
 
 **Git Commit:** `ad8eca6` - Infrastructure improvements and critical bug fixes
-**Docker Image:** `binarybcc/nwdownloads-circ:latest`
-**Platforms:** Multi-architecture (AMD64 + ARM64)
 
 ### Key Changes in This Deployment
 
-1. **Multi-Platform Docker Builds** - Native AMD64 images (no more emulation overhead)
-2. **setTimeout Race Condition Fix** - Event-based coordination (Gemini code review finding)
-3. **Environment Variable Migration** - Credentials externalized to .env
-4. **Week-Based Upload Precedence** - Smart day-of-week logic for CSV uploads
+1. **setTimeout Race Condition Fix** - Event-based coordination (Gemini code review finding)
+2. **Environment Variable Migration** - Credentials externalized to .env
+3. **Week-Based Upload Precedence** - Smart day-of-week logic for CSV uploads
 
 ---
 
-## 📋 Pre-Deployment Checklist
-
-- ✅ Code committed to GitHub: `ad8eca6`
-- ✅ Multi-platform image built and pushed to Docker Hub
-- ✅ Both architectures verified (AMD64 + ARM64)
-- ✅ Local development tested successfully
-- ⏳ Production deployment pending
-
----
-
-## 🚀 Deployment Steps
+## Deployment Steps (Current Method)
 
 ### Step 1: Connect to Production NAS
 
 ```bash
-ssh it@192.168.1.254
-# Password: Mojave48ice
+ssh nas
 ```
 
-### Step 2: Navigate to Project Directory
+### Step 2: Run Deploy Script
 
 ```bash
-cd /volume1/docker/nwdownloads
+~/deploy-circulation.sh
 ```
 
-### Step 3: Pull Latest Docker Image
+### Step 3: Verify Deployment
+
+**Check error logs:**
 
 ```bash
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml pull
+tail -50 /volume1/web/circulation/error.log
 ```
 
-**Expected Output:**
-```
-Pulling web ... done
-```
-
-### Step 4: Deploy Updated Containers
-
-```bash
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d
-```
-
-**Expected Output:**
-```
-Recreating circulation_web ... done
-```
-
-### Step 5: Verify Deployment
-
-**Check container status:**
-```bash
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml ps
-```
-
-**Expected:**
-- `circulation_db` - Status: `Up` and `(healthy)`
-- `circulation_web` - Status: `Up`
-
-**View logs for errors:**
-```bash
-sudo /usr/local/bin/docker logs circulation_web --tail 50
-```
-
-**Look for:**
-- ✅ Apache started successfully
-- ✅ No PHP errors
-- ❌ Any 500 errors or warnings
-
-### Step 6: Functional Testing
+### Step 4: Functional Testing
 
 **1. Access Dashboard:**
+
 ```
 http://192.168.1.254:8081/
 ```
@@ -93,18 +47,22 @@ http://192.168.1.254:8081/
 **Expected:** Login page loads correctly
 
 **2. Test Login:**
+
 - Use Newzware credentials
 - Should redirect to dashboard after successful auth
 
 **3. Test Dashboard Rendering:**
+
 - Verify metrics display correctly
 - Check that business unit cards load
 - Confirm charts render without errors
 
 **4. Test Upload Functionality:**
+
 ```
 http://192.168.1.254:8081/upload.html
 ```
+
 - Upload a recent AllSubscriberReport CSV
 - Verify import succeeds
 - Check dashboard updates with new data
@@ -116,6 +74,7 @@ http://192.168.1.254:8081/upload.html
 The setTimeout race condition fix should eliminate random UI initialization failures.
 
 **What to Test:**
+
 1. Refresh dashboard multiple times (10+)
 2. Test on slower network (if possible)
 3. Verify keyboard shortcuts work consistently
@@ -131,11 +90,13 @@ The setTimeout race condition fix should eliminate random UI initialization fail
 ### Week-Based Upload System
 
 **New Behavior:**
+
 - Saturday data replaces Friday data ✅
 - Friday data replaces Thursday data ✅
 - Tuesday data REJECTED if Friday exists ⚠️
 
 **How to Test:**
+
 1. Upload a Tuesday AllSubs report (Day 2 of week)
 2. Upload a Friday AllSubs report (Day 5 of week) - Should succeed and replace Tuesday
 3. Try uploading Tuesday report again - Should be rejected with message:
@@ -146,56 +107,47 @@ The setTimeout race condition fix should eliminate random UI initialization fail
 ### Performance Improvements
 
 **Multi-Platform Images:**
+
 - **Before:** NAS emulated ARM64 images via QEMU (~10-30% overhead)
 - **After:** Native AMD64 execution (full performance)
 
 **To Measure:**
+
 - Time dashboard load: Should be faster
-- Check container resource usage: `sudo /usr/local/bin/docker stats circulation_web`
+- Check NAS resource usage via Synology DSM Resource Monitor
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
-### Issue: Container Won't Start
-
-**Symptom:** `docker compose ps` shows `Exited` status
+### Issue: Site Not Loading
 
 **Solution:**
-```bash
-# Check logs
-sudo /usr/local/bin/docker logs circulation_web
 
-# Common issues:
-# 1. Database not ready - wait 30 seconds and retry
-# 2. Port 8081 in use - check with: netstat -an | grep 8081
-# 3. File permissions - check /volume1/docker/nwdownloads ownership
+```bash
+ssh nas
+tail -50 /volume1/web/circulation/error.log
+# Check file permissions
+ls -la /volume1/web/circulation/
 ```
 
 ### Issue: Dashboard Shows "Connection Failed"
 
-**Symptom:** API calls return errors
-
 **Solution:**
+
 ```bash
-# Test database connectivity from web container
-sudo /usr/local/bin/docker exec circulation_web php -r "
-  \$pdo = new PDO('mysql:host=database;dbname=circulation_dashboard', 'circ_dash', 'Barnaby358@Jones!');
-  echo 'DB Connected!';
-"
+# SSH into NAS, test DB connectivity
+/usr/local/mariadb10/bin/mysql -uroot -p -S /run/mysqld/mysqld10.sock -e "SELECT 1;"
 ```
 
 ### Issue: Old Code Still Running
 
-**Symptom:** Race condition still occurs or changes not visible
-
 **Solution:**
-```bash
-# Verify image digest matches Docker Hub
-sudo /usr/local/bin/docker inspect circulation_web | grep Image
 
-# Force recreate containers
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate
+```bash
+# Re-run deploy script
+ssh nas
+~/deploy-circulation.sh
 ```
 
 ### Issue: CSV Upload Fails
@@ -203,6 +155,7 @@ sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recr
 **Symptom:** "Week-based precedence error"
 
 **Solution:**
+
 - This is expected behavior!
 - Earlier-in-week data cannot overwrite later-in-week data
 - Use Saturday reports for final weekly snapshot
@@ -223,22 +176,17 @@ sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recr
 
 ---
 
-## 🔙 Rollback Plan
+## Rollback Plan
 
 If issues occur, rollback to previous version:
 
 ```bash
-# Check previous image
-sudo /usr/local/bin/docker images binarybcc/nwdownloads-circ
-
-# Rollback to previous digest
-sudo /usr/local/bin/docker pull binarybcc/nwdownloads-circ@sha256:<previous-digest>
-
-# Restart with old version
-sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recreate
+ssh nas
+cd /volume1/homes/it/circulation-deploy
+git log --oneline -5  # Find previous commit hash
+git checkout <previous-commit-hash>
+~/deploy-circulation.sh
 ```
-
-**Note:** Get previous digest from Docker Hub history if needed.
 
 ---
 
@@ -253,6 +201,7 @@ sudo /usr/local/bin/docker compose -f docker-compose.prod.yml up -d --force-recr
 ### 2. Document Any Issues
 
 If problems occur, document:
+
 - What action triggered the issue
 - Error messages from logs
 - Steps to reproduce
@@ -261,6 +210,7 @@ If problems occur, document:
 ### 3. Update Deployment Log
 
 Record deployment outcome in project notes:
+
 - Date/time deployed
 - Any issues encountered
 - Resolution steps taken
@@ -270,47 +220,30 @@ Record deployment outcome in project notes:
 
 ## 🔗 Quick Reference Links
 
-**Production Dashboard:** http://192.168.1.254:8081/
-**Production Upload:** http://192.168.1.254:8081/upload.html
-**Docker Hub Repository:** https://hub.docker.com/r/binarybcc/nwdownloads-circ
+**Production Dashboard:** https://cdash.upstatetoday.com
+**Production Upload:** https://cdash.upstatetoday.com/upload_unified.php
 **GitHub Repository:** https://github.com/binarybcc/nwdownloads
 **Latest Commit:** https://github.com/binarybcc/nwdownloads/commit/ad8eca6
 
 ---
 
-## ⚠️ Important Notes
+## Important Notes
 
-### Environment Variables (Production)
-
-**Production uses hardcoded values in `docker-compose.prod.yml`**, NOT the .env file.
-
-The .env file is for **development only**.
-
-If you need to update production credentials, modify `docker-compose.prod.yml` directly on the NAS.
-
-### Multi-Architecture Benefits
-
-**First deployment with native AMD64 images!**
-
-Previous deployments used ARM64 images that were emulated on the NAS. This deployment includes native AMD64 images specifically built for the Synology architecture.
-
-**Expected benefits:**
-- Faster container startup
-- Lower CPU usage
-- More reliable operation
-- Better performance under load
+Production runs natively on Synology Apache + PHP 8.2 + MariaDB 10 at `/volume1/web/circulation/`. No Docker is used. Credentials are managed via `.env.credentials` and `web/config.php`.
 
 ---
 
 ## 📞 Support Information
 
 **If deployment fails:**
+
 1. Document the error
 2. Check troubleshooting section above
 3. Review container logs thoroughly
 4. Consider rollback if critical
 
 **Emergency contacts:**
+
 - System: Synology NAS at 192.168.1.254
 - Database: MariaDB 10.11 (circulation_dashboard)
 - Web: PHP 8.2 + Apache

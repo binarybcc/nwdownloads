@@ -14,15 +14,17 @@ Newspaper circulation dashboard for tracking subscriber metrics across multiple 
 
 **Versioning:** Automated via `npm run release` (standard-version). See `docs/operations-reference.md` for details.
 
-## CRITICAL: PRODUCTION IS NOT DOCKER
+## Infrastructure
 
 - **Production:** Native Synology Apache + PHP 8.2 + MariaDB 10 at `/volume1/web/circulation/`
-- **Development:** Docker at http://localhost:8081
-- **NEVER run Docker commands on production NAS!**
+- **Production URL:** http://192.168.1.254:8081 (also https://cdash.upstatetoday.com)
+- **NO DOCKER** — this project does not use Docker in any capacity
+- **Deploy:** Copy files to NAS via `ssh nas`, place in `/volume1/web/circulation/`\*\*
 
 ## Production Operations Protocol
 
 Before ANY production operation, Claude MUST:
+
 1. Source `.env.credentials` first
 2. Read `docs/KNOWLEDGE-BASE.md` for connection details
 3. Follow the 3-attempt rule — if it takes 3+ attempts, read the docs
@@ -47,16 +49,16 @@ See `docs/data-upload-reference.md` for weekly process, publications, schema, an
 
 ## Documentation
 
-| Doc | Purpose |
-|-----|---------|
-| `docs/DESIGN-SYSTEM.md` | Component library and UI patterns (READ FIRST for UI work) |
-| `docs/KNOWLEDGE-BASE.md` | Architecture, schemas, API endpoints, deployment |
-| `docs/TROUBLESHOOTING.md` | Decision tree diagnostics for 9 issue categories |
-| `docs/operations-reference.md` | Versioning, credentials, deployment, DB commands |
-| `docs/git-workflow-reference.md` | PR workflow, branch naming, examples |
-| `docs/data-upload-reference.md` | Upload process, publications, data notes |
-| `docs/cost_analysis.md` | Development cost analysis & ROI |
-| `docs/ARCHIVE/` | Historical documentation (33+ files) |
+| Doc                              | Purpose                                                    |
+| -------------------------------- | ---------------------------------------------------------- |
+| `docs/DESIGN-SYSTEM.md`          | Component library and UI patterns (READ FIRST for UI work) |
+| `docs/KNOWLEDGE-BASE.md`         | Architecture, schemas, API endpoints, deployment           |
+| `docs/TROUBLESHOOTING.md`        | Decision tree diagnostics for 9 issue categories           |
+| `docs/operations-reference.md`   | Versioning, credentials, deployment, DB commands           |
+| `docs/git-workflow-reference.md` | PR workflow, branch naming, examples                       |
+| `docs/data-upload-reference.md`  | Upload process, publications, data notes                   |
+| `docs/cost_analysis.md`          | Development cost analysis & ROI                            |
+| `docs/ARCHIVE/`                  | Historical documentation (33+ files)                       |
 
 ## File Organization
 

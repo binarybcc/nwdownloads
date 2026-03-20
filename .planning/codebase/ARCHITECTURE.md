@@ -144,7 +144,7 @@
 **`index.php` (Main Dashboard):**
 
 - Location: `web/index.php`
-- Triggers: User navigates to https://cdash.upstatetoday.com or http://localhost:8081
+- Triggers: User navigates to https://cdash.upstatetoday.com or http://192.168.1.254:8081
 - Responsibilities: Render dashboard HTML, load CSS/JS, display metric cards and charts
 - Auth required: Yes (via `auth_check.php`)
 - Output: 58KB HTML with Chart.js and Flatpickr libraries

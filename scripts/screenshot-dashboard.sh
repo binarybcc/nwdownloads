@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-DASHBOARD_URL="${1:-http://localhost:8081}"
+DASHBOARD_URL="${1:-http://192.168.1.254:8081}"
 OUTPUT_DIR="${2:-$HOME/Desktop}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 OUTPUT_FILE="${OUTPUT_DIR}/dashboard-${TIMESTAMP}.png"

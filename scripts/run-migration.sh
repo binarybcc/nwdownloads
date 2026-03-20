@@ -55,12 +55,8 @@ if [ "$ENVIRONMENT" = "production" ]; then
         exit 1
     fi
 else
-    # Development - Docker container
-    DB_HOST="database"
-    DB_USER="${DB_USER:-circ_dash}"
-    DB_PASS="${DB_PASSWORD:-Barnaby358@Jones!}"
-    DB_NAME="${DB_NAME:-circulation_dashboard}"
-    DB_TYPE="host"
+    echo -e "${RED}ERROR: Only production environment is supported. Use: $0 <migration_file> production${NC}"
+    exit 1
 fi
 
 # ============================================================================
@@ -93,13 +89,8 @@ print_info() {
 
 # Database connection helper
 run_mysql() {
-    if [ "$DB_TYPE" = "socket" ]; then
-        # Production - Unix socket
-        /usr/local/mariadb10/bin/mysql -u"$DB_USER" -p"$DB_PASS" -S "$DB_HOST" "$DB_NAME" "$@"
-    else
-        # Development - Docker container
-        docker exec -i circulation_db mariadb -u"$DB_USER" -p"$DB_PASS" -D "$DB_NAME" "$@"
-    fi
+    # Production - Unix socket via SSH to NAS
+    ssh nas "/usr/local/mariadb10/bin/mysql -u\"$DB_USER\" -p\"$DB_PASS\" -S \"$DB_HOST\" \"$DB_NAME\"" "$@"
 }
 
 # ============================================================================
@@ -201,13 +192,8 @@ BACKUP_FILE="$BACKUP_DIR/${TIMESTAMP}_pre_${MIGRATION_FILE%.sql}.sql"
 
 print_info "Backing up database to: $BACKUP_FILE"
 
-if [ "$DB_TYPE" = "socket" ]; then
-    # Production backup
-    /usr/local/mariadb10/bin/mysqldump -u"$DB_USER" -p"$DB_PASS" -S "$DB_HOST" "$DB_NAME" > "$BACKUP_FILE"
-else
-    # Development backup
-    docker exec circulation_db mysqldump -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" > "$BACKUP_FILE"
-fi
+# Production backup via SSH to NAS
+ssh nas "/usr/local/mariadb10/bin/mysqldump -u\"$DB_USER\" -p\"$DB_PASS\" -S \"$DB_HOST\" \"$DB_NAME\"" > "$BACKUP_FILE"
 
 if [ -f "$BACKUP_FILE" ]; then
     BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
@@ -345,11 +331,7 @@ else
     print_warning "The migration failed. You can restore from backup:"
     echo ""
     echo "  # Restore from backup:"
-    if [ "$DB_TYPE" = "socket" ]; then
-        echo "  mysql -u$DB_USER -p$DB_PASS -S $DB_HOST $DB_NAME < $BACKUP_FILE"
-    else
-        echo "  docker exec -i circulation_db mariadb -u$DB_USER -p$DB_PASS $DB_NAME < $BACKUP_FILE"
-    fi
+    echo "  ssh nas \"/usr/local/mariadb10/bin/mysql -u$DB_USER -p$DB_PASS -S $DB_HOST $DB_NAME\" < $BACKUP_FILE"
     echo ""
     print_warning "Error details:"
     cat /tmp/migration_output.log

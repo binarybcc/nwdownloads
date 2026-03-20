@@ -117,7 +117,7 @@ While automated checks passed, the following should be verified by a human to co
 
 #### 1. Visual Match with Company-Wide Chart
 
-**Test:** Open http://localhost:8081/ in browser and compare BU card trend charts with the company-wide trend chart at the top of the dashboard.
+**Test:** Open http://192.168.1.254:8081/ in browser and compare BU card trend charts with the company-wide trend chart at the top of the dashboard.
 **Expected:** Both charts use identical blue line color (#3b82f6), area fill (rgba with 0.1 alpha), line tension (0.4), and point styling.
 **Why human:** Color perception and visual consistency can't be verified programmatically.
 

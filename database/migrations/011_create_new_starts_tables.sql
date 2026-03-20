@@ -8,7 +8,7 @@
 --
 -- Usage:
 --   cat database/migrations/011_create_new_starts_tables.sql | \
---     docker exec -i circulation_db mariadb -uroot -pMojave48ice circulation_dashboard
+--     ssh nas "/usr/local/mariadb10/bin/mysql -uroot circulation_dashboard"
 
 -- ============================================================================
 -- new_start_events - Individual New Subscriber Start Events

@@ -112,10 +112,6 @@
 │       ├── STACK.md                # Technology stack (if generated)
 │       └── CONVENTIONS.md          # Coding conventions (if generated)
 │
-├── docker-compose.yml              # Development configuration (volume mounts)
-├── docker-compose.prod.yml         # Production configuration
-├── Dockerfile                      # Web container image
-│
 ├── .env.example                    # Environment template
 ├── .env.credentials.example        # Credentials template
 │
@@ -199,7 +195,7 @@
 
 **database/init/**
 
-- **Purpose:** Database initialization (runs on Docker startup)
+- **Purpose:** Database initialization SQL scripts
 - **Order:** Files execute alphabetically, migrations depend on prior tables
 - **Idempotent:** `IF NOT EXISTS` clauses prevent errors on re-run
 
@@ -236,10 +232,7 @@
 - `web/config.php`: Timezone, session security, Newzware API URL, session timeout
 - `.env`: Environment variables (DB_HOST, DB_USER, DB_PASSWORD, etc.)
 - `.env.credentials`: Deployment credentials (gitignored, must be created manually)
-- `docker-compose.yml`: Development environment configuration
-- `docker-compose.prod.yml`: Production Docker image configuration
-
-**Core Logic:**
+  **Core Logic:**
 
 - `web/api/legacy.php`: All API endpoints (2,583 lines of functions + main switch statement)
 - `web/lib/AllSubscriberImporter.php`: CSV parsing and database insertion logic

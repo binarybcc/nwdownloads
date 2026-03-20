@@ -44,10 +44,10 @@ if ($isProduction) {
     $username = 'root';
     $password = 'P@ta675N0id';
 } else {
-    // Development: Docker container
-    $dsn = 'mysql:host=database;port=3306;dbname=circulation_dashboard;charset=utf8mb4';
+    // Non-production fallback: connect via TCP
+    $dsn = 'mysql:host=localhost;port=3306;dbname=circulation_dashboard;charset=utf8mb4';
     $username = getenv('DB_USER') ?: 'circ_dash';
-    $password = getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!';
+    $password = getenv('DB_PASSWORD') ?: '';
 }
 
 // File paths configuration

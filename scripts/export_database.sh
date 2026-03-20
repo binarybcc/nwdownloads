@@ -3,7 +3,7 @@
 
 echo "Exporting circulation_dashboard database from Synology..."
 
-# Create db_init directory for Docker entrypoint
+# Create db_init directory for initialization scripts
 mkdir -p db_init
 
 # Export database from Synology

@@ -2,7 +2,7 @@
 # Test vacation CSV upload to development environment
 
 CSV_FILE="/Users/johncorbin/Desktop/projs/nwdownloads/queries/SubscribersOnVacation20251208174842.csv"
-UPLOAD_URL="http://localhost:8081/upload_vacations.php"
+UPLOAD_URL="http://192.168.1.254:8081/upload_vacations.php"
 
 echo "🧪 Testing Vacation Upload"
 echo "=========================="

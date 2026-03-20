@@ -45,7 +45,7 @@
 
 **Fix approach:**
 
-- Restrict CORS to trusted domains only: `cdash.upstatetoday.com`, `localhost:8081`
+- Restrict CORS to trusted domains only: `cdash.upstatetoday.com`, `192.168.1.254:8081`
 - Consider removing CORS headers if not needed for external consumption
 - Add CSRF token validation to all state-changing operations
 

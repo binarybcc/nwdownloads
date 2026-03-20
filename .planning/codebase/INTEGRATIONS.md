@@ -30,18 +30,6 @@
 
 **Primary Database:**
 
-**MariaDB 10 (Development):**
-
-- Connection: Docker container service `database`
-- Host: `database` (Docker DNS)
-- Port: 3306 (TCP)
-- Database: `circulation_dashboard`
-- User: `circ_dash` (from env var DB_USER)
-- Password: From env var DB_PASSWORD
-- Client: PDO (PHP Data Objects)
-- Connection: `web/includes/database.php` - singleton pattern
-- DSN format: `mysql:host=database;port=3306;dbname=circulation_dashboard`
-
 **MariaDB 10 (Production):**
 
 - Connection: Native Synology service
@@ -55,7 +43,6 @@
 **File Storage:**
 
 - Local filesystem only (no external object storage)
-- Development: Docker volume mount at `./web:/var/www/html`
 - Production: Native filesystem at `/volume1/web/circulation/`
 - Upload directory: Configurable via `DATA_DIR` environment variable
 - Raw CSV uploads: Stored in `raw_uploads` table as backup
@@ -118,16 +105,13 @@
 - File-based logging:
   - `web/upload-debug.log` - CSV upload debugging
   - `web/file_processing.log` - File processing history (database-backed)
-  - `web/error.log` - PHP errors (Docker/Synology standard location)
+  - `web/error.log` - PHP errors (Synology standard location)
 - Log format: Plain text, human-readable
 - Log rotation: Not configured
 - Log retention: Manual cleanup via `web/purge_all_data.php`
 
 **Monitoring:**
 
-- Health checks: Docker HEALTHCHECK in Dockerfile and docker-compose.yml
-  - Development: HTTP GET to `/` checks web container
-  - Database: MariaDB healthcheck.sh script
 - No external monitoring service (Datadog, New Relic, Sentry, etc.)
 - Dashboard includes "Data Range Display" showing available data in UI
 
@@ -135,8 +119,7 @@
 
 **Hosting:**
 
-- Development: Local Docker Compose (OrbStack on macOS)
-- Production: Synology NAS running native services
+- Production: Synology NAS running native Apache + PHP 8.2 + MariaDB 10
 
 **CI Pipeline:**
 
@@ -156,34 +139,13 @@
    - Preserves production-specific files (`.htaccess`, `.build_number`)
 4. Verify at `https://cdash.upstatetoday.com`
 
-**Image Registry:**
-
-- Docker Hub: `binarybcc/nwdownloads-circ` (production image)
-- Built and pushed by: `build-and-push.sh` (not automated)
-- Used by: Production deployment script pulls latest image
-
 **Database Migrations:**
 
-- Tool: Phinx (`robmorgan/phinx`)
-- Config: `phinx.php` (defines development and production environments)
-- Location: Migrations in `db/migrations/*.sql`
-- Execution:
-  - Development: `docker exec circulation_db phinx migrate`
-  - Production: Via deployment script before starting services
-- Tracking: `phinxlog` table maintains migration history
+- Location: Migrations in `database/migrations/*.sql`
+- Execution: Via `scripts/run-migration.sh` which SSHes into NAS
+- Tracking: `migration_log` table maintains migration history
 
 ## Environment Configuration
-
-**Required Environment Variables (Development):**
-
-```
-DB_HOST=database
-DB_PORT=3306
-DB_NAME=circulation_dashboard
-DB_USER=circ_dash
-DB_PASSWORD=<password>
-DB_ROOT_PASSWORD=<root_password>
-```
 
 **Required Environment Variables (Production):**
 
@@ -204,14 +166,13 @@ DASHBOARD_TITLE=Circulation Dashboard
 
 **Secrets Location:**
 
-- Development: `.env` file (committed template as `.env.example`)
 - Production: `.env.credentials` file (never committed, stored locally)
 - Credentials template: `.env.credentials.example` (maps environment variables)
 
 **Build Environment:**
 
 - Node version: `.nvmrc` not present (assumes Node 18+)
-- PHP version: Dockerfile pins PHP 8.2-apache
+- PHP version: Synology PHP 8.2 package (`/var/packages/PHP8.2/target/usr/local/bin/php82`)
 - Composer autoloader: Optimized for production (`optimize-autoloader` in `composer.json`)
 
 ## Webhooks & Callbacks

@@ -10,7 +10,7 @@ echo ""
 
 # Test 1: CSRF Token Present
 echo "Test 1: CSRF Token in Login Form"
-csrf_token=$(curl -s "http://localhost:8081/login.php" | grep -o 'name="csrf_token" value="[^"]*"')
+csrf_token=$(curl -s "http://192.168.1.254:8081/login.php" | grep -o 'name="csrf_token" value="[^"]*"')
 if [ -n "$csrf_token" ]; then
     echo "✅ PASS: CSRF token found in login form"
 else
@@ -20,7 +20,7 @@ echo ""
 
 # Test 2: Login Page Loads
 echo "Test 2: Login Page Loads Successfully"
-http_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8081/login.php")
+http_code=$(curl -s -o /dev/null -w "%{http_code}" "http://192.168.1.254:8081/login.php")
 if [ "$http_code" = "200" ]; then
     echo "✅ PASS: Login page returns HTTP 200"
 else
@@ -30,7 +30,7 @@ echo ""
 
 # Test 3: CSRF Validation (attempt to submit without token)
 echo "Test 3: CSRF Protection Blocks Invalid Requests"
-response=$(curl -s -X POST "http://localhost:8081/login.php" \
+response=$(curl -s -X POST "http://192.168.1.254:8081/login.php" \
     -d "login_id=testuser" \
     -d "password=testpass")
 
@@ -43,7 +43,7 @@ echo ""
 
 # Test 4: Check Session Cookie Flags
 echo "Test 4: Session Cookie Security Flags"
-cookie_headers=$(curl -s -I "http://localhost:8081/login.php" | grep -i "set-cookie")
+cookie_headers=$(curl -s -I "http://192.168.1.254:8081/login.php" | grep -i "set-cookie")
 if echo "$cookie_headers" | grep -qi "httponly"; then
     echo "✅ PASS: HttpOnly flag detected"
 else

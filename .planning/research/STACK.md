@@ -13,7 +13,7 @@ These are already in production. Listed here to document integration points for 
 | Technology   | Version           | Role                                                         |
 | ------------ | ----------------- | ------------------------------------------------------------ |
 | PHP          | 8.2               | Server-side logic, API endpoints, importers                  |
-| MariaDB      | 10                | Database (production: Unix socket on NAS; dev: Docker)       |
+| MariaDB      | 10                | Database (production: Unix socket on NAS)                    |
 | Chart.js     | 4.4.0 (CDN)       | All data visualization                                       |
 | SheetJS Pro  | xlsx-latest (CDN) | Client-side XLSX export — already supports cell `.s` styling |
 | Tailwind CSS | 3.4.x             | Utility-first CSS, built via `npm run build:css`             |
@@ -85,7 +85,7 @@ The existing toolchain handles this milestone without modification:
 
 | Tool                | Purpose             | Notes                                                                    |
 | ------------------- | ------------------- | ------------------------------------------------------------------------ |
-| Docker Compose      | Dev environment     | `docker compose up -d` — unchanged                                       |
+| `ssh nas`           | Production access   | Passwordless SSH to Synology NAS for deployment and DB operations        |
 | Phinx `^0.13`       | Database migrations | Use for new `call_logs` table migration                                  |
 | launchd plist       | Scheduled scraping  | Existing pattern from `auto_process.php`; new plist for call log scraper |
 | `npm run build:css` | Tailwind rebuild    | Required after adding any new utility classes to JS/PHP                  |

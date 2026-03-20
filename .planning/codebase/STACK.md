@@ -19,8 +19,8 @@
 
 **Environment:**
 
-- PHP 8.2 (via php:8.2-apache Docker image for development)
-- Apache 2.4 - Web server
+- PHP 8.2 (native Synology package)
+- Apache 2.4 - Web server (Synology Web Station)
 - Node.js 18+ (for build tooling only, not runtime)
 
 **Package Manager:**
@@ -75,8 +75,8 @@
 **Environment:**
 
 - `.env` file pattern (framework convention, not auto-loaded)
-- Environment variables set via Docker-compose and shell scripts
-- `.envrc` - direnv integration for automatic `PROJECT_ROOT` setup across workstations
+- Environment variables set via shell scripts and .env.credentials
+- `.envrc` - direnv integration for automatic `PROJECT_ROOT` setup
 
 **Build:**
 
@@ -101,21 +101,19 @@ npm run release          # Automated semantic versioning with standard-version
 
 ## Platform Requirements
 
-**Development:**
+**Production (Synology NAS):**
 
-- Docker & Docker Compose (OrbStack on macOS)
-- PHP 8.2 (in container)
-- MariaDB 10.11 (in container)
-- Node.js 18+ (on host, for build tools)
-- Git (version control and deployment)
-
-**Production:**
-
-- Native Synology NAS (no Docker)
 - Synology Web Station with PHP 8.2 support
 - MariaDB 10 (native, via Unix socket at `/run/mysqld/mysqld10.sock`)
 - Apache 2.x (Synology native)
 - File serving from `/volume1/web/circulation/`
+- SSH access: `ssh nas` (passwordless key auth)
+- DB CLI: `/usr/local/mariadb10/bin/mysql`
+
+**Local (build tools only):**
+
+- Node.js 18+ (for Tailwind CSS build, linting, formatting)
+- Git (version control and deployment)
 
 ## Version Information
 
@@ -158,16 +156,11 @@ npm run release          # Automated semantic versioning with standard-version
 
 **Type:** MariaDB 10 (MySQL-compatible)
 
-**Development:** Containerized MariaDB 10.11
-
-- Connection: TCP via hostname `database` (Docker DNS)
-- Credentials: From `.env` file (DB_USER, DB_PASSWORD)
-- Database: `circulation_dashboard`
-
 **Production:** Native Synology MariaDB 10
 
 - Connection: Unix socket at `/run/mysqld/mysqld10.sock`
-- Credentials: Hardcoded in deployment scripts (root user)
+- CLI binary: `/usr/local/mariadb10/bin/mysql`
+- Access: `ssh nas` then `/usr/local/mariadb10/bin/mysql -uroot circulation_dashboard`
 - Database: `circulation_dashboard`
 
 **Key Tables:**

@@ -15,6 +15,7 @@ npm run release:dry-run      # Preview without changes
 ```
 
 What it does automatically:
+
 1. Analyzes conventional commits since last release
 2. Determines version bump (MAJOR/MINOR/PATCH)
 3. Updates `package.json` version
@@ -25,16 +26,17 @@ What it does automatically:
 Then push: `git push --follow-tags origin master`
 
 **Manual override** (only if `standard-version` fails):
+
 1. Update version in `package.json`
 2. Update `CHANGELOG.md`
 3. Create tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z: description"`
 
 ## Multi-Workstation Setup
 
-| Workstation | Path |
-|-------------|------|
-| Primary (johncorbin) | `/Users/johncorbin/Desktop/projs/nwdownloads/` |
-| Secondary (user) | `/Users/user/Development/work/_active/nwdownloads/` |
+| Workstation          | Path                                                |
+| -------------------- | --------------------------------------------------- |
+| Primary (johncorbin) | `/Users/johncorbin/Desktop/projs/nwdownloads/`      |
+| Secondary (user)     | `/Users/user/Development/work/_active/nwdownloads/` |
 
 Uses **direnv** to auto-set `$PROJECT_ROOT`. One-time setup:
 
@@ -55,22 +57,22 @@ nano .env.credentials  # Replace placeholder values
 source .env.credentials && echo "SSH Host: $SSH_HOST"
 ```
 
-| File | Purpose |
-|------|---------|
-| `.env.credentials.example` | Template (committed to git) |
-| `.env.credentials` | Your credentials (gitignored) |
-| `~/docs/CREDENTIALS.md` | Global credential reference (never committed) |
+| File                       | Purpose                                       |
+| -------------------------- | --------------------------------------------- |
+| `.env.credentials.example` | Template (committed to git)                   |
+| `.env.credentials`         | Your credentials (gitignored)                 |
+| `~/docs/CREDENTIALS.md`    | Global credential reference (never committed) |
 
 ## Environment Details
 
-| | Production | Development |
-|---|---|---|
-| **Location** | `/volume1/web/circulation/` on NAS | `$PROJECT_ROOT` local |
-| **URL** | `https://cdash.upstatetoday.com` | `http://localhost:8081/` |
-| **Database** | MariaDB 10 via Unix socket `$PROD_DB_SOCKET` | Docker container |
-| **Web Server** | Synology Web Station (PHP 8.2 + Apache) | Docker PHP container |
-| **Credentials** | `$PROD_DB_USERNAME` / `$PROD_DB_PASSWORD` | `$DEV_DB_USERNAME` / `$DEV_DB_PASSWORD` |
-| **DB Connection** | `PDO("mysql:unix_socket=$PROD_DB_SOCKET;dbname=$PROD_DB_DATABASE")` | hostname `db` (Docker DNS) |
+|                   | Production                                                          | Development                                |
+| ----------------- | ------------------------------------------------------------------- | ------------------------------------------ |
+| **Location**      | `/volume1/web/circulation/` on NAS                                  | `$PROJECT_ROOT` local                      |
+| **URL**           | `https://cdash.upstatetoday.com`                                    | Local PHP dev server or direct file access |
+| **Database**      | MariaDB 10 via Unix socket `$PROD_DB_SOCKET`                        | Local MariaDB or same NAS DB               |
+| **Web Server**    | Synology Web Station (PHP 8.2 + Apache)                             | Local PHP 8.2                              |
+| **Credentials**   | `$PROD_DB_USERNAME` / `$PROD_DB_PASSWORD`                           | `$DEV_DB_USERNAME` / `$DEV_DB_PASSWORD`    |
+| **DB Connection** | `PDO("mysql:unix_socket=$PROD_DB_SOCKET;dbname=$PROD_DB_DATABASE")` | Same socket or localhost                   |
 
 ## Deployment Commands
 
@@ -85,6 +87,7 @@ sshpass -p "$SSH_PASSWORD" ssh "$SSH_USER@$SSH_HOST"
 ```
 
 **Deployment script** (`/volume1/homes/it/deploy-circulation.sh`):
+
 1. Pulls latest from GitHub master
 2. Syncs `web/` to `/volume1/web/circulation/` via rsync
 3. Preserves `.htaccess`, `.build_number`
@@ -123,39 +126,25 @@ find /volume1/web/circulation/ -type d -exec chmod 755 {} \;
 cd /volume1/homes/it/circulation-deploy && git log --oneline -10
 ```
 
-## Development Commands
-
-```bash
-docker compose ps
-docker compose logs
-docker compose restart
-docker compose down
-docker compose up -d
-```
-
 ## Database Queries
 
 ```bash
 source .env.credentials
 
-# Production
-sshpass -p "$SSH_PASSWORD" ssh "$SSH_USER@$SSH_HOST" \
-  "mysql -u'$PROD_DB_USERNAME' -p'$PROD_DB_PASSWORD' -S '$PROD_DB_SOCKET' '$PROD_DB_DATABASE' -e 'SHOW TABLES;'"
+# Production (via SSH)
+ssh nas
+/usr/local/mariadb10/bin/mysql -u"$PROD_DB_USERNAME" -p"$PROD_DB_PASSWORD" -S "$PROD_DB_SOCKET" "$PROD_DB_DATABASE" -e 'SHOW TABLES;'
 
-# Development
-docker exec circulation_db mariadb \
-  -u"$DEV_DB_USERNAME" -p"$DEV_DB_PASSWORD" -D "$DEV_DB_DATABASE" -e "SHOW TABLES;"
-
-# Check latest snapshots
-docker exec circulation_db mariadb \
-  -u"$DEV_DB_USERNAME" -p"$DEV_DB_PASSWORD" -D "$DEV_DB_DATABASE" -e "
+# Check latest snapshots (on NAS)
+/usr/local/mariadb10/bin/mysql -u"$PROD_DB_USERNAME" -p"$PROD_DB_PASSWORD" -S "$PROD_DB_SOCKET" "$PROD_DB_DATABASE" -e "
   SELECT snapshot_date, paper_code, paper_name, total_active, deliverable
   FROM daily_snapshots ORDER BY snapshot_date DESC, paper_code LIMIT 20;"
 ```
 
 ## Synology-Specific Notes
 
-- `.env` files may not be read by Docker Compose (hardcode in `docker-compose.yml`)
-- Use `sudo` for Docker commands via SSH
-- SCP/SFTP disabled - use SSH cat method for file transfers
+- Web files served from `/volume1/web/circulation/`
+- DB binary: `/usr/local/mariadb10/bin/mysql` (not system `mysql`)
+- PHP CLI: `/var/packages/PHP8.2/target/usr/local/bin/php82`
+- SSH via `ssh nas` (key auth configured)
 - GitHub is the single source of truth - never push from NAS

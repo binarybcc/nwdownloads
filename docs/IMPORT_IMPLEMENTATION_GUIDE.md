@@ -24,25 +24,30 @@ Ask yourself: **What kind of data is this?**
 Copy the appropriate example file:
 
 **Pattern 1 (Snapshot):**
+
 - Reference: `/web/upload.php` (production implementation)
 - Documentation: `/docs/SOFT_BACKFILL_SYSTEM.md`
 
 **Pattern 2 (Event):**
+
 - Template: `/web/upload_events_example.php`
 - Customize table name, columns, validation
 
 **Pattern 3 (Dimension):**
+
 - Template: `/web/upload_dimensions_example.php`
 - Customize table name, columns, required fields
 
 ### Step 3: Use Helper Functions
 
 All templates use shared helper functions from:
+
 ```php
 require_once 'includes/import-helpers.php';
 ```
 
 **Available helpers:**
+
 - `extractDateFromFilename($filename)` - Parse Newzware filename dates
 - `calculateWeekNumber($date)` - Get ISO week number
 - `getWeekStartDate($year, $week)` - Get Monday of a week
@@ -62,12 +67,14 @@ require_once 'includes/import-helpers.php';
 ### For Every New Import:
 
 #### Phase 1: Planning
+
 - [ ] Identify data pattern (snapshot/event/dimension)
 - [ ] Design database table schema
 - [ ] Create test CSV file with sample data
 - [ ] Document business rules and edge cases
 
 #### Phase 2: Development
+
 - [ ] Copy appropriate template file
 - [ ] Rename file (e.g., `upload_payments.php`)
 - [ ] Update table names in code
@@ -77,18 +84,21 @@ require_once 'includes/import-helpers.php';
 - [ ] Test with sample CSV
 
 #### Phase 3: Database
+
 - [ ] Create table with proper schema
 - [ ] Add indexes for performance
 - [ ] Add foreign keys if needed
 - [ ] Test with large dataset (performance)
 
 #### Phase 4: Frontend
+
 - [ ] Add upload form to UI
 - [ ] Add result display/feedback
 - [ ] Add error handling
 - [ ] Test user workflow
 
 #### Phase 5: Documentation
+
 - [ ] Document CSV format expected
 - [ ] Document table schema
 - [ ] Add to `/docs/KNOWLEDGE-BASE.md`
@@ -102,6 +112,7 @@ require_once 'includes/import-helpers.php';
 ### Example 1: Payment History Import (Pattern 2)
 
 **CSV Format:**
+
 ```csv
 Transaction ID,Date,Subscriber ID,Amount,Payment Type
 TXN12345,2025-12-01,10001,-169.99,CREDIT_CARD
@@ -109,6 +120,7 @@ TXN12346,2025-12-01,10002,-129.99,CHECK
 ```
 
 **Table Schema:**
+
 ```sql
 CREATE TABLE payment_events (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -125,6 +137,7 @@ CREATE TABLE payment_events (
 ```
 
 **Implementation:**
+
 1. Copy `/web/upload_events_example.php` to `/web/upload_payments.php`
 2. Update table name to `payment_events`
 3. Update column mappings to match CSV
@@ -139,6 +152,7 @@ CREATE TABLE payment_events (
 ### Example 2: Rate Master Import (Pattern 3)
 
 **CSV Format:**
+
 ```csv
 Rate Code,Rate Name,Amount,Type,Active
 DIGONLY,Digital Only Annual,169.99,DIGITAL,1
@@ -146,6 +160,7 @@ MAILDG,Mail + Digital Bundle,169.99,COMBO,1
 ```
 
 **Table Schema:**
+
 ```sql
 CREATE TABLE rate_master (
     rate_code VARCHAR(50) PRIMARY KEY,
@@ -158,6 +173,7 @@ CREATE TABLE rate_master (
 ```
 
 **Implementation:**
+
 1. Copy `/web/upload_dimensions_example.php` to `/web/upload_rates.php`
 2. Update table name to `rate_master`
 3. Update column mappings to match CSV
@@ -172,6 +188,7 @@ CREATE TABLE rate_master (
 ### Example 3: Revenue Snapshots (Pattern 1)
 
 **CSV Format:** (hypothetical weekly revenue report)
+
 ```csv
 Week,Year,Business Unit,MRR,ARPU,Subscribers
 50,2025,Wyoming,45000.00,15.75,2856
@@ -179,6 +196,7 @@ Week,Year,Business Unit,MRR,ARPU,Subscribers
 ```
 
 **Table Schema:**
+
 ```sql
 CREATE TABLE revenue_snapshots (
     snapshot_date DATE NOT NULL,
@@ -202,6 +220,7 @@ CREATE TABLE revenue_snapshots (
 ```
 
 **Implementation:**
+
 1. Study `/web/upload.php` (reference implementation)
 2. Create new file `/web/upload_revenue.php`
 3. Copy core structure from `upload.php`
@@ -211,6 +230,7 @@ CREATE TABLE revenue_snapshots (
 7. Test with sample CSV
 
 **Key Differences from AllSubscriberReport:**
+
 - Different CSV columns (week, MRR, ARPU)
 - Different primary key (snapshot_date + business_unit)
 - Same backfill algorithm
@@ -223,6 +243,7 @@ CREATE TABLE revenue_snapshots (
 ### Test Scenarios
 
 #### All Patterns Should Test:
+
 1. **Valid CSV** - Import succeeds, correct row count
 2. **Invalid CSV** - Proper error message
 3. **Missing columns** - Validation catches it
@@ -232,6 +253,7 @@ CREATE TABLE revenue_snapshots (
 7. **Special characters** - Handles names with quotes, commas, etc.
 
 #### Pattern 1 (Snapshot) Should Also Test:
+
 8. **Empty database** - Backfills correctly
 9. **Existing data** - Stops backfill at right point
 10. **Out-of-order uploads** - Handles correctly
@@ -239,11 +261,13 @@ CREATE TABLE revenue_snapshots (
 12. **Before minimum date** - Doesn't backfill too far
 
 #### Pattern 2 (Event) Should Also Test:
+
 13. **Duplicate transactions** - Skips correctly
 14. **Different date formats** - Parses correctly
 15. **Multiple uploads** - Appends without duplicating
 
 #### Pattern 3 (Dimension) Should Also Test:
+
 16. **Full replacement** - Old data removed, new data loaded
 17. **Transaction rollback** - Partial failure doesn't corrupt table
 18. **Concurrent access** - Table lock doesn't block reads too long
@@ -251,23 +275,22 @@ CREATE TABLE revenue_snapshots (
 ### Test Commands
 
 ```bash
-# Development environment
-cd /Users/johncorbin/Desktop/projs/nwdownloads
+# SSH into NAS first: ssh nas
 
 # Check table structure
-docker exec circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' \
-  -D circulation_dashboard -e "DESCRIBE your_table_name;"
+/usr/local/mariadb10/bin/mysql -uroot -p -S /run/mysqld/mysqld10.sock \
+  circulation_dashboard -e "DESCRIBE your_table_name;"
 
 # Check row count before/after import
-docker exec circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' \
-  -D circulation_dashboard -e "SELECT COUNT(*) FROM your_table_name;"
+/usr/local/mariadb10/bin/mysql -uroot -p -S /run/mysqld/mysqld10.sock \
+  circulation_dashboard -e "SELECT COUNT(*) FROM your_table_name;"
 
 # View sample rows
-docker exec circulation_db mariadb -ucirc_dash -p'Barnaby358@Jones!' \
-  -D circulation_dashboard -e "SELECT * FROM your_table_name LIMIT 10;"
+/usr/local/mariadb10/bin/mysql -uroot -p -S /run/mysqld/mysqld10.sock \
+  circulation_dashboard -e "SELECT * FROM your_table_name LIMIT 10;"
 
 # Check for errors in logs
-docker logs circulation_web | grep -i error
+tail -50 /volume1/web/circulation/error.log
 ```
 
 ---
@@ -277,16 +300,19 @@ docker logs circulation_web | grep -i error
 ### File Size Limits
 
 **Pattern 1 (Snapshot):**
+
 - Max recommended: 10MB
 - ~8,000 rows in 10-30 seconds
 - Bottleneck: Week-by-week backfill checks
 
 **Pattern 2 (Event):**
+
 - Max recommended: 20MB
 - ~10,000 rows in 5-15 seconds
 - Bottleneck: Usually none (simple INSERT)
 
 **Pattern 3 (Dimension):**
+
 - Max recommended: 5MB
 - ~1,000 rows in <2 seconds
 - Bottleneck: TRUNCATE table lock
@@ -294,22 +320,26 @@ docker logs circulation_web | grep -i error
 ### Optimization Tips
 
 **For all patterns:**
+
 - Batch inserts when possible
 - Use prepared statements (already in templates)
 - Add appropriate indexes
 - Set realistic file size limits
 
 **For Pattern 1:**
+
 - Consider caching existence checks
 - Batch UPSERT operations by week
 - Index on (week_num, year)
 
 **For Pattern 2:**
+
 - Use `INSERT IGNORE` or `ON DUPLICATE KEY` for dedup
 - Batch inserts (500-1,000 rows at a time)
 - Index on transaction_id for dedup
 
 **For Pattern 3:**
+
 - Keep tables small (<10,000 rows)
 - Use transactions for atomicity
 - Consider read replicas if high concurrency
@@ -319,6 +349,7 @@ docker logs circulation_web | grep -i error
 ## Common Pitfalls
 
 ### ❌ Don't:
+
 - Mix patterns (e.g., using backfill logic for event data)
 - Forget to validate CSV format before processing
 - Skip transaction handling for Pattern 3
@@ -327,6 +358,7 @@ docker logs circulation_web | grep -i error
 - Forget to document the CSV format
 
 ### ✅ Do:
+
 - Choose the right pattern for your data type
 - Validate early and fail fast
 - Use transactions where appropriate
@@ -358,17 +390,20 @@ Before deploying to production:
 ## Getting Help
 
 **Documentation:**
+
 - `/docs/IMPORT_PATTERNS.md` - Detailed pattern descriptions
 - `/docs/SOFT_BACKFILL_SYSTEM.md` - Backfill algorithm (Pattern 1)
 - `/docs/KNOWLEDGE-BASE.md` - Complete system reference
 - `/web/includes/import-helpers.php` - Helper function API docs
 
 **Examples:**
+
 - `/web/upload.php` - Production Pattern 1 implementation
 - `/web/upload_events_example.php` - Pattern 2 template
 - `/web/upload_dimensions_example.php` - Pattern 3 template
 
 **Strategic Context:**
+
 - `/docs/strategic_consulting_report.md` - Business intelligence use cases
 - `/docs/csv_intelligence_extraction.md` - AllSubscriberReport analysis patterns
 - `/docs/circulation_intelligence_guide.md` - Newzware database insights

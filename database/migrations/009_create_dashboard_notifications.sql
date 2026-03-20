@@ -7,7 +7,7 @@
 --
 -- Usage:
 --   cat database/migrations/009_create_dashboard_notifications.sql | \
---     docker exec -i circulation_db mariadb -uroot -prootpass circulation_dashboard
+--     ssh nas "/usr/local/mariadb10/bin/mysql -uroot circulation_dashboard"
 
 -- ============================================================================
 -- Drop existing table (for clean migration)

@@ -51,7 +51,7 @@ SHOW TABLES LIKE '%renewal%';
 Copy `upload_renewals.php` to your web directory:
 
 ```bash
-# Deploy to production NAS
+# Deploy to production (via deploy script or manual copy)
 ssh nas
 cp upload_renewals.php /volume1/web/circulation/
 ```

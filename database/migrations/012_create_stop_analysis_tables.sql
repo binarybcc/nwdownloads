@@ -7,8 +7,8 @@
 --   - stop_daily_summary: Daily aggregated stop counts by paper
 --
 -- Usage:
---   cat database/migrations/012_create_stop_analysis_tables.sql | \
---     docker exec -i circulation_db mariadb -uroot -pMojave48ice circulation_dashboard
+--   ssh nas "/usr/local/mariadb10/bin/mysql -uroot -p'PASSWORD' -S /run/mysqld/mysqld10.sock circulation_dashboard" \
+--     < database/migrations/012_create_stop_analysis_tables.sql
 
 -- ============================================================================
 -- stop_events - Individual Subscriber Stop Events

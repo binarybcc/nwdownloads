@@ -47,17 +47,17 @@ try {
         );
         echo "✓ Connected to PRODUCTION database\n";
     } else {
-        // Development: Docker
+        // Non-production fallback: connect via TCP
         $pdo = new PDO(
-            'mysql:host=database;port=3306;dbname=circulation_dashboard;charset=utf8mb4',
+            'mysql:host=localhost;port=3306;dbname=circulation_dashboard;charset=utf8mb4',
             getenv('DB_USER') ?: 'circ_dash',
-            getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!',
+            getenv('DB_PASSWORD') ?: '',
             [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             ]
         );
-        echo "✓ Connected to DEVELOPMENT database\n";
+        echo "✓ Connected to local database\n";
     }
 } catch (PDOException $e) {
     echo "❌ Database connection failed: " . $e->getMessage() . "\n";

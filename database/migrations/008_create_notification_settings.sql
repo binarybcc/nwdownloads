@@ -6,8 +6,8 @@
 --   - notification_settings: System-wide notification configuration
 --
 -- Usage:
---   cat database/migrations/008_create_notification_settings.sql | \
---     docker exec -i circulation_db mariadb -uroot -prootpass circulation_dashboard
+--   ssh nas "/usr/local/mariadb10/bin/mysql -uroot -p'PASSWORD' -S /run/mysqld/mysqld10.sock circulation_dashboard" \
+--     < database/migrations/008_create_notification_settings.sql
 
 -- ============================================================================
 -- Drop existing table (for clean migration)

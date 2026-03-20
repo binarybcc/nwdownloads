@@ -1,4 +1,5 @@
 # Revenue Opportunity Visualization - Design Plan
+
 **Date:** 2025-12-12
 **Status:** Design Phase
 **Goal:** Transform single aggregate card into per-publication breakdown with historical trends
@@ -8,12 +9,14 @@
 ## 🎯 Problem Statement
 
 **Current Implementation:**
+
 - Single "Legacy Rate Opportunity" card showing aggregate totals across all publications
 - Displays: total legacy subscribers, average rate, monthly gap, annual opportunity
 - **Problem**: Cannot identify which publications have the largest revenue opportunities
 - **Problem**: No way to track if opportunities are growing or shrinking over time
 
 **User Requirements:**
+
 1. **Main Dashboard**: Per-publication breakdown showing revenue at market rates vs legacy rates with gain calculations
 2. **Detail Views**: Historical trends showing evolution over time
 3. **Sorting**: Largest opportunities displayed first
@@ -28,6 +31,7 @@
 **Visual Design:** Hybrid table with embedded horizontal bar charts
 
 **Data Structure:**
+
 ```
 Publication | Revenue @ Market | Revenue @ Legacy | Opportunity Gain | Visual Bar
 ---------------------------------------------------------------------------
@@ -39,6 +43,7 @@ TOTAL            | $111,804/mo   | $46,798/mo      | +$65,006/mo     | [===|====
 ```
 
 **Features:**
+
 - ✅ Sortable columns (default: largest opportunity first)
 - ✅ Inline stacked bar chart showing market vs legacy split
 - ✅ Color coding: Green (market rate revenue), Amber (legacy rate revenue)
@@ -49,6 +54,7 @@ TOTAL            | $111,804/mo   | $46,798/mo      | +$65,006/mo     | [===|====
 ### Publication Detail Slider: Deep Dive Analysis
 
 **Section 1: Current State (Top Half)**
+
 - **Left**: Donut chart showing market vs legacy revenue proportion
 - **Right**: Key metrics card
   - Total subscribers on legacy rates
@@ -57,6 +63,7 @@ TOTAL            | $111,804/mo   | $46,798/mo      | +$65,006/mo     | [===|====
   - Annual opportunity
 
 **Section 2: Historical Trends (Bottom Half)**
+
 - **Stacked Area Chart** showing evolution over time
   - X-axis: Weekly snapshots (last 12 weeks)
   - Y-axis: Monthly recurring revenue
@@ -66,6 +73,7 @@ TOTAL            | $111,804/mo   | $46,798/mo      | +$65,006/mo     | [===|====
   - Trend indicators: "Opportunity growing ↑" or "Opportunity shrinking ↓"
 
 **Section 3: Action Panel (Bottom)**
+
 - Export subscriber list (legacy rate holders)
 - Download revenue opportunity report
 - View rate management page
@@ -77,16 +85,19 @@ TOTAL            | $111,804/mo   | $46,798/mo      | +$65,006/mo     | [===|====
 ### Color Palette
 
 **Market Rate Revenue** (Good - Already paying market rates):
+
 - Primary: `#10B981` (Green-500)
 - Light: `#D1FAE5` (Green-100)
 - Dark: `#047857` (Green-700)
 
 **Legacy Rate Revenue** (Opportunity - Could pay more):
+
 - Primary: `#F59E0B` (Amber-500)
 - Light: `#FEF3C7` (Amber-100)
 - Dark: `#D97706` (Amber-700)
 
 **Opportunity Gain** (Revenue potential):
+
 - Primary: `#3B82F6` (Blue-500)
 - Light: `#DBEAFE` (Blue-100)
 - Dark: `#1D4ED8` (Blue-700)
@@ -94,16 +105,19 @@ TOTAL            | $111,804/mo   | $46,798/mo      | +$65,006/mo     | [===|====
 ### Typography
 
 **Table Headers:**
+
 - Font: Inter 600 (Semi-bold)
 - Size: 14px
 - Color: `#374151` (Gray-700)
 
 **Table Values:**
+
 - Font: Inter 500 (Medium)
 - Size: 16px
 - Color: `#111827` (Gray-900)
 
 **Total Row:**
+
 - Font: Inter 700 (Bold)
 - Size: 18px
 - Color: `#0F172A` (Slate-900)
@@ -111,16 +125,19 @@ TOTAL            | $111,804/mo   | $46,798/mo      | +$65,006/mo     | [===|====
 ### Spacing & Layout
 
 **Table Card:**
+
 - Padding: 24px
 - Border radius: 12px
 - Shadow: `0 4px 6px rgba(0,0,0,0.1)`
 
 **Table Rows:**
+
 - Height: 56px
 - Padding: 12px 16px
 - Border bottom: 1px solid `#E5E7EB` (Gray-200)
 
 **Total Row:**
+
 - Border top: 2px solid `#D1D5DB` (Gray-300)
 - Background: `#F9FAFB` (Gray-50)
 
@@ -135,39 +152,40 @@ TOTAL            | $111,804/mo   | $46,798/mo      | +$65,006/mo     | [===|====
 **Class:** `RevenueOpportunityTable`
 
 **Methods:**
+
 ```javascript
 class RevenueOpportunityTable {
-    constructor(containerId) {
-        this.container = document.getElementById(containerId);
-        this.data = null;
-    }
+  constructor(containerId) {
+    this.container = document.getElementById(containerId);
+    this.data = null;
+  }
 
-    /**
-     * Render table with per-publication breakdown
-     * @param {Object} data - Revenue opportunity data
-     */
-    render(data) {
-        this.data = data;
-        const html = this.buildTableHTML();
-        this.container.innerHTML = html;
-        this.attachEventListeners();
-    }
+  /**
+   * Render table with per-publication breakdown
+   * @param {Object} data - Revenue opportunity data
+   */
+  render(data) {
+    this.data = data;
+    const html = this.buildTableHTML();
+    this.container.innerHTML = html;
+    this.attachEventListeners();
+  }
 
-    /**
-     * Build table HTML
-     * @returns {string} HTML string
-     */
-    buildTableHTML() {
-        // Sort by opportunity size (largest first)
-        const sorted = this.sortByOpportunity(this.data.by_publication);
+  /**
+   * Build table HTML
+   * @returns {string} HTML string
+   */
+  buildTableHTML() {
+    // Sort by opportunity size (largest first)
+    const sorted = this.sortByOpportunity(this.data.by_publication);
 
-        // Build rows
-        const rows = sorted.map(pub => this.buildRowHTML(pub)).join('');
+    // Build rows
+    const rows = sorted.map(pub => this.buildRowHTML(pub)).join('');
 
-        // Build total row
-        const totalRow = this.buildTotalRowHTML(this.data.totals);
+    // Build total row
+    const totalRow = this.buildTotalRowHTML(this.data.totals);
 
-        return `
+    return `
             <div class="bg-white rounded-xl shadow-lg p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">
                     💎 Revenue Opportunity by Publication
@@ -191,23 +209,23 @@ class RevenueOpportunityTable {
                 </table>
             </div>
         `;
-    }
+  }
 
-    /**
-     * Build individual row HTML
-     * @param {Object} pub - Publication data
-     * @returns {string} Row HTML
-     */
-    buildRowHTML(pub) {
-        const marketRevenue = pub.market_rate_revenue;
-        const legacyRevenue = pub.legacy_rate_revenue;
-        const opportunity = marketRevenue - legacyRevenue;
-        const total = marketRevenue;
+  /**
+   * Build individual row HTML
+   * @param {Object} pub - Publication data
+   * @returns {string} Row HTML
+   */
+  buildRowHTML(pub) {
+    const marketRevenue = pub.market_rate_revenue;
+    const legacyRevenue = pub.legacy_rate_revenue;
+    const opportunity = marketRevenue - legacyRevenue;
+    const total = marketRevenue;
 
-        const marketPercent = (marketRevenue / total * 100).toFixed(1);
-        const legacyPercent = (legacyRevenue / total * 100).toFixed(1);
+    const marketPercent = ((marketRevenue / total) * 100).toFixed(1);
+    const legacyPercent = ((legacyRevenue / total) * 100).toFixed(1);
 
-        return `
+    return `
             <tr class="border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition"
                 data-paper="${pub.paper_code}"
                 onclick="openPublicationDetail('${pub.paper_code}')">
@@ -229,16 +247,16 @@ class RevenueOpportunityTable {
                 </td>
             </tr>
         `;
-    }
+  }
 
-    /**
-     * Build stacked horizontal bar chart
-     * @param {number} marketPercent - Market rate percentage
-     * @param {number} legacyPercent - Legacy rate percentage
-     * @returns {string} Bar HTML
-     */
-    buildStackedBar(marketPercent, legacyPercent) {
-        return `
+  /**
+   * Build stacked horizontal bar chart
+   * @param {number} marketPercent - Market rate percentage
+   * @param {number} legacyPercent - Legacy rate percentage
+   * @returns {string} Bar HTML
+   */
+  buildStackedBar(marketPercent, legacyPercent) {
+    return `
             <div class="flex items-center gap-2">
                 <div class="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden flex">
                     <div class="bg-green-500 h-full"
@@ -253,22 +271,22 @@ class RevenueOpportunityTable {
                 </div>
             </div>
         `;
-    }
+  }
 
-    /**
-     * Build total row HTML
-     * @param {Object} totals - Aggregate totals
-     * @returns {string} Total row HTML
-     */
-    buildTotalRowHTML(totals) {
-        const marketRevenue = totals.total_market_revenue;
-        const legacyRevenue = totals.total_legacy_revenue;
-        const opportunity = marketRevenue - legacyRevenue;
+  /**
+   * Build total row HTML
+   * @param {Object} totals - Aggregate totals
+   * @returns {string} Total row HTML
+   */
+  buildTotalRowHTML(totals) {
+    const marketRevenue = totals.total_market_revenue;
+    const legacyRevenue = totals.total_legacy_revenue;
+    const opportunity = marketRevenue - legacyRevenue;
 
-        const marketPercent = (marketRevenue / marketRevenue * 100).toFixed(1);
-        const legacyPercent = (legacyRevenue / marketRevenue * 100).toFixed(1);
+    const marketPercent = ((marketRevenue / marketRevenue) * 100).toFixed(1);
+    const legacyPercent = ((legacyRevenue / marketRevenue) * 100).toFixed(1);
 
-        return `
+    return `
             <tr class="border-t-2 border-gray-300 bg-gray-50">
                 <td class="py-4 px-4 font-bold text-gray-900">TOTAL</td>
                 <td class="py-4 px-4 text-right font-bold text-green-700">
@@ -285,39 +303,42 @@ class RevenueOpportunityTable {
                 </td>
             </tr>
         `;
-    }
+  }
 
-    /**
-     * Sort publications by opportunity size (descending)
-     * @param {Array} publications - Array of publication objects
-     * @returns {Array} Sorted array
-     */
-    sortByOpportunity(publications) {
-        return publications.sort((a, b) => {
-            const oppA = a.market_rate_revenue - a.legacy_rate_revenue;
-            const oppB = b.market_rate_revenue - b.legacy_rate_revenue;
-            return oppB - oppA; // Descending
-        });
-    }
+  /**
+   * Sort publications by opportunity size (descending)
+   * @param {Array} publications - Array of publication objects
+   * @returns {Array} Sorted array
+   */
+  sortByOpportunity(publications) {
+    return publications.sort((a, b) => {
+      const oppA = a.market_rate_revenue - a.legacy_rate_revenue;
+      const oppB = b.market_rate_revenue - b.legacy_rate_revenue;
+      return oppB - oppA; // Descending
+    });
+  }
 
-    /**
-     * Format currency
-     * @param {number} amount - Dollar amount
-     * @returns {string} Formatted string
-     */
-    formatCurrency(amount) {
-        return '$' + amount.toLocaleString('en-US', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        });
-    }
+  /**
+   * Format currency
+   * @param {number} amount - Dollar amount
+   * @returns {string} Formatted string
+   */
+  formatCurrency(amount) {
+    return (
+      '$' +
+      amount.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      })
+    );
+  }
 
-    /**
-     * Attach click event listeners
-     */
-    attachEventListeners() {
-        // Rows already have onclick handler in HTML
-    }
+  /**
+   * Attach click event listeners
+   */
+  attachEventListeners() {
+    // Rows already have onclick handler in HTML
+  }
 }
 ```
 
@@ -330,36 +351,39 @@ class RevenueOpportunityTable {
 **Class:** `PublicationRevenueDetail`
 
 **Methods:**
+
 ```javascript
 class PublicationRevenueDetail {
-    constructor() {
-        this.panel = null;
-        this.charts = {};
-    }
+  constructor() {
+    this.panel = null;
+    this.charts = {};
+  }
 
-    /**
-     * Show detail panel for a publication
-     * @param {string} paperCode - Publication code (TJ, TA, etc.)
-     */
-    async show(paperCode) {
-        // Fetch detailed data
-        const response = await fetch(`api/revenue_intelligence.php?action=publication_detail&paper=${paperCode}`);
-        const data = await response.json();
+  /**
+   * Show detail panel for a publication
+   * @param {string} paperCode - Publication code (TJ, TA, etc.)
+   */
+  async show(paperCode) {
+    // Fetch detailed data
+    const response = await fetch(
+      `api/revenue_intelligence.php?action=publication_detail&paper=${paperCode}`
+    );
+    const data = await response.json();
 
-        // Create panel
-        this.createPanel(data);
+    // Create panel
+    this.createPanel(data);
 
-        // Render charts
-        this.renderCurrentStateDonut(data.current);
-        this.renderHistoricalTrend(data.historical);
-    }
+    // Render charts
+    this.renderCurrentStateDonut(data.current);
+    this.renderHistoricalTrend(data.historical);
+  }
 
-    /**
-     * Create slide-out panel
-     * @param {Object} data - Publication revenue data
-     */
-    createPanel(data) {
-        const panelHTML = `
+  /**
+   * Create slide-out panel
+   * @param {Object} data - Publication revenue data
+   */
+  createPanel(data) {
+    const panelHTML = `
             <div id="revenueDetailPanel" class="fixed inset-y-0 right-0 w-3/4 bg-white shadow-2xl z-50 transform transition-transform duration-300 overflow-y-auto">
                 <!-- Header -->
                 <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
@@ -438,170 +462,175 @@ class PublicationRevenueDetail {
             <div id="revenueDetailBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40" onclick="closeRevenueDetail()"></div>
         `;
 
-        document.body.insertAdjacentHTML('beforeend', panelHTML);
-    }
+    document.body.insertAdjacentHTML('beforeend', panelHTML);
+  }
 
-    /**
-     * Render donut chart showing market vs legacy split
-     * @param {Object} data - Current state data
-     */
-    renderCurrentStateDonut(data) {
-        const ctx = document.getElementById('revenueDonutChart').getContext('2d');
+  /**
+   * Render donut chart showing market vs legacy split
+   * @param {Object} data - Current state data
+   */
+  renderCurrentStateDonut(data) {
+    const ctx = document.getElementById('revenueDonutChart').getContext('2d');
 
-        this.charts.donut = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Market Rate Revenue', 'Legacy Rate Revenue'],
-                datasets: [{
-                    data: [data.market_revenue, data.legacy_revenue],
-                    backgroundColor: ['#10B981', '#F59E0B'],
-                    borderWidth: 0
-                }]
+    this.charts.donut = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Market Rate Revenue', 'Legacy Rate Revenue'],
+        datasets: [
+          {
+            data: [data.market_revenue, data.legacy_revenue],
+            backgroundColor: ['#10B981', '#F59E0B'],
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            position: 'bottom',
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                const label = context.label || '';
+                const value = context.parsed || 0;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percent = ((value / total) * 100).toFixed(1);
+                return `${label}: $${value.toLocaleString()} (${percent}%)`;
+              },
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.parsed || 0;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percent = ((value / total) * 100).toFixed(1);
-                                return `${label}: $${value.toLocaleString()} (${percent}%)`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
+          },
+        },
+      },
+    });
+  }
 
-    /**
-     * Render stacked area chart showing historical trend
-     * @param {Object} data - Historical data (weekly snapshots)
-     */
-    renderHistoricalTrend(data) {
-        const ctx = document.getElementById('revenueTrendChart').getContext('2d');
+  /**
+   * Render stacked area chart showing historical trend
+   * @param {Object} data - Historical data (weekly snapshots)
+   */
+  renderHistoricalTrend(data) {
+    const ctx = document.getElementById('revenueTrendChart').getContext('2d');
 
-        // Extract dates and values
-        const dates = data.map(d => d.snapshot_date);
-        const marketRevenue = data.map(d => d.market_revenue);
-        const legacyRevenue = data.map(d => d.legacy_revenue);
+    // Extract dates and values
+    const dates = data.map(d => d.snapshot_date);
+    const marketRevenue = data.map(d => d.market_revenue);
+    const legacyRevenue = data.map(d => d.legacy_revenue);
 
-        this.charts.trend = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: dates,
-                datasets: [
-                    {
-                        label: 'Market Rate Revenue',
-                        data: marketRevenue,
-                        backgroundColor: 'rgba(16, 185, 129, 0.5)',
-                        borderColor: '#10B981',
-                        borderWidth: 2,
-                        fill: true
-                    },
-                    {
-                        label: 'Legacy Rate Revenue',
-                        data: legacyRevenue,
-                        backgroundColor: 'rgba(245, 158, 11, 0.5)',
-                        borderColor: '#F59E0B',
-                        borderWidth: 2,
-                        fill: true
-                    }
-                ]
+    this.charts.trend = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [
+          {
+            label: 'Market Rate Revenue',
+            data: marketRevenue,
+            backgroundColor: 'rgba(16, 185, 129, 0.5)',
+            borderColor: '#10B981',
+            borderWidth: 2,
+            fill: true,
+          },
+          {
+            label: 'Legacy Rate Revenue',
+            data: legacyRevenue,
+            backgroundColor: 'rgba(245, 158, 11, 0.5)',
+            borderColor: '#F59E0B',
+            borderWidth: 2,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        scales: {
+          x: {
+            stacked: true,
+            title: {
+              display: true,
+              text: 'Week',
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                interaction: {
-                    mode: 'index',
-                    intersect: false
-                },
-                scales: {
-                    x: {
-                        stacked: true,
-                        title: {
-                            display: true,
-                            text: 'Week'
-                        }
-                    },
-                    y: {
-                        stacked: true,
-                        title: {
-                            display: true,
-                            text: 'Monthly Recurring Revenue ($)'
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return '$' + value.toLocaleString();
-                            }
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.dataset.label || '';
-                                const value = context.parsed.y || 0;
-                                return `${label}: $${value.toLocaleString()}`;
-                            },
-                            footer: function(tooltipItems) {
-                                const market = tooltipItems[0].parsed.y;
-                                const legacy = tooltipItems[1].parsed.y;
-                                const gap = market - legacy;
-                                return `Opportunity: +$${gap.toLocaleString()}`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
+          },
+          y: {
+            stacked: true,
+            title: {
+              display: true,
+              text: 'Monthly Recurring Revenue ($)',
+            },
+            ticks: {
+              callback: function (value) {
+                return '$' + value.toLocaleString();
+              },
+            },
+          },
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                const label = context.dataset.label || '';
+                const value = context.parsed.y || 0;
+                return `${label}: $${value.toLocaleString()}`;
+              },
+              footer: function (tooltipItems) {
+                const market = tooltipItems[0].parsed.y;
+                const legacy = tooltipItems[1].parsed.y;
+                const gap = market - legacy;
+                return `Opportunity: +$${gap.toLocaleString()}`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 
-    /**
-     * Close panel
-     */
-    close() {
-        document.getElementById('revenueDetailPanel')?.remove();
-        document.getElementById('revenueDetailBackdrop')?.remove();
+  /**
+   * Close panel
+   */
+  close() {
+    document.getElementById('revenueDetailPanel')?.remove();
+    document.getElementById('revenueDetailBackdrop')?.remove();
 
-        // Destroy charts
-        Object.values(this.charts).forEach(chart => chart.destroy());
-        this.charts = {};
-    }
+    // Destroy charts
+    Object.values(this.charts).forEach(chart => chart.destroy());
+    this.charts = {};
+  }
 
-    /**
-     * Format currency
-     */
-    formatCurrency(amount) {
-        return '$' + amount.toLocaleString('en-US', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        });
-    }
+  /**
+   * Format currency
+   */
+  formatCurrency(amount) {
+    return (
+      '$' +
+      amount.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      })
+    );
+  }
 }
 
 // Global functions
 function openPublicationDetail(paperCode) {
-    const detail = new PublicationRevenueDetail();
-    detail.show(paperCode);
+  const detail = new PublicationRevenueDetail();
+  detail.show(paperCode);
 }
 
 function closeRevenueDetail() {
-    const panel = document.querySelector('.publication-revenue-detail');
-    if (panel) {
-        panel.close();
-    }
+  const panel = document.querySelector('.publication-revenue-detail');
+  if (panel) {
+    panel.close();
+  }
 }
 ```
 
@@ -616,6 +645,7 @@ function closeRevenueDetail() {
 #### 1. Add Per-Publication Revenue Breakdown
 
 **New Function:**
+
 ```php
 /**
  * Get revenue opportunity breakdown by publication
@@ -756,6 +786,7 @@ function getMarketRates($pdo) {
 #### 2. Add Publication Detail Endpoint
 
 **New Action Handler:**
+
 ```php
 // Handle publication_detail action
 if (isset($_GET['action']) && $_GET['action'] === 'publication_detail') {
@@ -943,6 +974,7 @@ function calculateTrendDirection($historical) {
 #### 3. Update Main Response
 
 **Modify existing response to include new data:**
+
 ```php
 // In main response (existing code)
 $response = [
@@ -965,48 +997,51 @@ $response = [
 ### Mobile Layout (< 768px)
 
 **Table Transforms to Cards:**
+
 ```html
 <!-- Mobile view: Stack as cards -->
 <div class="md:hidden space-y-4">
-    <div class="bg-white rounded-lg shadow p-4">
-        <div class="flex items-center justify-between mb-3">
-            <div class="font-bold text-gray-900">The Journal</div>
-            <div class="text-sm text-gray-500">South Carolina</div>
-        </div>
-        <div class="space-y-2">
-            <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Market Rate MRR:</span>
-                <span class="font-semibold text-green-700">$38,120</span>
-            </div>
-            <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Legacy Rate MRR:</span>
-                <span class="font-semibold text-amber-700">$15,890</span>
-            </div>
-            <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Opportunity:</span>
-                <span class="font-bold text-blue-700">+$22,230</span>
-            </div>
-        </div>
-        <!-- Stacked bar -->
-        <div class="mt-3">
-            <div class="h-4 bg-gray-100 rounded-full overflow-hidden flex">
-                <div class="bg-green-500 h-full" style="width: 70.6%"></div>
-                <div class="bg-amber-500 h-full" style="width: 29.4%"></div>
-            </div>
-        </div>
+  <div class="bg-white rounded-lg shadow p-4">
+    <div class="flex items-center justify-between mb-3">
+      <div class="font-bold text-gray-900">The Journal</div>
+      <div class="text-sm text-gray-500">South Carolina</div>
     </div>
+    <div class="space-y-2">
+      <div class="flex justify-between text-sm">
+        <span class="text-gray-600">Market Rate MRR:</span>
+        <span class="font-semibold text-green-700">$38,120</span>
+      </div>
+      <div class="flex justify-between text-sm">
+        <span class="text-gray-600">Legacy Rate MRR:</span>
+        <span class="font-semibold text-amber-700">$15,890</span>
+      </div>
+      <div class="flex justify-between text-sm">
+        <span class="text-gray-600">Opportunity:</span>
+        <span class="font-bold text-blue-700">+$22,230</span>
+      </div>
+    </div>
+    <!-- Stacked bar -->
+    <div class="mt-3">
+      <div class="h-4 bg-gray-100 rounded-full overflow-hidden flex">
+        <div class="bg-green-500 h-full" style="width: 70.6%"></div>
+        <div class="bg-amber-500 h-full" style="width: 29.4%"></div>
+      </div>
+    </div>
+  </div>
 </div>
 ```
 
 ### Tablet Layout (768px - 1023px)
 
 **Abbreviated Table:**
+
 - Hide "Distribution" column
 - Show only essential columns
 
 ### Desktop Layout (1024px+)
 
 **Full Table:**
+
 - All columns visible
 - Horizontal scroll not needed
 
@@ -1017,6 +1052,7 @@ $response = [
 ### Phase 1: Data Layer (30 minutes)
 
 **Tasks:**
+
 1. ✅ Add `getRevenueOpportunityByPublication()` function to `revenue_intelligence.php`
 2. ✅ Add `getMarketRates()` helper function
 3. ✅ Add `handlePublicationDetail()` action handler
@@ -1026,17 +1062,19 @@ $response = [
 7. ✅ Update main API response to include new data structure
 
 **Testing:**
+
 ```bash
 # Test main endpoint includes new data
-curl http://localhost:8081/api/revenue_intelligence.php | jq '.revenue_opportunity'
+curl https://cdash.upstatetoday.com/api/revenue_intelligence.php | jq '.revenue_opportunity'
 
 # Test publication detail endpoint
-curl http://localhost:8081/api/revenue_intelligence.php?action=publication_detail&paper=TJ | jq
+curl https://cdash.upstatetoday.com/api/revenue_intelligence.php?action=publication_detail&paper=TJ | jq
 ```
 
 ### Phase 2: Main Dashboard Table (45 minutes)
 
 **Tasks:**
+
 1. ✅ Create `web/assets/revenue-opportunity-table.js`
 2. ✅ Implement `RevenueOpportunityTable` class
 3. ✅ Replace existing "Legacy Rate Opportunity" card in `index.php`
@@ -1045,25 +1083,28 @@ curl http://localhost:8081/api/revenue_intelligence.php?action=publication_detai
 6. ✅ Test sorting and click handlers
 
 **HTML Change in `index.php`:**
+
 ```html
 <!-- REPLACE existing Legacy Rate Opportunity card with: -->
 <div id="revenueOpportunityTable">
-    <!-- Table will be rendered here by JavaScript -->
+  <!-- Table will be rendered here by JavaScript -->
 </div>
 ```
 
 **JavaScript Change in `revenue-intelligence.js`:**
+
 ```javascript
 // Replace populateLegacyRateAnalysis() with:
 function populateRevenueOpportunityTable(data) {
-    const table = new RevenueOpportunityTable('revenueOpportunityTable');
-    table.render(data.revenue_opportunity);
+  const table = new RevenueOpportunityTable('revenueOpportunityTable');
+  table.render(data.revenue_opportunity);
 }
 ```
 
 ### Phase 3: Detail Slider (60 minutes)
 
 **Tasks:**
+
 1. ✅ Create `web/assets/publication-revenue-detail.js`
 2. ✅ Implement `PublicationRevenueDetail` class
 3. ✅ Implement donut chart rendering
@@ -1073,6 +1114,7 @@ function populateRevenueOpportunityTable(data) {
 7. ✅ Test panel open/close transitions
 
 **Include in `index.php` header:**
+
 ```html
 <script src="assets/revenue-opportunity-table.js?v=20251212"></script>
 <script src="assets/publication-revenue-detail.js?v=20251212"></script>
@@ -1081,6 +1123,7 @@ function populateRevenueOpportunityTable(data) {
 ### Phase 4: Testing & Polish (30 minutes)
 
 **Test Scenarios:**
+
 1. ✅ Table sorts correctly by opportunity
 2. ✅ Click row opens detail slider
 3. ✅ Detail slider shows correct data
@@ -1092,6 +1135,7 @@ function populateRevenueOpportunityTable(data) {
 9. ✅ Close panel on backdrop click
 
 **Performance:**
+
 1. ✅ Cache API responses (already implemented)
 2. ✅ Chart rendering is smooth (<100ms)
 3. ✅ Panel slide animation is smooth
@@ -1101,6 +1145,7 @@ function populateRevenueOpportunityTable(data) {
 ## 🎯 Success Criteria
 
 ### Main Dashboard Table
+
 - ✅ Shows all publications with revenue breakdown
 - ✅ Sorted by largest opportunity first
 - ✅ Total row displays aggregate metrics
@@ -1109,6 +1154,7 @@ function populateRevenueOpportunityTable(data) {
 - ✅ Responsive on all screen sizes
 
 ### Publication Detail Slider
+
 - ✅ Donut chart shows current market vs legacy split
 - ✅ Key metrics displayed in cards
 - ✅ Stacked area chart shows 12-week trend
@@ -1117,6 +1163,7 @@ function populateRevenueOpportunityTable(data) {
 - ✅ Smooth animations and transitions
 
 ### Data Accuracy
+
 - ✅ Revenue calculations use correct market rates per publication
 - ✅ SPECIAL/IGNORED rates are excluded from calculations
 - ✅ Publication isolation is maintained (no cross-bleeding)
@@ -1195,6 +1242,7 @@ function populateRevenueOpportunityTable(data) {
 ## 📝 Testing Checklist
 
 ### Functionality
+
 - [ ] Table renders with correct data
 - [ ] Sorting works (largest opportunity first)
 - [ ] Total row calculates correctly
@@ -1210,6 +1258,7 @@ function populateRevenueOpportunityTable(data) {
 - [ ] Close panel by clicking backdrop
 
 ### Data Accuracy
+
 - [ ] Revenue calculations match expected values
 - [ ] SPECIAL rates excluded from calculations
 - [ ] IGNORED rates excluded from calculations
@@ -1218,6 +1267,7 @@ function populateRevenueOpportunityTable(data) {
 - [ ] Historical data shows accurate trends
 
 ### Responsive Design
+
 - [ ] Desktop view (1024px+): Full table
 - [ ] Tablet view (768-1023px): Abbreviated table
 - [ ] Mobile view (<768px): Card layout
@@ -1225,6 +1275,7 @@ function populateRevenueOpportunityTable(data) {
 - [ ] Charts responsive and readable
 
 ### Performance
+
 - [ ] Table renders in <100ms
 - [ ] Detail slider opens smoothly
 - [ ] Charts render without lag
@@ -1232,6 +1283,7 @@ function populateRevenueOpportunityTable(data) {
 - [ ] Cache working correctly (90% faster on cache hit)
 
 ### Accessibility
+
 - [ ] Table has proper ARIA labels
 - [ ] Keyboard navigation works
 - [ ] Screen reader friendly
@@ -1242,18 +1294,21 @@ function populateRevenueOpportunityTable(data) {
 ## 🎉 Expected Outcome
 
 **Main Dashboard:**
+
 - Clear per-publication breakdown showing exactly where the largest revenue opportunities exist
 - Sortable table prioritizing highest-value opportunities
 - Visual representation (stacked bars) for quick comprehension
 - Click-to-detail for deep dives
 
 **Detail Views:**
+
 - Current state snapshot with donut chart and key metrics
 - Historical trend showing if opportunity is improving or worsening
 - Actionable insights with export and management links
 - Professional presentation suitable for executive reporting
 
 **Business Value:**
+
 - **Identify** which publications have the most revenue potential
 - **Prioritize** sales efforts on highest-opportunity publications
 - **Track** progress over time as legacy rates are converted

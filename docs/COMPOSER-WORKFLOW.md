@@ -20,10 +20,10 @@ Your project uses **procedural PHP** (simple, working) with **Composer tooling**
 ```json
 {
   "require-dev": {
-    "phpunit/phpunit": "^10.5",      // Unit testing
-    "phpstan/phpstan": "^1.10",      // Static analysis
-    "squizlabs/php_codesniffer": "^3.8",  // Code style
-    "mockery/mockery": "^1.6"        // Mocking for tests
+    "phpunit/phpunit": "^10.5", // Unit testing
+    "phpstan/phpstan": "^1.10", // Static analysis
+    "squizlabs/php_codesniffer": "^3.8", // Code style
+    "mockery/mockery": "^1.6" // Mocking for tests
   }
 }
 ```
@@ -77,14 +77,12 @@ gh pr create
 ### **Manual Testing**
 
 ```bash
-# Start development environment
-docker compose up -d
+# Visit production dashboard
+open https://cdash.upstatetoday.com
 
-# Visit dashboard
-open http://localhost:8081
-
-# Check logs
-docker compose logs -f web
+# Check logs on NAS
+ssh nas
+tail -f /volume1/web/circulation/error.log
 ```
 
 ---
@@ -94,12 +92,14 @@ docker compose logs -f web
 ### **Local (Recommended)**
 
 **Pros:**
+
 - ✅ Project-specific versions
 - ✅ Works for all team members
 - ✅ Consistent across computers
 - ✅ Documented in composer.json
 
 **Usage:**
+
 ```bash
 # Install dependencies
 composer install
@@ -116,14 +116,17 @@ composer cs:fix
 ### **Global (Current Setup)**
 
 **Pros:**
+
 - ✅ Available everywhere
 - ✅ Don't need to run composer install
 
 **Cons:**
+
 - ❌ Version might differ from project
 - ❌ Other developers might have different versions
 
 **Usage:**
+
 ```bash
 # Already installed globally
 ~/.composer/vendor/bin/phpstan analyze web/
@@ -168,6 +171,7 @@ nwdownloads/
 ### **The Gap**
 
 **composer.json says:**
+
 ```json
 "autoload": {
   "psr-4": {
@@ -177,6 +181,7 @@ nwdownloads/
 ```
 
 **Reality:**
+
 - `src/` is empty
 - Code is in `web/` (procedural, no namespaces)
 - This is **fine** - just use Composer for tooling, not autoloading
@@ -188,12 +193,14 @@ nwdownloads/
 ### **Option 1: Stay Procedural (Recommended)**
 
 **Keep current approach:**
+
 - ✅ Code works great
 - ✅ Simple to maintain
 - ✅ Use Composer only for dev tools
 - ✅ No big refactor needed
 
 **Just improve:**
+
 - Centralize database connections (src/database.php)
 - Add helper functions (src/helpers.php)
 - Keep procedural style
@@ -249,6 +256,7 @@ $db = Connection::getInstance();
 
 **Time:** 3-6 weeks
 **Worth it?** Only if:
+
 - Team is growing
 - Adding lots of features
 - Need better testability
@@ -267,6 +275,7 @@ $db = Connection::getInstance();
 4. ❌ **Don't refactor to OOP** unless you have a specific reason
 
 **Why?**
+
 - Your code works
 - Small team/solo developer
 - Internal tool, not public library
@@ -275,6 +284,7 @@ $db = Connection::getInstance();
 ### **When to Modernize**
 
 **Consider OOP/namespaces if:**
+
 - Team grows beyond 2-3 developers
 - Code becomes hard to test
 - You're building a public API/library
@@ -341,17 +351,20 @@ composer quality         # Run all checks
 ## ✅ Bottom Line
 
 **You already have great tooling:**
+
 - ✅ PHPStan catches errors
 - ✅ PHPCS enforces style
 - ✅ Pre-commit hooks prevent issues
 - ✅ Composer manages versions
 
 **You don't need OOP/namespaces unless:**
+
 - Code becomes unmaintainable
 - Team grows significantly
 - You enjoy refactoring
 
 **Focus on:**
+
 - ✅ Reducing code duplication (centralize DB connections)
 - ✅ Writing good procedural code
 - ✅ Using the tools you have

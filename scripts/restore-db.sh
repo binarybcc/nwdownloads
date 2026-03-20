@@ -24,9 +24,9 @@ if [ ! -f "$INPUT_FILE" ]; then
   exit 1
 fi
 
-echo "📥 Restoring development database..."
+echo "📥 Restoring database..."
 echo "📍 Source: $INPUT_FILE"
-echo "🎯 Target: Docker container 'circulation_db'"
+echo "🎯 Target: Production NAS MariaDB"
 
 # Show file info
 FILE_SIZE=$(du -h "$INPUT_FILE" | cut -f1)
@@ -34,7 +34,7 @@ echo "📊 File size: $FILE_SIZE"
 
 # Warning prompt
 echo ""
-echo "⚠️  WARNING: This will REPLACE all data in the development database!"
+echo "⚠️  WARNING: This will REPLACE all data in the production database!"
 read -p "Continue? (y/N): " -n 1 -r
 echo ""
 
@@ -45,10 +45,11 @@ fi
 
 # Clear existing data first
 echo "🧹 Clearing existing data..."
-docker exec circulation_db sh -c "mariadb \
-  -uroot \
-  -p\"\$MYSQL_ROOT_PASSWORD\" \
-  $DEV_DB_DATABASE \
+ssh nas "/usr/local/mariadb10/bin/mysql \
+  -u$PROD_DB_USERNAME \
+  -p'$PROD_DB_PASSWORD' \
+  -S $PROD_DB_SOCKET \
+  $PROD_DB_DATABASE \
   -e 'TRUNCATE TABLE IF EXISTS daily_snapshots;'"
 
 echo "✅ Existing data cleared"
@@ -56,14 +57,14 @@ echo ""
 
 # Decompress and import
 echo "🔄 Importing data..."
-gunzip < "$INPUT_FILE" | docker exec -i circulation_db sh -c "mariadb \
-  -uroot \
-  -p\"\$MYSQL_ROOT_PASSWORD\" \
-  $DEV_DB_DATABASE"
+gunzip < "$INPUT_FILE" | ssh nas "/usr/local/mariadb10/bin/mysql \
+  -u$PROD_DB_USERNAME \
+  -p'$PROD_DB_PASSWORD' \
+  -S $PROD_DB_SOCKET \
+  $PROD_DB_DATABASE"
 
 echo ""
 echo "✅ Database restored successfully!"
-echo "🚀 Your development environment is now in sync!"
 echo ""
 echo "💡 Verify by running:"
-echo "   docker exec circulation_db mariadb -u$DEV_DB_USERNAME -p$DEV_DB_PASSWORD -D$DEV_DB_DATABASE -e 'SELECT COUNT(*) FROM daily_snapshots;'"
+echo "   ssh nas \"/usr/local/mariadb10/bin/mysql -u$PROD_DB_USERNAME -p'$PROD_DB_PASSWORD' -S $PROD_DB_SOCKET -D$PROD_DB_DATABASE -e 'SELECT COUNT(*) FROM daily_snapshots;'\""

@@ -37,11 +37,11 @@ if [ "$ENVIRONMENT" = "production" ]; then
         DB_TYPE="socket"
     fi
 else
-    DB_HOST="database"
-    DB_USER="${DB_USER:-circ_dash}"
-    DB_PASS="${DB_PASSWORD:-Barnaby358@Jones!}"
-    DB_NAME="${DB_NAME:-circulation_dashboard}"
-    DB_TYPE="host"
+    DB_HOST="$PROD_DB_SOCKET"
+    DB_USER="$PROD_DB_USERNAME"
+    DB_PASS="$PROD_DB_PASSWORD"
+    DB_NAME="$PROD_DB_DATABASE"
+    DB_TYPE="socket"
 fi
 
 # Database query helper
@@ -49,7 +49,7 @@ run_mysql() {
     if [ "$DB_TYPE" = "socket" ]; then
         /usr/local/mariadb10/bin/mysql -u"$DB_USER" -p"$DB_PASS" -S "$DB_HOST" "$DB_NAME" "$@"
     else
-        docker exec -i circulation_db mariadb -u"$DB_USER" -p"$DB_PASS" -D "$DB_NAME" "$@"
+        ssh nas "/usr/local/mariadb10/bin/mysql -u$DB_USER -p'$DB_PASS' $DB_NAME $@"
     fi
 }
 

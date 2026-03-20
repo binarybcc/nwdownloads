@@ -320,12 +320,12 @@ case 'Week +6':
 
 ### Test Framework
 
-| Property           | Value                                                                 |
-| ------------------ | --------------------------------------------------------------------- |
-| Framework          | Manual browser testing (no automated test framework in project)       |
-| Config file        | none                                                                  |
-| Quick run command  | Open http://localhost:8081, click a BU card, inspect expiration chart |
-| Full suite command | Manual: verify all 3 BUs show 8 bars, right-click each bar            |
+| Property           | Value                                                                     |
+| ------------------ | ------------------------------------------------------------------------- |
+| Framework          | Manual browser testing (no automated test framework in project)           |
+| Config file        | none                                                                      |
+| Quick run command  | Open http://192.168.1.254:8081, click a BU card, inspect expiration chart |
+| Full suite command | Manual: verify all 3 BUs show 8 bars, right-click each bar                |
 
 ### Phase Requirements to Test Map
 

@@ -97,10 +97,9 @@ Run migration:
 # Source credentials
 source .env.credentials
 
-# Run on local development database
-docker exec circulation_db mariadb \
-  -u"$DEV_DB_USERNAME" -p"$DEV_DB_PASSWORD" -D "$DEV_DB_DATABASE" \
-  < database/migrations/20251216_create_file_processing_tables.sql
+# Run on production database via SSH
+cat database/migrations/20251216_create_file_processing_tables.sql | \
+  ssh nas "/usr/local/mariadb10/bin/mysql -uroot circulation_dashboard"
 ```
 
 Expected: Success, no errors
@@ -110,9 +109,8 @@ Expected: Success, no errors
 Check schema:
 
 ```bash
-docker exec circulation_db mariadb \
-  -u"$DEV_DB_USERNAME" -p"$DEV_DB_PASSWORD" -D "$DEV_DB_DATABASE" \
-  -e "SHOW TABLES LIKE 'file_processing%';"
+ssh nas "/usr/local/mariadb10/bin/mysql -uroot circulation_dashboard \
+  -e \"SHOW TABLES LIKE 'file_processing%';\""
 ```
 
 Expected output:
@@ -125,9 +123,8 @@ file_processing_patterns
 Verify default patterns:
 
 ```bash
-docker exec circulation_db mariadb \
-  -u"$DEV_DB_USERNAME" -p"$DEV_DB_PASSWORD" -D "$DEV_DB_DATABASE" \
-  -e "SELECT pattern, processor_class FROM file_processing_patterns ORDER BY id;"
+ssh nas "/usr/local/mariadb10/bin/mysql -uroot circulation_dashboard \
+  -e \"SELECT pattern, processor_class FROM file_processing_patterns ORDER BY id;\""
 ```
 
 Expected: 4 rows with patterns for AllSubscriber, Vacation, Renewal, Churn
@@ -965,16 +962,17 @@ $dryRun = in_array('--dry-run', $argv ?? []);
 
 // Database configuration
 $db_config = [
-    'host' => getenv('DB_HOST') ?: 'database',
+    'host' => getenv('DB_HOST') ?: 'localhost',
     'port' => getenv('DB_PORT') ?: 3306,
+    'socket' => getenv('DB_SOCKET') ?: '/run/mysqld/mysqld10.sock',
     'database' => getenv('DB_NAME') ?: 'circulation_dashboard',
-    'username' => getenv('DB_USER') ?: 'circ_dash',
-    'password' => getenv('DB_PASSWORD') ?: 'Barnaby358@Jones!',
+    'username' => getenv('DB_USER') ?: 'root',
+    'password' => getenv('DB_PASSWORD') ?: '',
 ];
 
 try {
     // Connect to database
-    $dsn = "mysql:host={$db_config['host']};port={$db_config['port']};dbname={$db_config['database']};charset=utf8mb4";
+    $dsn = "mysql:unix_socket={$db_config['socket']};dbname={$db_config['database']};charset=utf8mb4";
     $pdo = new PDO($dsn, $db_config['username'], $db_config['password'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -1133,9 +1131,8 @@ Expected: `AllSubscriberReport20251216120000.csv`
 **Step 6: Verify database logging**
 
 ```bash
-docker exec circulation_db mariadb \
-  -ucirc_dash -p'Barnaby358@Jones!' -D circulation_dashboard \
-  -e "SELECT filename, status, records_processed, file_moved_to FROM file_processing_log ORDER BY id DESC LIMIT 1;"
+ssh nas "/usr/local/mariadb10/bin/mysql -uroot circulation_dashboard \
+  -e \"SELECT filename, status, records_processed, file_moved_to FROM file_processing_log ORDER BY id DESC LIMIT 1;\""
 ```
 
 Expected output:

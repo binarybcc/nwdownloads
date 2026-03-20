@@ -364,8 +364,6 @@ git pull
    # Restore (Production)
    mysql -uroot -p -S /run/mysqld/mysqld10.sock circulation_dashboard < backups/pre-migration/[backup_file]
 
-   # OR (Development)
-   docker exec -i circulation_db mariadb -ucirc_dash -p circulation_dashboard < backups/pre-migration/[backup_file]
    ```
 
 4. **Fix the migration** and try again
@@ -454,11 +452,11 @@ WHERE TABLE_NAME = 'users';
 3. **Check data integrity:**
 
    ```bash
-   docker exec -i circulation_db mariadb -ucirc_dash -p circulation_dashboard -e "SELECT COUNT(*) FROM daily_snapshots;"
+   /usr/local/mariadb10/bin/mysql -uroot -p -S /run/mysqld/mysqld10.sock circulation_dashboard -e "SELECT COUNT(*) FROM daily_snapshots;"
    ```
 
 4. **Test application still works:**
-   - Open http://localhost:8081
+   - Open https://cdash.upstatetoday.com
    - Click through all features
    - Upload a CSV file
    - Verify dashboard loads
@@ -499,11 +497,8 @@ WHERE TABLE_NAME = 'users';
 ### Manual Backups
 
 ```bash
-# Production
-mysqldump -uroot -p -S /run/mysqld/mysqld10.sock circulation_dashboard > backup_$(date +%Y%m%d_%H%M%S).sql
-
-# Development
-docker exec circulation_db mysqldump -ucirc_dash -p circulation_dashboard > backup_$(date +%Y%m%d_%H%M%S).sql
+# On NAS (SSH in first: ssh nas)
+/usr/local/mariadb10/bin/mysqldump -uroot -p -S /run/mysqld/mysqld10.sock circulation_dashboard > backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 ### Backup Retention

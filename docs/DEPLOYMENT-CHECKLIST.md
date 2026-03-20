@@ -9,12 +9,14 @@ This checklist ensures all code, assets, database migrations, and data integrity
 ## Pre-Deployment Checklist
 
 ### 1. Code Review & Testing
-- [ ] All changes tested in Development environment (http://localhost:8081)
+
+- [ ] All changes tested in Development environment (https://cdash.upstatetoday.com)
 - [ ] Pull Request created and reviewed
 - [ ] PR merged to master on GitHub
 - [ ] Local master branch updated (`git checkout master && git pull`)
 
 ### 2. Database Changes
+
 - [ ] Database migrations created in `sql/` directory
 - [ ] Migration files numbered sequentially (e.g., `05_add_vacation_dates.sql`)
 - [ ] Migrations tested in Development environment
@@ -22,6 +24,7 @@ This checklist ensures all code, assets, database migrations, and data integrity
 - [ ] Migration uses `IF NOT EXISTS` for safety
 
 ### 3. Asset Verification
+
 - [ ] Compiled CSS (`web/assets/output.css`) committed to repository
 - [ ] JavaScript files updated if needed
 - [ ] Images/icons included if added
@@ -44,6 +47,7 @@ sshpass -p 'Mojave48ice' ssh it@192.168.1.254
 ```
 
 **What the script does:**
+
 1. ✅ Pulls latest code from GitHub
 2. ✅ Runs database migrations (tracks what's been run)
 3. ✅ Verifies vacation data integrity (fixes on_vacation flags)
@@ -57,6 +61,7 @@ sshpass -p 'Mojave48ice' ssh it@192.168.1.254
 **If automated script fails, follow these steps:**
 
 #### Step 1: Deploy Code
+
 ```bash
 # SSH into NAS
 sshpass -p 'Mojave48ice' ssh it@192.168.1.254
@@ -75,6 +80,7 @@ rsync -av --delete \
 ```
 
 #### Step 2: Run Database Migrations
+
 ```bash
 # Run each migration file in sql/ directory
 /usr/local/mariadb10/bin/mysql -uroot -pP@ta675N0id \
@@ -83,6 +89,7 @@ rsync -av --delete \
 ```
 
 #### Step 3: Fix Data Integrity
+
 ```bash
 # Fix on_vacation flags if needed
 /usr/local/mariadb10/bin/mysql -uroot -pP@ta675N0id \
@@ -91,6 +98,7 @@ rsync -av --delete \
 ```
 
 #### Step 4: Fix Permissions
+
 ```bash
 find /volume1/web/circulation/ -type f -name '*.php' -exec chmod 644 {} \;
 find /volume1/web/circulation/ -type f -name '*.js' -exec chmod 644 {} \;
@@ -103,6 +111,7 @@ find /volume1/web/circulation/ -type d -exec chmod 755 {} \;
 ## Post-Deployment Verification
 
 ### 1. Visual Verification
+
 - [ ] Open https://cdash.upstatetoday.com
 - [ ] Dashboard loads with proper styling (no giant cloud icon)
 - [ ] Business unit cards display in 3-column layout
@@ -112,6 +121,7 @@ find /volume1/web/circulation/ -type d -exec chmod 755 {} \;
 - [ ] Charts render correctly
 
 ### 2. Data Verification
+
 ```bash
 # SSH into production and verify data
 sshpass -p 'Mojave48ice' ssh it@192.168.1.254
@@ -126,6 +136,7 @@ sshpass -p 'Mojave48ice' ssh it@192.168.1.254
 ```
 
 **Expected output:**
+
 ```
 business_unit      | vacation_count
 South Carolina     | 26
@@ -134,6 +145,7 @@ Wyoming            | 1
 ```
 
 ### 3. File Verification
+
 ```bash
 # Check CSS file exists and has correct size
 ls -lh /volume1/web/circulation/assets/output.css
@@ -144,6 +156,7 @@ ls -lt /volume1/web/circulation/ | head -10
 ```
 
 ### 4. Migration Log Verification
+
 ```bash
 # Check which migrations have been run
 cat /volume1/web/circulation/.migrations.log
@@ -154,9 +167,11 @@ cat /volume1/web/circulation/.migrations.log
 ## Troubleshooting
 
 ### Issue: CSS Not Loading (Giant Cloud Icon)
+
 **Cause:** `output.css` missing or too small
 
 **Fix:**
+
 ```bash
 # Check CSS file size
 ls -lh /volume1/web/circulation/assets/output.css
@@ -169,9 +184,11 @@ chmod 644 /volume1/web/circulation/assets/output.css
 ```
 
 ### Issue: Vacation Data Shows All Zeros
+
 **Cause:** `on_vacation` flag not set
 
 **Fix:**
+
 ```bash
 # Update on_vacation flags
 /usr/local/mariadb10/bin/mysql -uroot -pP@ta675N0id \
@@ -188,18 +205,22 @@ chmod 644 /volume1/web/circulation/assets/output.css
 ```
 
 ### Issue: Database Migration Failed
+
 **Cause:** Migration already partially run or syntax error
 
 **Fix:**
+
 1. Check migration log: `cat /volume1/web/circulation/.migrations.log`
 2. Check if columns exist: `DESCRIBE subscriber_snapshots;`
 3. Manually fix issues
 4. Re-run migration with `IF NOT EXISTS` clauses
 
 ### Issue: Permission Denied Errors
+
 **Cause:** File permissions incorrect after deployment
 
 **Fix:**
+
 ```bash
 # Reset all permissions
 find /volume1/web/circulation/ -type f -exec chmod 644 {} \;
@@ -213,11 +234,13 @@ find /volume1/web/circulation/ -type d -exec chmod 755 {} \;
 ### Creating Migration Files
 
 **Naming convention:** `##_description.sql`
+
 - Numbers should be sequential
 - Use descriptive names
 - Always include `IF NOT EXISTS` clauses
 
 **Example:**
+
 ```sql
 -- Migration: 06_add_email_notifications.sql
 -- Date: 2025-12-09
@@ -233,10 +256,12 @@ ON subscriber_snapshots(notification_email);
 ```
 
 ### Migration Log Location
+
 - **Production:** `/volume1/web/circulation/.migrations.log`
 - **Format:** One migration filename per line
 
 ### Checking Migration Status
+
 ```bash
 # SSH into production
 sshpass -p 'Mojave48ice' ssh it@192.168.1.254
@@ -255,16 +280,19 @@ cat /volume1/web/circulation/.migrations.log
 ## Quick Reference Commands
 
 ### Deploy Everything
+
 ```bash
 sshpass -p 'Mojave48ice' ssh it@192.168.1.254 '~/scripts/deploy-production.sh'
 ```
 
 ### Check Deployment Status
+
 ```bash
 sshpass -p 'Mojave48ice' ssh it@192.168.1.254 'ls -lt /volume1/web/circulation/ | head -5'
 ```
 
 ### Verify Vacation Data
+
 ```bash
 sshpass -p 'Mojave48ice' ssh it@192.168.1.254 \
   "/usr/local/mariadb10/bin/mysql -uroot -pP@ta675N0id -S /run/mysqld/mysqld10.sock circulation_dashboard \
@@ -272,6 +300,7 @@ sshpass -p 'Mojave48ice' ssh it@192.168.1.254 \
 ```
 
 ### Check CSS File
+
 ```bash
 sshpass -p 'Mojave48ice' ssh it@192.168.1.254 'stat -f%z /volume1/web/circulation/assets/output.css'
 ```

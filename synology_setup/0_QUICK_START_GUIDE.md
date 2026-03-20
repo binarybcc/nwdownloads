@@ -1,9 +1,11 @@
 # 🚀 10-Day MVP - Quick Start Guide
 
 ## Overview
+
 Host everything on your Synology NAS with public web access.
 
 **What you'll build:**
+
 - MariaDB database (stores historical data)
 - Python script (processes daily Newzware exports)
 - Web dashboard (beautiful, interactive charts)
@@ -16,13 +18,15 @@ Host everything on your Synology NAS with public web access.
 ## Prerequisites
 
 ### On Synology:
+
 - [ ] DSM 7.0 or higher
-- [ ] Docker installed (Package Center)
+
 - [ ] MariaDB 10 installed (Package Center)
 - [ ] Web Station installed (Package Center)
-- [ ] Python 3 installed (via DSM or Docker)
+- [ ] Python 3 installed (via DSM Package Center)
 
 ### Files Needed:
+
 - [ ] Newzware subscription export (CSV)
 - [ ] Newzware vacation export (CSV)
 - [ ] Newzware rates export (CSV)
@@ -32,30 +36,35 @@ Host everything on your Synology NAS with public web access.
 ## 10-Day Timeline
 
 ### **Day 1-2: Database Setup** (Monday-Tuesday)
+
 **What:** Install MariaDB, create tables
 **Time:** 2 hours
 **You'll do:** Follow step-by-step instructions
 **Output:** Working database ready for data
 
 ### **Day 3-4: Data Import** (Wednesday-Thursday)
+
 **What:** Python script imports data
 **Time:** 3 hours
 **You'll do:** Run script, verify data loads
 **Output:** Historical data in database
 
 ### **Day 5-7: Build Dashboard** (Friday-Sunday)
+
 **What:** Create web interface with charts
 **Time:** 6 hours
 **You'll do:** Upload files, configure settings
 **Output:** Working dashboard visible in browser
 
 ### **Day 8-9: Security & Polish** (Monday-Tuesday)
+
 **What:** Add password, make it pretty
 **Time:** 3 hours
 **You'll do:** Enable auth, test on phone/tablet
 **Output:** Secure, mobile-friendly dashboard
 
 ### **Day 10: Deploy & Train** (Wednesday)
+
 **What:** Go live, train staff
 **Time:** 2 hours
 **You'll do:** Share URL, show how to use
@@ -67,10 +76,8 @@ Host everything on your Synology NAS with public web access.
 
 ```
 /volume1/
-├── docker/
-│   └── circulation/          # Docker container files
-│       ├── .env              # Database credentials
-│       └── docker-compose.yml
+├── web/
+│   └── circulation/          # Production web application
 │
 ├── circulation/              # Main application folder
 │   ├── data/                 # Daily Newzware exports
@@ -104,17 +111,18 @@ Host everything on your Synology NAS with public web access.
 2. Install these packages:
    - MariaDB 10
    - Web Station
-   - Docker (optional, for Python environment)
-   - PHP 8.0+
+   - PHP 8.2+
 
 ### Step 2: Create Folder Structure
 
 **Via File Station:**
+
 1. Create `/circulation` folder
 2. Create subfolders: `/data`, `/scripts`, `/web`
 3. Upload the setup files I'm providing
 
 **Via SSH (alternative):**
+
 ```bash
 cd /volume1
 mkdir -p circulation/{data,scripts,web/assets}
@@ -144,6 +152,7 @@ chmod -R 755 circulation
 ### Step 6: Enable External Access (Optional)
 
 **For secure external access:**
+
 1. Go to **Control Panel** → **External Access** → **DDNS**
 2. Enable Synology DDNS (free subdomain)
 3. Go to **Security** → **Certificate**
@@ -180,16 +189,19 @@ chmod -R 755 circulation
 ## Access URLs
 
 ### Internal (LAN):
+
 ```
 http://192.168.1.XXX/circulation
 ```
 
 ### External (Internet):
+
 ```
 https://yourname.synology.me/circulation
 ```
 
 ### Mobile App:
+
 - Use DS File app to access files
 - Use Safari/Chrome for dashboard
 - Save to home screen for app-like experience
@@ -199,16 +211,19 @@ https://yourname.synology.me/circulation
 ## Security Setup
 
 ### Level 1: Simple Password (MVP)
+
 - Single shared password
 - Good for: Small team, quick setup
 - Time: 10 minutes
 
 ### Level 2: Synology Account Integration
+
 - Use existing Synology user accounts
 - Good for: Multiple users, audit trail
 - Time: 30 minutes
 
 ### Level 3: Two-Factor Authentication
+
 - Requires Synology 2FA app
 - Good for: External access
 - Time: 15 minutes
@@ -220,18 +235,21 @@ https://yourname.synology.me/circulation
 ## What You'll See
 
 ### Dashboard Homepage:
+
 - **Big Numbers:** Total Active, On Vacation, Deliverable
 - **Bar Chart:** Subscriptions by paper (TJ, TA, TR, LJ, WRN)
 - **Line Chart:** 90-day trend
 - **Breakdown:** Delivery types (Mail, Digital, Carrier)
 
 ### Clicking on a Paper:
+
 - **Detailed metrics** for that paper only
 - **Historical trends** over time
 - **Rate package** breakdown
 - **Vacation schedule**
 
 ### Mobile View:
+
 - **Stacked layout** (one column)
 - **Swipe navigation**
 - **Touch-friendly** buttons
@@ -241,15 +259,19 @@ https://yourname.synology.me/circulation
 ## Cost Summary
 
 **One-Time:**
+
 - $0 (using existing Synology)
 
 **Monthly:**
+
 - $0 (no hosting fees)
 
 **Annual:**
+
 - $0 (Synology DDNS is free)
 
 **Optional:**
+
 - Domain name: $12/year (if you want custom URL)
 
 **Total: $0** 🎉
@@ -296,6 +318,7 @@ https://yourname.synology.me/circulation
 ---
 
 **Questions before starting?**
+
 - Not sure about any prerequisites?
 - Need help with SSH access?
 - Want clarification on any steps?

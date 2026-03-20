@@ -26,6 +26,7 @@ git checkout -b feature/add-weekly-trends
 ```
 
 **Branch Naming:**
+
 - `feature/description` - New functionality
 - `fix/description` - Bug fixes
 - `refactor/description` - Code improvements
@@ -63,7 +64,7 @@ Adds a new chart showing week-over-week subscriber trends by business unit.
 
 ## Testing:
 - Tested with last 4 weeks of data
-- Verified on Development environment (localhost:8081)
+- Verified on Development environment (cdash.upstatetoday.com)
 
 ## Database Impact:
 - No schema changes
@@ -89,17 +90,18 @@ git checkout master && git pull && git branch -d feature/my-feature
 
 ## Quick Reference Commands
 
-| Action | Command |
-|--------|---------|
+| Action         | Command                                                                 |
+| -------------- | ----------------------------------------------------------------------- |
 | Start new work | `git checkout master && git pull && git checkout -b feature/my-feature` |
-| Create PR | `git push -u origin $(git branch --show-current) && gh pr create` |
-| Review PR | `gh pr view --web` |
-| Merge PR | `gh pr merge --squash` |
-| Clean up | `git checkout master && git pull && git branch -d feature/my-feature` |
+| Create PR      | `git push -u origin $(git branch --show-current) && gh pr create`       |
+| Review PR      | `gh pr view --web`                                                      |
+| Merge PR       | `gh pr merge --squash`                                                  |
+| Clean up       | `git checkout master && git pull && git branch -d feature/my-feature`   |
 
 ## Common Scenarios
 
 **Small Bug Fix:**
+
 ```bash
 git checkout -b fix/typo-in-upload-form
 # Fix the typo
@@ -111,6 +113,7 @@ git checkout master && git pull
 ```
 
 **Emergency Production Fix:**
+
 ```bash
 git checkout -b hotfix/database-connection-error
 # Fix the critical issue
@@ -133,7 +136,7 @@ gh pr create --title "HOTFIX: Database connection timeout" --body "Critical fix"
 
 1. Create feature branch
 2. Make changes in Development environment
-3. Test thoroughly locally (http://localhost:8081)
+3. Test thoroughly locally (http://cdash.upstatetoday.com)
 4. Create Pull Request
 5. Review (manual or `@claude` review)
 6. Merge to master on GitHub

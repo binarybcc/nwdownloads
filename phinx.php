@@ -7,8 +7,7 @@
  * Migrations are stored in db/migrations/ directory.
  *
  * To run migrations:
- * - Development: phinx migrate (runs from host machine, connects to Docker database via exec)
- * - Production: Run from NAS after SSH
+ * - Run from NAS after SSH: ssh nas, then run phinx migrate
  */
 
 return [
@@ -18,28 +17,15 @@ return [
     ],
     'environments' => [
         'default_migration_table' => 'phinxlog',
-        'default_environment' => 'development',
+        'default_environment' => 'production',
 
-        // Development environment (via Docker exec - runs SQL from inside container)
-        'development' => [
-            'adapter' => 'mysql',
-            'host' => 'database',  // Docker service name
-            'name' => 'circulation_dashboard',
-            'user' => 'root',
-            'pass' => 'Mojave48ice',  // From .env DB_ROOT_PASSWORD
-            'port' => '3306',
-            'charset' => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-        ],
-
-        // Production environment (Synology NAS)
+        // Production environment (Synology NAS - native MariaDB via Unix socket)
         'production' => [
             'adapter' => 'mysql',
-            'host' => 'database',  // Docker service name on NAS
+            'unix_socket' => '/run/mysqld/mysqld10.sock',
             'name' => 'circulation_dashboard',
             'user' => 'root',
-            'pass' => 'RootPassword456!',
-            'port' => '3306',
+            'pass' => '',
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
         ],

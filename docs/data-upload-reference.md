@@ -5,17 +5,20 @@ Reference material for Claude Code. Loaded on demand from CLAUDE.md pointer.
 ## Upload Interface
 
 **CANONICAL URL:** `upload_unified.php`
+
 - Production: https://cdash.upstatetoday.com/upload_unified.php
-- Development: http://localhost:8081/upload_unified.php
+- Also accessible at: http://192.168.1.254:8081/upload_unified.php
 - `upload.html` redirects here - do not use directly
 
 ## Weekly Upload Process
 
 ### 1. Export from Newzware
+
 - Run "All Subscriber Report" in Ad-Hoc Query Builder
 - Export as CSV: `AllSubscriberReportYYYYMMDDHHMMSS.csv`
 
 ### 2. Upload to Dashboard
+
 1. Open upload_unified.php
 2. Select file type (Subscribers or Vacations tab)
 3. Choose CSV file
@@ -25,12 +28,14 @@ Reference material for Claude Code. Loaded on demand from CLAUDE.md pointer.
 7. Click "View Dashboard"
 
 ### UPSERT System
+
 - **New snapshots**: Inserted automatically
 - **Existing snapshots**: Updated with latest counts
 - **Date filter**: Only imports data from January 1, 2025 onwards
 - **Safe**: Never deletes data
 
 ### Recommended Schedule
+
 Every Saturday morning - aligns with Wed/Sat print days, captures full week.
 
 ## What Gets Imported
@@ -54,14 +59,14 @@ Every Saturday morning - aligns with Wed/Sat print days, captures full week.
 
 ## Publications Tracked
 
-| Code | Name | BU | Print | Digital |
-|------|------|----|-------|---------|
-| TJ | The Journal | Wyoming & SC | Wed/Sat | Tue-Sat |
-| TR | The Ranger | Wyoming | Wed/Sat | Wed/Sat |
-| LJ | The Lander Journal | Wyoming | Wed/Sat | Wed/Sat |
-| WRN | Wind River News | Wyoming | Thu | Thu |
-| TA | The Advertiser | Michigan | Wed | None |
-| FN | Former News | N/A | Sold/discontinued | N/A |
+| Code | Name               | BU           | Print             | Digital |
+| ---- | ------------------ | ------------ | ----------------- | ------- |
+| TJ   | The Journal        | Wyoming & SC | Wed/Sat           | Tue-Sat |
+| TR   | The Ranger         | Wyoming      | Wed/Sat           | Wed/Sat |
+| LJ   | The Lander Journal | Wyoming      | Wed/Sat           | Wed/Sat |
+| WRN  | Wind River News    | Wyoming      | Thu               | Thu     |
+| TA   | The Advertiser     | Michigan     | Wed               | None    |
+| FN   | Former News        | N/A          | Sold/discontinued | N/A     |
 
 ## Database Schema
 
@@ -88,9 +93,9 @@ PRIMARY KEY (snapshot_date, paper_code)  -- Enables UPSERT
 
 ## Troubleshooting
 
-| Error | Solution |
-|-------|----------|
+| Error                                                | Solution                                                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | "CSV does not appear to be an All Subscriber Report" | Use "All Subscriber Report" query, not individual exports. Required columns: Ed, ISS, DEL |
-| "No valid data found" | Check report includes active subscribers. Pre-2025 data filtered out |
-| Import seems slow | Normal: 10-30s for ~8K rows. Max file size: 10MB |
-| Numbers look wrong | Compare upload summary to expected counts; check BU breakdowns |
+| "No valid data found"                                | Check report includes active subscribers. Pre-2025 data filtered out                      |
+| Import seems slow                                    | Normal: 10-30s for ~8K rows. Max file size: 10MB                                          |
+| Numbers look wrong                                   | Compare upload summary to expected counts; check BU breakdowns                            |

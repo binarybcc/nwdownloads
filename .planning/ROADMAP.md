@@ -69,12 +69,12 @@ Plans:
 3. The scraper runs automatically on an hourly schedule during business hours (8am-8pm ET) via macOS launchd
 4. When login to MyCommPilot fails, an error is written to the log and the script exits cleanly — no silent empty run
 
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 
-- [ ] 04-01: Build MyCommPilotScraper.php class and fetch_call_logs.php CLI runner with INSERT IGNORE dedup, login verification, and error logging
-- [ ] 04-02: Create macOS launchd plist for hourly scraping with business-hours guard in PHP
+- [ ] 04-01-PLAN.md — Build MyCommPilotScraper.php class and fetch_call_logs.php CLI runner with INSERT IGNORE dedup, login verification, and error logging
+- [ ] 04-02-PLAN.md — Create macOS launchd plist for hourly scraping; human-verify scraper on NAS and install schedule
 
 ---
 
@@ -128,6 +128,6 @@ Plans:
 | 1. Business Unit Trend Data             | v1        | 1/1            | Complete    | 2026-02-09 |
 | 2. Chart Rendering and Card Integration | v1        | 1/1            | Complete    | 2026-02-09 |
 | 3. Data Foundation                      | 2/2       | Complete       | 2026-03-20  | -          |
-| 4. Call Log Scraper                     | v2.1      | 0/2            | Not started | -          |
+| 4. Call Log Scraper                     | 1/2       | In Progress    |             | -          |
 | 5. Expiration Chart Expansion           | v2.1      | 0/1            | Not started | -          |
 | 6. Call Status UI and Export            | v2.1      | 0/2            | Not started | -          |

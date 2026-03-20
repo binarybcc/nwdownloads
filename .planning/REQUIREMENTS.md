@@ -9,8 +9,8 @@ Requirements for milestone v2.1: Call Integration & Dashboard Enhancements.
 
 ### Import Fixes
 
-- [ ] **IMPORT-01**: New starts CSV imports successfully with both M/D/YY and YYYY-MM-DD date formats
-- [ ] **IMPORT-02**: Two failed CSVs (Mar 9, Mar 16) are reprocessed from NAS failed/ directory
+- [x] **IMPORT-01**: New starts CSV imports successfully with both M/D/YY and YYYY-MM-DD date formats
+- [x] **IMPORT-02**: Two failed CSVs (Mar 9, Mar 16) are reprocessed from NAS failed/ directory
 
 ### Expiration Chart
 
@@ -20,10 +20,10 @@ Requirements for milestone v2.1: Call Integration & Dashboard Enhancements.
 
 ### Call Log Scraper
 
-- [ ] **CALL-01**: BroadWorks call logs (placed, received, missed) for BC and CW are scraped and stored in `call_logs` table
+- [x] **CALL-01**: BroadWorks call logs (placed, received, missed) for BC and CW are scraped and stored in `call_logs` table
 - [x] **CALL-02**: Phone numbers are normalized to bare 10-digit at ingest (both subscriber and call log sides)
 - [ ] **CALL-03**: Scraper runs hourly 8am-8pm ET via launchd, with business-hours guard in PHP
-- [ ] **CALL-04**: Scraper verifies login success and logs failures (no silent empty runs)
+- [x] **CALL-04**: Scraper verifies login success and logs failures (no silent empty runs)
 
 ### Call Status UI
 
@@ -67,12 +67,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase   | Status   |
 | ----------- | ------- | -------- |
-| IMPORT-01   | Phase 3 | Pending  |
-| IMPORT-02   | Phase 3 | Pending  |
+| IMPORT-01   | Phase 3 | Complete |
+| IMPORT-02   | Phase 3 | Complete |
 | CALL-02     | Phase 3 | Complete |
-| CALL-01     | Phase 4 | Pending  |
+| CALL-01     | Phase 4 | Complete |
 | CALL-03     | Phase 4 | Pending  |
-| CALL-04     | Phase 4 | Pending  |
+| CALL-04     | Phase 4 | Complete |
 | CHART-01    | Phase 5 | Pending  |
 | CHART-02    | Phase 5 | Pending  |
 | CHART-03    | Phase 5 | Pending  |
@@ -92,4 +92,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 
 _Requirements defined: 2026-03-20_
-_Last updated: 2026-03-20 after roadmap creation (all 16 requirements mapped)_
+_Last updated: 2026-03-20 after Phase 3 completion (IMPORT-01, IMPORT-02, CALL-02 complete)_

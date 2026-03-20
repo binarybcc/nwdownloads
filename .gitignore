@@ -4,6 +4,7 @@
 *.credentials
 .passwords
 .env
+.env.mycommpilot
 
 # Environment-specific Apache configuration
 # Use .htaccess.production for production deployment

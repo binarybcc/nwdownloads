@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Call Log Scraper - Launchd Schedule
+
+  Runs fetch_call_logs.php on NAS hourly (at :05 past each hour).
+  PHP business-hours guard handles 8am-8pm ET window.
+
+  Installation:
+    cp scripts/com.circulation.call-scraper.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.circulation.call-scraper.plist
+
+  Verify:
+    launchctl list com.circulation.call-scraper
+
+  Unload:
+    launchctl unload ~/Library/LaunchAgents/com.circulation.call-scraper.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.circulation.call-scraper</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/ssh</string>
+        <string>nas</string>
+        <string>/var/packages/PHP8.2/target/usr/local/bin/php82</string>
+        <string>/volume1/web/circulation/fetch_call_logs.php</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Minute</key>
+        <integer>5</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/johncorbin/Library/Logs/circulation/call-scraper.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/johncorbin/Library/Logs/circulation/call-scraper.log</string>
+</dict>
+</plist>

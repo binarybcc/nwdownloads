@@ -14,9 +14,9 @@ Requirements for milestone v2.1: Call Integration & Dashboard Enhancements.
 
 ### Expiration Chart
 
-- [ ] **CHART-01**: Subscription expiration chart shows 8-week view (Past Due, This Week, Next Week, Week +2 through Week +6)
-- [ ] **CHART-02**: Right-click context menu works on all 8 week buckets
-- [ ] **CHART-03**: Color gradient extends naturally across 8 bars (red -> orange -> yellow -> green)
+- [x] **CHART-01**: Subscription expiration chart shows 8-week view (Past Due, This Week, Next Week, Week +2 through Week +6)
+- [x] **CHART-02**: Right-click context menu works on all 8 week buckets
+- [x] **CHART-03**: Color gradient extends naturally across 8 bars (red -> orange -> yellow -> green)
 
 ### Call Log Scraper
 
@@ -73,9 +73,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CALL-01     | Phase 4 | Complete |
 | CALL-03     | Phase 4 | Pending  |
 | CALL-04     | Phase 4 | Complete |
-| CHART-01    | Phase 5 | Pending  |
-| CHART-02    | Phase 5 | Pending  |
-| CHART-03    | Phase 5 | Pending  |
+| CHART-01    | Phase 5 | Complete |
+| CHART-02    | Phase 5 | Complete |
+| CHART-03    | Phase 5 | Complete |
 | UI-01       | Phase 6 | Pending  |
 | UI-02       | Phase 6 | Pending  |
 | UI-03       | Phase 6 | Pending  |

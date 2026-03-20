@@ -48,12 +48,12 @@ Plans:
 3. The `call_logs` table exists in the database with a `phone_normalized` indexed column
 4. Subscriber records in `subscriber_snapshots` have a populated `phone_normalized` column
 
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 
-- [ ] 03-01: Fix NewStartsImporter parseDate() for M/D/YY format and reprocess failed files from NAS
-- [ ] 03-02: Phinx migration for call_logs table + phone_normalized column on subscriber_snapshots; update AllSubscriberImporter to populate it at ingest
+- [ ] 03-01-PLAN.md — Fix NewStartsImporter parseDate() for YYYY-MM-DD format and reprocess failed CSVs from NAS
+- [ ] 03-02-PLAN.md — SQL migrations for call_logs table + phone_normalized column; update AllSubscriberImporter to normalize at ingest
 
 ---
 

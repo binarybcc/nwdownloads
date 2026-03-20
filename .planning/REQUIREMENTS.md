@@ -27,12 +27,12 @@ Requirements for milestone v2.1: Call Integration & Dashboard Enhancements.
 
 ### Call Status UI
 
-- [ ] **UI-01**: Expiration subscriber table shows phone icon column with call status (green=contacted, orange=missed call from subscriber, red=no contact)
+- [x] **UI-01**: Expiration subscriber table shows phone icon column with call status (green=contacted, orange=missed call from subscriber, red=no contact)
 - [ ] **UI-02**: Row background color matches call status for visual scanning
 - [ ] **UI-03**: Call status column is sortable (not-contacted first by default)
 - [ ] **UI-04**: Tooltip on phone icon shows last contact date and type
 - [ ] **UI-05**: XLSX export preserves row coloring and call status data
-- [ ] **UI-06**: Subscriber list and XLSX export show timestamp of last call log sync
+- [x] **UI-06**: Subscriber list and XLSX export show timestamp of last call log sync
 
 ## Future Requirements
 
@@ -76,12 +76,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHART-01    | Phase 5 | Complete |
 | CHART-02    | Phase 5 | Complete |
 | CHART-03    | Phase 5 | Complete |
-| UI-01       | Phase 6 | Pending  |
+| UI-01       | Phase 6 | Complete |
 | UI-02       | Phase 6 | Pending  |
 | UI-03       | Phase 6 | Pending  |
 | UI-04       | Phase 6 | Pending  |
 | UI-05       | Phase 6 | Pending  |
-| UI-06       | Phase 6 | Pending  |
+| UI-06       | Phase 6 | Complete |
 
 **Coverage:**
 

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Call Integration & Dashboard Enhancements
 status: unknown
-stopped_at: Phase 6 context gathered
-last_updated: '2026-03-20T21:33:13.065Z'
+stopped_at: Completed 06-01-PLAN.md
+last_updated: '2026-03-20T22:23:54.170Z'
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 6
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Circulation managers can see subscriber health at a glance and take action on retention
-**Current focus:** Phase 05 — expiration-chart-expansion
+**Current focus:** Phase 06 — call-status-ui-and-export
 
 ## Current Position
 
-Phase: 05 (expiration-chart-expansion) — COMPLETE
-Plan: 1 of 1 (complete)
+Phase: 06 (call-status-ui-and-export) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Plan: 1 of 1 (complete)
 | 5. Expiration Chart | 1     | ~16 min  | ~16 min  |
 
 _Updated after each plan completion_
+| Phase 06 P01 | 3min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,7 @@ Recent decisions affecting v2.1:
 - [Phase 03-02]: REGEXP_REPLACE backfill uses RIGHT(x,10) to take rightmost 10 digits — matches PHP normalizePhone() leading-1-strip logic; phone_normalized populated at ingest via AllSubscriberImporter
 - [Phase 04-01]: Direct mail() for scraper alerts (EmailNotifier requires ProcessResult); JSON raw_payload for debugging; business-hours guard in PHP independent of scheduler
 - [Phase 05]: array_fill() for PDO parameter arrays instead of explicit entries; This Week color changed to amber-500 for smoother 8-stop gradient
+- [Phase 06]: Reusable $callLogSubquery PHP variable for DRY SQL across 8 expiration bucket queries
 
 ### Pending Todos
 
@@ -75,7 +77,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T21:33:13.063Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-call-status-ui-and-export/06-CONTEXT.md
+Last session: 2026-03-20T22:23:54.168Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: None
 Next step: Execute 04-02-PLAN.md (scheduling and deployment)

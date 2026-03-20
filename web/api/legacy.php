@@ -1243,7 +1243,7 @@ function getDetailPanelData(PDO $pdo, string $businessUnit, string $snapshotDate
         ];
     }
 
-    // 2. 4-week expiration chart data (exclude "Later" to avoid skewing)
+    // 2. 8-week expiration chart data (exclude "Later" to avoid skewing)
     // IMPORTANT: Use snapshot_date (not CURDATE) for historical accuracy
     $expiration_stmt = $pdo->prepare("
         SELECT
@@ -1252,13 +1252,17 @@ function getDetailPanelData(PDO $pdo, string $businessUnit, string $snapshotDate
                 WHEN paid_thru BETWEEN ? AND DATE_ADD(?, INTERVAL 7 DAY) THEN 'This Week'
                 WHEN paid_thru BETWEEN DATE_ADD(?, INTERVAL 8 DAY) AND DATE_ADD(?, INTERVAL 14 DAY) THEN 'Next Week'
                 WHEN paid_thru BETWEEN DATE_ADD(?, INTERVAL 15 DAY) AND DATE_ADD(?, INTERVAL 21 DAY) THEN 'Week +2'
+                WHEN paid_thru BETWEEN DATE_ADD(?, INTERVAL 22 DAY) AND DATE_ADD(?, INTERVAL 28 DAY) THEN 'Week +3'
+                WHEN paid_thru BETWEEN DATE_ADD(?, INTERVAL 29 DAY) AND DATE_ADD(?, INTERVAL 35 DAY) THEN 'Week +4'
+                WHEN paid_thru BETWEEN DATE_ADD(?, INTERVAL 36 DAY) AND DATE_ADD(?, INTERVAL 42 DAY) THEN 'Week +5'
+                WHEN paid_thru BETWEEN DATE_ADD(?, INTERVAL 43 DAY) AND DATE_ADD(?, INTERVAL 49 DAY) THEN 'Week +6'
             END as week_bucket,
             COUNT(*) as count
         FROM subscriber_snapshots
         WHERE snapshot_date = ?
             AND paper_code IN ($placeholders)
             AND paid_thru IS NOT NULL
-            AND paid_thru <= DATE_ADD(?, INTERVAL 21 DAY)
+            AND paid_thru <= DATE_ADD(?, INTERVAL 49 DAY)
         GROUP BY week_bucket
         ORDER BY
             CASE week_bucket
@@ -1266,10 +1270,14 @@ function getDetailPanelData(PDO $pdo, string $businessUnit, string $snapshotDate
                 WHEN 'This Week' THEN 2
                 WHEN 'Next Week' THEN 3
                 WHEN 'Week +2' THEN 4
+                WHEN 'Week +3' THEN 5
+                WHEN 'Week +4' THEN 6
+                WHEN 'Week +5' THEN 7
+                WHEN 'Week +6' THEN 8
             END
     ");
-// Pass snapshot_date for each ? placeholder: 9 total (7 in CASE + 1 in WHERE + 1 in final condition)
-    $expiration_stmt->execute(array_merge([$snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate, $snapshotDate], $paper_codes, [$snapshotDate]));
+// Pass snapshot_date for each ? placeholder: 17 total (15 in CASE + 1 in WHERE + 1 in final condition)
+    $expiration_stmt->execute(array_merge(array_fill(0, 16, $snapshotDate), $paper_codes, [$snapshotDate]));
     $expiration_data = $expiration_stmt->fetchAll(PDO::FETCH_ASSOC);
     $response['expiration_chart'] = array_map(function ($row) {
 
@@ -1559,6 +1567,150 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
             ]);
 
             break;
+        case 'Week +3':
+            // paid_thru between snapshot_date + 21 and snapshot_date + 27 days
+
+                                                                                                                                                            $weekStart->modify('+21 days');
+            $weekEnd->modify('+27 days');
+            $stmt = $pdo->prepare("
+                SELECT
+                    sub_num as account_id,
+                    name as subscriber_name,
+                    phone,
+                    email,
+                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+                    paper_code,
+                    paper_name,
+                    rate_name as current_rate,
+                    last_payment_amount as rate_amount,
+                    last_payment_amount,
+                    payment_status as payment_method,
+                    paid_thru as expiration_date,
+                    delivery_type
+                FROM subscriber_snapshots
+                WHERE business_unit = :business_unit
+                AND snapshot_date = :snapshot_date
+                AND paid_thru >= :start_date
+                AND paid_thru <= :end_date
+                ORDER BY paid_thru ASC
+                LIMIT 1000
+            ");
+            $stmt->execute([
+                ':business_unit' => $businessUnit,
+                ':snapshot_date' => $snapshotDate,
+                ':start_date' => $weekStart->format('Y-m-d'),
+                ':end_date' => $weekEnd->format('Y-m-d')
+            ]);
+
+            break;
+        case 'Week +4':
+            // paid_thru between snapshot_date + 28 and snapshot_date + 34 days
+
+                                                                                                                                                            $weekStart->modify('+28 days');
+            $weekEnd->modify('+34 days');
+            $stmt = $pdo->prepare("
+                SELECT
+                    sub_num as account_id,
+                    name as subscriber_name,
+                    phone,
+                    email,
+                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+                    paper_code,
+                    paper_name,
+                    rate_name as current_rate,
+                    last_payment_amount as rate_amount,
+                    last_payment_amount,
+                    payment_status as payment_method,
+                    paid_thru as expiration_date,
+                    delivery_type
+                FROM subscriber_snapshots
+                WHERE business_unit = :business_unit
+                AND snapshot_date = :snapshot_date
+                AND paid_thru >= :start_date
+                AND paid_thru <= :end_date
+                ORDER BY paid_thru ASC
+                LIMIT 1000
+            ");
+            $stmt->execute([
+                ':business_unit' => $businessUnit,
+                ':snapshot_date' => $snapshotDate,
+                ':start_date' => $weekStart->format('Y-m-d'),
+                ':end_date' => $weekEnd->format('Y-m-d')
+            ]);
+
+            break;
+        case 'Week +5':
+            // paid_thru between snapshot_date + 35 and snapshot_date + 41 days
+
+                                                                                                                                                            $weekStart->modify('+35 days');
+            $weekEnd->modify('+41 days');
+            $stmt = $pdo->prepare("
+                SELECT
+                    sub_num as account_id,
+                    name as subscriber_name,
+                    phone,
+                    email,
+                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+                    paper_code,
+                    paper_name,
+                    rate_name as current_rate,
+                    last_payment_amount as rate_amount,
+                    last_payment_amount,
+                    payment_status as payment_method,
+                    paid_thru as expiration_date,
+                    delivery_type
+                FROM subscriber_snapshots
+                WHERE business_unit = :business_unit
+                AND snapshot_date = :snapshot_date
+                AND paid_thru >= :start_date
+                AND paid_thru <= :end_date
+                ORDER BY paid_thru ASC
+                LIMIT 1000
+            ");
+            $stmt->execute([
+                ':business_unit' => $businessUnit,
+                ':snapshot_date' => $snapshotDate,
+                ':start_date' => $weekStart->format('Y-m-d'),
+                ':end_date' => $weekEnd->format('Y-m-d')
+            ]);
+
+            break;
+        case 'Week +6':
+            // paid_thru between snapshot_date + 42 and snapshot_date + 48 days
+
+                                                                                                                                                            $weekStart->modify('+42 days');
+            $weekEnd->modify('+48 days');
+            $stmt = $pdo->prepare("
+                SELECT
+                    sub_num as account_id,
+                    name as subscriber_name,
+                    phone,
+                    email,
+                    CONCAT(COALESCE(address, ''), ', ', COALESCE(city_state_postal, '')) as mailing_address,
+                    paper_code,
+                    paper_name,
+                    rate_name as current_rate,
+                    last_payment_amount as rate_amount,
+                    last_payment_amount,
+                    payment_status as payment_method,
+                    paid_thru as expiration_date,
+                    delivery_type
+                FROM subscriber_snapshots
+                WHERE business_unit = :business_unit
+                AND snapshot_date = :snapshot_date
+                AND paid_thru >= :start_date
+                AND paid_thru <= :end_date
+                ORDER BY paid_thru ASC
+                LIMIT 1000
+            ");
+            $stmt->execute([
+                ':business_unit' => $businessUnit,
+                ':snapshot_date' => $snapshotDate,
+                ':start_date' => $weekStart->format('Y-m-d'),
+                ':end_date' => $weekEnd->format('Y-m-d')
+            ]);
+
+            break;
         default:
             return [];
     }
@@ -1733,6 +1885,18 @@ function generateMockSubscribers_DEPRECATED(string $businessUnit, int $count, st
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              $expirationDate = date('Y-m-d', strtotime('+' . (14 + $i % 7) . ' days'));
 
                     break;
+                case 'Week +3':
+                    $expirationDate = date('Y-m-d', strtotime('+' . (21 + $i % 7) . ' days'));
+                    break;
+                case 'Week +4':
+                    $expirationDate = date('Y-m-d', strtotime('+' . (28 + $i % 7) . ' days'));
+                    break;
+                case 'Week +5':
+                    $expirationDate = date('Y-m-d', strtotime('+' . (35 + $i % 7) . ' days'));
+                    break;
+                case 'Week +6':
+                    $expirationDate = date('Y-m-d', strtotime('+' . (42 + $i % 7) . ' days'));
+                    break;
             }
         }
 
@@ -1782,7 +1946,7 @@ function getMetricCount(PDO $pdo, string $businessUnit, string $metricType, mixe
 {
     if ($metricType === 'expiration') {
         // Calculate expiration bucket from paid_thru date
-        // Expiration buckets: "Past Due", "This Week", "Next Week", "Week +2", "Later"
+        // Expiration buckets: "Past Due", "This Week", "Next Week", "Week +2", "Week +3", "Week +4", "Week +5", "Week +6", "Later"
 
         // Get the reference date for this snapshot (calculate week boundaries)
         $snapshotDt = new DateTime($snapshotDate);
@@ -1813,9 +1977,33 @@ function getMetricCount(PDO $pdo, string $businessUnit, string $metricType, mixe
             $weekEnd = clone $weekStart;
             $weekEnd->modify('+6 days'); // Sunday
             $whereClause = "ss.paid_thru BETWEEN :week_start AND :week_end";
+        } elseif ($metricValue === 'Week +3') {
+            $weekStart = clone $snapshotDt;
+            $weekStart->modify('next week')->modify('+2 weeks');
+            $weekEnd = clone $weekStart;
+            $weekEnd->modify('+6 days');
+            $whereClause = "ss.paid_thru BETWEEN :week_start AND :week_end";
+        } elseif ($metricValue === 'Week +4') {
+            $weekStart = clone $snapshotDt;
+            $weekStart->modify('next week')->modify('+3 weeks');
+            $weekEnd = clone $weekStart;
+            $weekEnd->modify('+6 days');
+            $whereClause = "ss.paid_thru BETWEEN :week_start AND :week_end";
+        } elseif ($metricValue === 'Week +5') {
+            $weekStart = clone $snapshotDt;
+            $weekStart->modify('next week')->modify('+4 weeks');
+            $weekEnd = clone $weekStart;
+            $weekEnd->modify('+6 days');
+            $whereClause = "ss.paid_thru BETWEEN :week_start AND :week_end";
+        } elseif ($metricValue === 'Week +6') {
+            $weekStart = clone $snapshotDt;
+            $weekStart->modify('next week')->modify('+5 weeks');
+            $weekEnd = clone $weekStart;
+            $weekEnd->modify('+6 days');
+            $whereClause = "ss.paid_thru BETWEEN :week_start AND :week_end";
         } else { // "Later" or any other bucket
             $laterStart = clone $snapshotDt;
-            $laterStart->modify('next week')->modify('+2 weeks'); // 3 weeks from now
+            $laterStart->modify('next week')->modify('+6 weeks'); // 7 weeks from now (after Week +6)
             $whereClause = "ss.paid_thru >= :later_start";
         }
 
@@ -1834,7 +2022,7 @@ function getMetricCount(PDO $pdo, string $businessUnit, string $metricType, mixe
         ];
 
         // Add date range parameters based on metric
-        if ($metricValue === 'This Week' || $metricValue === 'Next Week' || $metricValue === 'Week +2') {
+        if (in_array($metricValue, ['This Week', 'Next Week', 'Week +2', 'Week +3', 'Week +4', 'Week +5', 'Week +6'])) {
             $params[':week_start'] = $weekStart->format('Y-m-d');
             $params[':week_end'] = $weekEnd->format('Y-m-d');
         } elseif ($metricValue === 'Later') {

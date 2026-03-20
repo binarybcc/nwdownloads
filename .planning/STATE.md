@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Call Integration & Dashboard Enhancements
 status: unknown
-stopped_at: 'Checkpoint: Task 2 of 03-01-PLAN.md — awaiting PR #46 merge and NAS deploy/reprocess'
-last_updated: '2026-03-20T16:38:05.892Z'
+stopped_at: Completed 03-02-PLAN.md (call_logs table + phone_normalized migrations + AllSubscriberImporter normalization)
+last_updated: '2026-03-20T16:39:32.853Z'
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 ## Current Position
 
 Phase: 03 (data-foundation) — EXECUTING
-Plan: 1 of 2
+Plan: 2 of 2 (COMPLETE)
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Recent decisions affecting v2.1:
 - Hourly scraping 8am-8pm ET — captures 20-entry rolling window before rolloff
 - New starts import bug: parseDate() needs M/D/YY format support; two failed CSVs on NAS
 - [Phase 03-data-foundation]: parseDate() checks YYYY-MM-DD before M/D/YY — most specific pattern first, avoids ambiguity, returns dateStr unchanged for YYYY-MM-DD
+- [Phase 03-02]: REGEXP_REPLACE backfill uses RIGHT(x,10) to take rightmost 10 digits — matches PHP normalizePhone() leading-1-strip logic; phone_normalized populated at ingest via AllSubscriberImporter
 
 ### Pending Todos
 
@@ -70,7 +71,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T16:38:02.720Z
-Stopped at: Checkpoint: Task 2 of 03-01-PLAN.md — awaiting PR #46 merge and NAS deploy/reprocess
+Last session: 2026-03-20
+Stopped at: Completed 03-02-PLAN.md (call_logs table + phone_normalized migrations + AllSubscriberImporter normalization)
 Resume file: None
-Next step: /gsd:plan-phase 3
+Next step: Phase 03 complete — all plans done; proceed to Phase 04 (call log scraper)

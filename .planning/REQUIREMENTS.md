@@ -21,7 +21,7 @@ Requirements for milestone v2.1: Call Integration & Dashboard Enhancements.
 ### Call Log Scraper
 
 - [ ] **CALL-01**: BroadWorks call logs (placed, received, missed) for BC and CW are scraped and stored in `call_logs` table
-- [ ] **CALL-02**: Phone numbers are normalized to bare 10-digit at ingest (both subscriber and call log sides)
+- [x] **CALL-02**: Phone numbers are normalized to bare 10-digit at ingest (both subscriber and call log sides)
 - [ ] **CALL-03**: Scraper runs hourly 8am-8pm ET via launchd, with business-hours guard in PHP
 - [ ] **CALL-04**: Scraper verifies login success and logs failures (no silent empty runs)
 
@@ -65,23 +65,23 @@ Requirements for milestone v2.1: Call Integration & Dashboard Enhancements.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase   | Status  |
-| ----------- | ------- | ------- |
-| IMPORT-01   | Phase 3 | Pending |
-| IMPORT-02   | Phase 3 | Pending |
-| CALL-02     | Phase 3 | Pending |
-| CALL-01     | Phase 4 | Pending |
-| CALL-03     | Phase 4 | Pending |
-| CALL-04     | Phase 4 | Pending |
-| CHART-01    | Phase 5 | Pending |
-| CHART-02    | Phase 5 | Pending |
-| CHART-03    | Phase 5 | Pending |
-| UI-01       | Phase 6 | Pending |
-| UI-02       | Phase 6 | Pending |
-| UI-03       | Phase 6 | Pending |
-| UI-04       | Phase 6 | Pending |
-| UI-05       | Phase 6 | Pending |
-| UI-06       | Phase 6 | Pending |
+| Requirement | Phase   | Status   |
+| ----------- | ------- | -------- |
+| IMPORT-01   | Phase 3 | Pending  |
+| IMPORT-02   | Phase 3 | Pending  |
+| CALL-02     | Phase 3 | Complete |
+| CALL-01     | Phase 4 | Pending  |
+| CALL-03     | Phase 4 | Pending  |
+| CALL-04     | Phase 4 | Pending  |
+| CHART-01    | Phase 5 | Pending  |
+| CHART-02    | Phase 5 | Pending  |
+| CHART-03    | Phase 5 | Pending  |
+| UI-01       | Phase 6 | Pending  |
+| UI-02       | Phase 6 | Pending  |
+| UI-03       | Phase 6 | Pending  |
+| UI-04       | Phase 6 | Pending  |
+| UI-05       | Phase 6 | Pending  |
+| UI-06       | Phase 6 | Pending  |
 
 **Coverage:**
 

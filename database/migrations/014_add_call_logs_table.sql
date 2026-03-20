@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS call_logs (
     duration_sec    INT UNSIGNED DEFAULT 0,
     remote_number   VARCHAR(50) NOT NULL COMMENT 'Raw number from BroadWorks',
     phone_normalized CHAR(10) DEFAULT NULL COMMENT 'Bare 10-digit, no punctuation',
-    local_extension VARCHAR(20) DEFAULT NULL COMMENT 'BC or CW extension',
+    local_extension VARCHAR(20) NOT NULL DEFAULT '' COMMENT 'BC or CW extension, empty if unknown',
     source_group    VARCHAR(20) DEFAULT NULL COMMENT 'BC or CW (BroadWorks group)',
     raw_payload     TEXT DEFAULT NULL COMMENT 'Optional: raw row for debugging',
     imported_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -17,45 +17,139 @@
  */
 
 class SubscriberTablePanel {
-    constructor(options = {}) {
-        this.colorScheme = options.colorScheme || 'teal';
-        this.onClose = options.onClose || (() => {});
-        this.panel = null;
-        this.backdrop = null;
-        this.data = null;
-        this.isOpen = false;
+  constructor(options = {}) {
+    this.colorScheme = options.colorScheme || 'teal';
+    this.onClose = options.onClose || (() => {});
+    this.panel = null;
+    this.backdrop = null;
+    this.data = null;
+    this.isOpen = false;
+    this.sortAscending = true;
+    this.currentSubscribers = null;
+    this.handleSortToggle = this.handleSortToggle.bind(this);
 
-        // Bind methods
-        this.close = this.close.bind(this);
-        this.handleEscape = this.handleEscape.bind(this);
-        this.handleExportExcel = this.handleExportExcel.bind(this);
-        this.handleExportCSV = this.handleExportCSV.bind(this);
+    // Bind methods
+    this.close = this.close.bind(this);
+    this.handleEscape = this.handleEscape.bind(this);
+    this.handleExportExcel = this.handleExportExcel.bind(this);
+    this.handleExportCSV = this.handleExportCSV.bind(this);
+  }
+
+  /**
+   * Get call status color mapping
+   * @param {string|null} callStatus - placed, received, missed, or null
+   * @returns {object} border, iconBg, label
+   */
+  getCallStatusColor(callStatus) {
+    if (!callStatus) return { border: '#EF4444', iconBg: '#EF444420', label: 'red' };
+    if (callStatus === 'placed') return { border: '#22C55E', iconBg: '#22C55E20', label: 'green' };
+    return { border: '#F59E0B', iconBg: '#F59E0B20', label: 'orange' };
+  }
+
+  /**
+   * Build tooltip text for call status icon
+   * @param {object} sub - subscriber object with call_status, last_call_datetime, call_agent
+   * @returns {string} tooltip text
+   */
+  buildCallTooltip(sub) {
+    if (!sub.call_status) return 'No contact recorded';
+    const direction = sub.call_status.charAt(0).toUpperCase() + sub.call_status.slice(1);
+    const dt = new Date(sub.last_call_datetime);
+    const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const agent = sub.call_agent || '';
+    return `${direction} \u2022 ${dateStr}, ${timeStr} \u2022 ${agent}`;
+  }
+
+  /**
+   * Get sort priority for call status
+   * @param {string|null} callStatus
+   * @returns {number} 0=no contact, 1=received/missed, 2=placed
+   */
+  getStatusSortPriority(callStatus) {
+    if (!callStatus) return 0;
+    if (callStatus === 'placed') return 2;
+    return 1;
+  }
+
+  /**
+   * Sort subscribers by status priority then expiration date
+   * @param {Array} subscribers
+   * @returns {Array} sorted copy
+   */
+  sortSubscribers(subscribers) {
+    return [...subscribers].sort((a, b) => {
+      const priorityA = this.getStatusSortPriority(a.call_status);
+      const priorityB = this.getStatusSortPriority(b.call_status);
+      const priorityDiff = priorityA - priorityB;
+      const statusSort = this.sortAscending ? priorityDiff : -priorityDiff;
+      if (statusSort !== 0) return statusSort;
+      return new Date(a.expiration_date) - new Date(b.expiration_date);
+    });
+  }
+
+  /**
+   * Toggle sort direction and re-render table
+   */
+  handleSortToggle() {
+    this.sortAscending = !this.sortAscending;
+    const container = this.panel.querySelector('[data-table-container]');
+    if (!container) return;
+    const sortedSubscribers = this.sortSubscribers(this.currentSubscribers);
+    container.innerHTML =
+      sortedSubscribers.length > 0
+        ? this.buildTableHTML(sortedSubscribers)
+        : this.buildEmptyStateHTML();
+    this.attachSortHandler();
+  }
+
+  /**
+   * Attach click handler to sort toggle header
+   */
+  attachSortHandler() {
+    const sortHeader = this.panel.querySelector('[data-sort-status]');
+    if (sortHeader) {
+      sortHeader.addEventListener('click', this.handleSortToggle);
+      sortHeader.style.cursor = 'pointer';
     }
+  }
 
-    /**
-     * Show panel with subscriber data
-     */
-    show(data) {
-        this.data = data;
+  /**
+   * Simple HTML escape for title attributes
+   * Data comes from our own DB (call_status enum, Date formatting, BC/CW agent codes)
+   */
+  escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 
-        // Close any existing panel
-        if (this.isOpen) {
-            this.close();
-            // Wait for close animation
-            setTimeout(() => this.render(), 300);
-        } else {
-            this.render();
-        }
+  /**
+   * Show panel with subscriber data
+   */
+  show(data) {
+    this.data = data;
+
+    // Close any existing panel
+    if (this.isOpen) {
+      this.close();
+      // Wait for close animation
+      setTimeout(() => this.render(), 300);
+    } else {
+      this.render();
     }
+  }
 
-    /**
-     * Render panel DOM
-     */
-    render() {
-        // Create backdrop
-        this.backdrop = document.createElement('div');
-        this.backdrop.id = 'subscriberTableBackdrop';
-        this.backdrop.style.cssText = `
+  /**
+   * Render panel DOM
+   */
+  render() {
+    // Create backdrop
+    this.backdrop = document.createElement('div');
+    this.backdrop.id = 'subscriberTableBackdrop';
+    this.backdrop.style.cssText = `
             position: fixed;
             top: 0;
             left: 0;
@@ -67,12 +161,12 @@ class SubscriberTablePanel {
             transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(2px);
         `;
-        this.backdrop.addEventListener('click', this.close);
+    this.backdrop.addEventListener('click', this.close);
 
-        // Create panel
-        this.panel = document.createElement('div');
-        this.panel.id = 'subscriberTablePanel';
-        this.panel.style.cssText = `
+    // Create panel
+    this.panel = document.createElement('div');
+    this.panel.id = 'subscriberTablePanel';
+    this.panel.style.cssText = `
             position: fixed;
             top: 0;
             right: -75%;
@@ -85,38 +179,64 @@ class SubscriberTablePanel {
             transition: right 350ms cubic-bezier(0.4, 0, 0.2, 1);
         `;
 
-        // Build panel content
-        this.panel.innerHTML = this.buildPanelHTML();
+    // Build panel content
+    // Note: innerHTML is the existing rendering pattern for this component.
+    // All data comes from our own API/database, not user input.
+    this.panel.innerHTML = this.buildPanelHTML();
 
-        // Add to DOM
-        document.body.appendChild(this.backdrop);
-        document.body.appendChild(this.panel);
+    // Add to DOM
+    document.body.appendChild(this.backdrop);
+    document.body.appendChild(this.panel);
 
-        // Trigger animations
-        requestAnimationFrame(() => {
-            this.backdrop.style.opacity = '1';
-            this.panel.style.right = '0';
-        });
+    // Trigger animations
+    requestAnimationFrame(() => {
+      this.backdrop.style.opacity = '1';
+      this.panel.style.right = '0';
+    });
 
-        // Add event listeners
-        document.addEventListener('keydown', this.handleEscape);
-        document.getElementById('closeSubscriberTable').addEventListener('click', this.close);
-        document.getElementById('exportExcelBtn').addEventListener('click', this.handleExportExcel);
-        document.getElementById('exportCSVBtn').addEventListener('click', this.handleExportCSV);
+    // Add event listeners
+    document.addEventListener('keydown', this.handleEscape);
+    document.getElementById('closeSubscriberTable').addEventListener('click', this.close);
+    document.getElementById('exportExcelBtn').addEventListener('click', this.handleExportExcel);
+    document.getElementById('exportCSVBtn').addEventListener('click', this.handleExportCSV);
+    this.attachSortHandler();
 
-        this.isOpen = true;
+    this.isOpen = true;
+  }
+
+  /**
+   * Build panel HTML
+   */
+  buildPanelHTML() {
+    const { title, subtitle, data } = this.data;
+    // data can be either an array directly or an object with subscribers property
+    const subscribers = Array.isArray(data) ? data : data?.subscribers || [];
+    const callDataAsOf = data?.call_data_as_of || null;
+    this.currentSubscribers = subscribers;
+    const sortedSubscribers = this.sortSubscribers(subscribers);
+    const count = sortedSubscribers.length;
+
+    // Build sync timestamp line
+    let syncTimestampHTML = '';
+    if (callDataAsOf) {
+      const syncDt = new Date(callDataAsOf);
+      const syncDateStr = syncDt.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      const syncTimeStr = syncDt.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+      syncTimestampHTML = `
+                <p style="font-size: 0.69rem; font-style: italic; color: rgba(255,255,255,0.85); margin: 0.75rem 0 0 0;">
+                    Call data as of ${syncDateStr} ${syncTimeStr}
+                </p>
+            `;
     }
 
-    /**
-     * Build panel HTML
-     */
-    buildPanelHTML() {
-        const { title, subtitle, data } = this.data;
-        // data can be either an array directly or an object with subscribers property
-        const subscribers = Array.isArray(data) ? data : (data?.subscribers || []);
-        const count = subscribers.length;
-
-        return `
+    return `
             <!-- Header -->
             <div style="
                 background: linear-gradient(135deg, #14B8A6 0%, #0891B2 100%);
@@ -213,34 +333,37 @@ class SubscriberTablePanel {
                         <span style="opacity: 0.9;">Total:</span> ${count.toLocaleString()} subscribers
                     </div>
                 </div>
+                ${syncTimestampHTML}
             </div>
 
             <!-- Table Container -->
             <div style="padding: 2rem;">
-                ${count > 0 ? this.buildTableHTML(subscribers) : this.buildEmptyStateHTML()}
+                <div data-table-container>
+                    ${count > 0 ? this.buildTableHTML(sortedSubscribers) : this.buildEmptyStateHTML()}
+                </div>
             </div>
         `;
-    }
+  }
 
-    /**
-     * Build subscriber table HTML
-     */
-    buildTableHTML(subscribers) {
-        const headers = [
-            'Account ID',
-            'Subscriber Name',
-            'Phone',
-            'Email',
-            'Mailing Address',
-            'Paper',
-            'Current Rate',
-            'Rate Amount',
-            'Last Payment',
-            'Expiration Date',
-            'Delivery Type'
-        ];
+  /**
+   * Build subscriber table HTML
+   */
+  buildTableHTML(subscribers) {
+    const headers = [
+      'Account ID',
+      'Subscriber Name',
+      'Phone',
+      'Email',
+      'Mailing Address',
+      'Paper',
+      'Current Rate',
+      'Rate Amount',
+      'Last Payment',
+      'Expiration Date',
+      'Delivery Type',
+    ];
 
-        let tableHTML = `
+    let tableHTML = `
             <div style="
                 background: white;
                 border-radius: 12px;
@@ -256,7 +379,27 @@ class SubscriberTablePanel {
                 ">
                     <thead>
                         <tr style="background: #14B8A6; color: white;">
-                            ${headers.map(h => `
+                            <th
+                                data-sort-status
+                                style="
+                                    padding: 0.5rem 0.5rem;
+                                    text-align: center;
+                                    font-weight: 600;
+                                    white-space: nowrap;
+                                    border-right: 1px solid rgba(255,255,255,0.2);
+                                    position: sticky;
+                                    top: 0;
+                                    z-index: 10;
+                                    background: #14B8A6;
+                                    cursor: pointer;
+                                    user-select: none;
+                                "
+                            >
+                                Status${this.sortAscending ? ' \u25BC' : ' \u25B2'}
+                            </th>
+                            ${headers
+                              .map(
+                                h => `
                                 <th style="
                                     padding: 0.5rem 0.5rem;
                                     text-align: left;
@@ -270,20 +413,40 @@ class SubscriberTablePanel {
                                 ">
                                     ${h}
                                 </th>
-                            `).join('')}
+                            `
+                              )
+                              .join('')}
                         </tr>
                     </thead>
                     <tbody>
         `;
 
-        subscribers.forEach((sub, index) => {
-            const isAlternate = index % 2 === 1;
-            const bgColor = isAlternate ? '#F0FDFA' : 'white';
+    subscribers.forEach((sub, index) => {
+      const isAlternate = index % 2 === 1;
+      const bgColor = isAlternate ? '#F0FDFA' : 'white';
+      const statusColor = this.getCallStatusColor(sub.call_status);
+      const tooltipText = this.escapeHtml(this.buildCallTooltip(sub));
 
-            tableHTML += `
-                <tr style="background: ${bgColor}; transition: background 150ms;"
+      tableHTML += `
+                <tr style="background: ${bgColor}; border-left: 4px solid ${statusColor.border}; transition: background 150ms;"
                     onmouseover="this.style.background='#CCFBF1'"
                     onmouseout="this.style.background='${bgColor}'">
+                    <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; text-align: center;">
+                        <span
+                            style="
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 50%;
+                                background: ${statusColor.iconBg};
+                            "
+                            title="${tooltipText}"
+                        >
+                            <span style="font-size: 14px;">&#x1F4DE;</span>
+                        </span>
+                    </td>
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-family: monospace; font-weight: 600; color: #0891B2; white-space: nowrap;">${sub.account_id}</td>
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-weight: 500; white-space: nowrap;">${sub.subscriber_name}</td>
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-family: monospace; white-space: nowrap;">${sub.phone}</td>
@@ -309,34 +472,34 @@ class SubscriberTablePanel {
                     </td>
                 </tr>
             `;
-        });
+    });
 
-        tableHTML += `
+    tableHTML += `
                     </tbody>
                 </table>
             </div>
         `;
 
-        return tableHTML;
-    }
+    return tableHTML;
+  }
 
-    /**
-     * Get delivery type badge colors
-     */
-    getDeliveryTypeColor(type) {
-        const colors = {
-            'MAIL': { bg: '#DBEAFE', text: '#1E40AF' },
-            'CARR': { bg: '#D1FAE5', text: '#065F46' },
-            'INTE': { bg: '#FEF3C7', text: '#92400E' }
-        };
-        return colors[type] || { bg: '#F3F4F6', text: '#374151' };
-    }
+  /**
+   * Get delivery type badge colors
+   */
+  getDeliveryTypeColor(type) {
+    const colors = {
+      MAIL: { bg: '#DBEAFE', text: '#1E40AF' },
+      CARR: { bg: '#D1FAE5', text: '#065F46' },
+      INTE: { bg: '#FEF3C7', text: '#92400E' },
+    };
+    return colors[type] || { bg: '#F3F4F6', text: '#374151' };
+  }
 
-    /**
-     * Build empty state HTML
-     */
-    buildEmptyStateHTML() {
-        return `
+  /**
+   * Build empty state HTML
+   */
+  buildEmptyStateHTML() {
+    return `
             <div style="
                 text-align: center;
                 padding: 4rem 2rem;
@@ -353,89 +516,89 @@ class SubscriberTablePanel {
                 </p>
             </div>
         `;
+  }
+
+  /**
+   * Handle Excel export
+   */
+  handleExportExcel() {
+    if (typeof exportSubscriberList !== 'undefined') {
+      const exportPayload = this.data.exportData || this.data.data;
+      const syncTimestamp =
+        this.data.data?.call_data_as_of || exportPayload?.call_data_as_of || null;
+      exportSubscriberList(exportPayload, 'excel', syncTimestamp);
+    } else {
+      console.error('Export function not available');
+      alert('Export functionality not loaded. Please refresh the page.');
+    }
+  }
+
+  /**
+   * Handle CSV export
+   */
+  handleExportCSV() {
+    if (typeof exportSubscriberList !== 'undefined') {
+      const exportPayload = this.data.exportData || this.data.data;
+      exportSubscriberList(exportPayload, 'csv');
+    } else {
+      console.error('Export function not available');
+      alert('Export functionality not loaded. Please refresh the page.');
+    }
+  }
+
+  /**
+   * Handle ESC key
+   */
+  handleEscape(e) {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      this.close();
+    }
+  }
+
+  /**
+   * Close panel
+   */
+  close() {
+    if (!this.isOpen) return;
+
+    // Animate out
+    if (this.backdrop) {
+      this.backdrop.style.opacity = '0';
+    }
+    if (this.panel) {
+      this.panel.style.right = '-75%';
     }
 
-    /**
-     * Handle Excel export
-     */
-    handleExportExcel() {
-        if (typeof exportSubscriberList !== 'undefined') {
-            // Use exportData if available (includes metadata), otherwise try to construct from data
-            const exportPayload = this.data.exportData || this.data.data;
-            exportSubscriberList(exportPayload, 'excel');
-        } else {
-            console.error('Export function not available');
-            alert('Export functionality not loaded. Please refresh the page.');
-        }
-    }
+    // Remove after animation
+    setTimeout(() => {
+      if (this.backdrop && this.backdrop.parentNode) {
+        this.backdrop.parentNode.removeChild(this.backdrop);
+      }
+      if (this.panel && this.panel.parentNode) {
+        this.panel.parentNode.removeChild(this.panel);
+      }
 
-    /**
-     * Handle CSV export
-     */
-    handleExportCSV() {
-        if (typeof exportSubscriberList !== 'undefined') {
-            // Use exportData if available (includes metadata), otherwise try to construct from data
-            const exportPayload = this.data.exportData || this.data.data;
-            exportSubscriberList(exportPayload, 'csv');
-        } else {
-            console.error('Export function not available');
-            alert('Export functionality not loaded. Please refresh the page.');
-        }
-    }
+      this.backdrop = null;
+      this.panel = null;
+    }, 350);
 
-    /**
-     * Handle ESC key
-     */
-    handleEscape(e) {
-        if (e.key === 'Escape' || e.key === 'Esc') {
-            this.close();
-        }
-    }
+    // Remove event listeners
+    document.removeEventListener('keydown', this.handleEscape);
 
-    /**
-     * Close panel
-     */
-    close() {
-        if (!this.isOpen) return;
+    this.isOpen = false;
 
-        // Animate out
-        if (this.backdrop) {
-            this.backdrop.style.opacity = '0';
-        }
-        if (this.panel) {
-            this.panel.style.right = '-75%';
-        }
+    // Call onClose callback
+    this.onClose();
+  }
 
-        // Remove after animation
-        setTimeout(() => {
-            if (this.backdrop && this.backdrop.parentNode) {
-                this.backdrop.parentNode.removeChild(this.backdrop);
-            }
-            if (this.panel && this.panel.parentNode) {
-                this.panel.parentNode.removeChild(this.panel);
-            }
-
-            this.backdrop = null;
-            this.panel = null;
-        }, 350);
-
-        // Remove event listeners
-        document.removeEventListener('keydown', this.handleEscape);
-
-        this.isOpen = false;
-
-        // Call onClose callback
-        this.onClose();
-    }
-
-    /**
-     * Destroy panel
-     */
-    destroy() {
-        this.close();
-        this.data = null;
-        this.onClose = null;
-    }
+  /**
+   * Destroy panel
+   */
+  destroy() {
+    this.close();
+    this.data = null;
+    this.onClose = null;
+  }
 }
 
 // Export globally

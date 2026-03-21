@@ -10,9 +10,9 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 ### Monthly Subscriber Handling
 
 - [x] **MONTH-01**: Monthly subscribers (last payment between -$0.01 and -$25.00) display with normal row styling (no red call status color) in subscriber list
-- [ ] **MONTH-02**: Monthly subscribers show no phone icon unless call log activity exists for that subscriber
-- [ ] **MONTH-03**: Monthly subscribers sort to the bottom of the subscriber list in default sort order
-- [ ] **MONTH-04**: Monthly subscribers export with no row coloring in XLSX unless call log activity exists
+- [x] **MONTH-02**: Monthly subscribers show no phone icon unless call log activity exists for that subscriber
+- [x] **MONTH-03**: Monthly subscribers sort to the bottom of the subscriber list in default sort order
+- [x] **MONTH-04**: Monthly subscribers export with no row coloring in XLSX unless call log activity exists
 
 ### Trend View
 
@@ -54,9 +54,9 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | MONTH-01 | Phase 7 | Complete |
-| MONTH-02 | Phase 7 | Pending |
-| MONTH-03 | Phase 7 | Pending |
-| MONTH-04 | Phase 7 | Pending |
+| MONTH-02 | Phase 7 | Complete |
+| MONTH-03 | Phase 7 | Complete |
+| MONTH-04 | Phase 7 | Complete |
 | TREND-01 | Phase 8 | Pending |
 | MAINT-01 | Phase 8 | Pending |
 | CSR-01 | Phase 9 | Pending |

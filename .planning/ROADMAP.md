@@ -28,7 +28,7 @@
 
 ### v2.2 Monthly Subscriber Handling & Dashboard Refinements
 
-- [ ] **Phase 7: Monthly Subscriber Exemption** - Monthly subscribers excluded from call status urgency with correct styling, sorting, and export behavior
+- [x] **Phase 7: Monthly Subscriber Exemption** - Monthly subscribers excluded from call status urgency with correct styling, sorting, and export behavior (completed 2026-03-21)
 - [ ] **Phase 8: Trend Expansion & Log Retention** - 13-week trend view and automated 90-day call log purge
 - [ ] **Phase 9: CSR Call Reporting** - Outgoing call counts per CSR displayed on settings page
 
@@ -86,6 +86,6 @@ Phases 7, 8, 9 can execute in any order (no inter-dependencies). Recommended: 7 
 | 4. Call Log Scraper | v2.1 | 2/2 | Complete | 2026-03-20 |
 | 5. Expiration Chart Expansion | v2.1 | 1/1 | Complete | 2026-03-20 |
 | 6. Call Status UI and Export | v2.1 | 2/2 | Complete | 2026-03-20 |
-| 7. Monthly Subscriber Exemption | v2.2 | 0/2 | Planned | - |
+| 7. Monthly Subscriber Exemption | 2/2 | Complete   | 2026-03-21 | - |
 | 8. Trend Expansion & Log Retention | v2.2 | 0/? | Not started | - |
 | 9. CSR Call Reporting | v2.2 | 0/? | Not started | - |

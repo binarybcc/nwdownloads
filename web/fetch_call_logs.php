@@ -25,19 +25,19 @@ require_once __DIR__ . '/lib/MyCommPilotScraper.php';
 
 use CirculationDashboard\MyCommPilotScraper;
 
+// ── Config (LOG_FILE must be defined before business-hours guard) ─────────────
+const LOG_FILE    = '/volume1/web/circulation/logs/call_scraper.log';
+const DB_SOCKET   = '/run/mysqld/mysqld10.sock';
+const DB_NAME     = 'circulation_dashboard';
+const DB_USER     = 'root';
+const DB_PASSWORD  = 'P@ta675N0id';
+
 // ── Business-hours guard (8am-8pm ET) ─────────────────────────────────────────
 $hour = (int) date('G');
 if ($hour < 8 || $hour >= 20) {
     log_msg("Outside business hours ({$hour}:00 ET). Exiting.");
     exit(0);
 }
-
-// ── Config ────────────────────────────────────────────────────────────────────
-const DB_SOCKET   = '/run/mysqld/mysqld10.sock';
-const DB_NAME     = 'circulation_dashboard';
-const DB_USER     = 'root';
-const DB_PASSWORD  = 'P@ta675N0id';
-const LOG_FILE    = '/volume1/web/circulation/logs/call_scraper.log';
 const LOCK_FILE   = '/tmp/circulation_call_scraper.lock';
 const ALERT_TO    = 'jcorbin@upstatetoday.com';
 const ALERT_FROM  = 'Circulation Dashboard <noreply@upstatetoday.com>';

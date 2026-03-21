@@ -72,7 +72,11 @@ try {
     $pdo = connectDB($db_config);
     $isSummaryMode = isset($_GET['summary']) && $_GET['summary'] === 'true';
 
+    // Business hours filter for missed calls: M-F 8am-5pm ET (timestamps stored in ET)
+    $bizHours = "WEEKDAY(call_timestamp) < 5 AND HOUR(call_timestamp) >= 8 AND HOUR(call_timestamp) < 17";
+
     // Summary query: per-CSR totals for last 60 days, split by 4-digit extension vs other
+    // Missed calls only counted during business hours (shared line, after-hours misses are noise)
     $summarySQL = "
         SELECT
             COALESCE(source_group, 'UNKNOWN') AS source_group,
@@ -82,9 +86,9 @@ try {
             SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS received_ext,
             SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS received_other,
             SUM(CASE WHEN call_direction = 'received' THEN 1 ELSE 0 END) AS received,
-            SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS missed_ext,
-            SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS missed_other,
-            SUM(CASE WHEN call_direction = 'missed' THEN 1 ELSE 0 END) AS missed,
+            SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) = 4 AND {$bizHours} THEN 1 ELSE 0 END) AS missed_ext,
+            SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) != 4 AND {$bizHours} THEN 1 ELSE 0 END) AS missed_other,
+            SUM(CASE WHEN call_direction = 'missed' AND {$bizHours} THEN 1 ELSE 0 END) AS missed,
             COUNT(*) AS total
         FROM call_logs
         WHERE call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
@@ -132,9 +136,9 @@ try {
                 SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS received_ext,
                 SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS received_other,
                 SUM(CASE WHEN call_direction = 'received' THEN 1 ELSE 0 END) AS received,
-                SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS missed_ext,
-                SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS missed_other,
-                SUM(CASE WHEN call_direction = 'missed' THEN 1 ELSE 0 END) AS missed
+                SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) = 4 AND {$bizHours} THEN 1 ELSE 0 END) AS missed_ext,
+                SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) != 4 AND {$bizHours} THEN 1 ELSE 0 END) AS missed_other,
+                SUM(CASE WHEN call_direction = 'missed' AND {$bizHours} THEN 1 ELSE 0 END) AS missed
             FROM call_logs
             WHERE call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
             GROUP BY yw, week_start, COALESCE(source_group, 'UNKNOWN')

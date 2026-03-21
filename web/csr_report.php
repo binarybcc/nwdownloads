@@ -69,7 +69,7 @@ require_once 'version.php';
                             <th rowspan="2" class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider align-bottom">CSR Name</th>
                             <th colspan="3" class="px-2 py-2 bg-blue-50 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border-b border-blue-200">Outgoing</th>
                             <th colspan="3" class="px-2 py-2 bg-green-50 text-center text-xs font-medium text-green-700 uppercase tracking-wider border-b border-green-200">Received</th>
-                            <th colspan="3" class="px-2 py-2 bg-red-50 text-center text-xs font-medium text-red-700 uppercase tracking-wider border-b border-red-200">Missed</th>
+                            <th colspan="3" class="px-2 py-2 bg-red-50 text-center text-xs font-medium text-red-700 uppercase tracking-wider border-b border-red-200" title="Business hours only: M-F 8am-5pm ET">Missed *</th>
                             <th rowspan="2" class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider align-bottom">Total</th>
                         </tr>
                         <tr>
@@ -89,6 +89,8 @@ require_once 'version.php';
                 </table>
             </div>
         </div>
+
+        <p id="tableFootnote" class="hidden text-xs text-gray-400 mt-2 ml-1">* Missed calls counted during business hours only (M–F, 8 AM – 5 PM ET)</p>
 
         <div id="tableEmpty" class="hidden bg-white rounded-lg shadow p-8 text-center text-gray-500">
             No call data available for the last 60 days.
@@ -161,6 +163,7 @@ require_once 'version.php';
                         document.getElementById('tableEmpty').classList.remove('hidden');
                     } else {
                         document.getElementById('tableContainer').classList.remove('hidden');
+                        document.getElementById('tableFootnote').classList.remove('hidden');
                         buildTable(data.summary);
                     }
 

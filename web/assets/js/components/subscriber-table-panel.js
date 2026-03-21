@@ -38,9 +38,11 @@ class SubscriberTablePanel {
   /**
    * Get call status color mapping
    * @param {string|null} callStatus - placed, received, missed, or null
-   * @returns {object} border, iconBg, label
+   * @param {boolean} isMonthly - whether subscriber is monthly (no urgency when uncalled)
+   * @returns {object} border, iconBg, label, and optionally hideIcon
    */
-  getCallStatusColor(callStatus) {
+  getCallStatusColor(callStatus, isMonthly = false) {
+    if (isMonthly && !callStatus) return { border: 'transparent', iconBg: 'transparent', label: 'none', hideIcon: true };
     if (!callStatus) return { border: '#EF4444', iconBg: '#EF444420', label: 'red' };
     if (callStatus === 'placed') return { border: '#22C55E', iconBg: '#22C55E20', label: 'green' };
     return { border: '#F59E0B', iconBg: '#F59E0B20', label: 'orange' };
@@ -64,9 +66,11 @@ class SubscriberTablePanel {
   /**
    * Get sort priority for call status
    * @param {string|null} callStatus
-   * @returns {number} 0=no contact, 1=received/missed, 2=placed
+   * @param {boolean} isMonthly - whether subscriber is monthly
+   * @returns {number} 0=no contact, 1=received/missed, 2=placed, 3=monthly-no-activity
    */
-  getStatusSortPriority(callStatus) {
+  getStatusSortPriority(callStatus, isMonthly = false) {
+    if (isMonthly && !callStatus) return 3;
     if (!callStatus) return 0;
     if (callStatus === 'placed') return 2;
     return 1;
@@ -79,8 +83,8 @@ class SubscriberTablePanel {
    */
   sortSubscribers(subscribers) {
     return [...subscribers].sort((a, b) => {
-      const priorityA = this.getStatusSortPriority(a.call_status);
-      const priorityB = this.getStatusSortPriority(b.call_status);
+      const priorityA = this.getStatusSortPriority(a.call_status, a.is_monthly);
+      const priorityB = this.getStatusSortPriority(b.call_status, b.is_monthly);
       const priorityDiff = priorityA - priorityB;
       const statusSort = this.sortAscending ? priorityDiff : -priorityDiff;
       if (statusSort !== 0) return statusSort;
@@ -424,15 +428,16 @@ class SubscriberTablePanel {
     subscribers.forEach((sub, index) => {
       const isAlternate = index % 2 === 1;
       const bgColor = isAlternate ? '#F0FDFA' : 'white';
-      const statusColor = this.getCallStatusColor(sub.call_status);
-      const tooltipText = this.escapeHtml(this.buildCallTooltip(sub));
+      const isMonthlyNoActivity = sub.is_monthly && !sub.call_status;
+      const statusColor = this.getCallStatusColor(sub.call_status, sub.is_monthly);
+      const tooltipText = isMonthlyNoActivity ? '' : this.escapeHtml(this.buildCallTooltip(sub));
 
       tableHTML += `
                 <tr style="background: ${bgColor}; border-left: 4px solid ${statusColor.border}; transition: background 150ms;"
                     onmouseover="this.style.background='#CCFBF1'"
                     onmouseout="this.style.background='${bgColor}'">
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; text-align: center;">
-                        <span
+                        ${isMonthlyNoActivity ? '' : `<span
                             style="
                                 display: inline-flex;
                                 align-items: center;
@@ -445,7 +450,7 @@ class SubscriberTablePanel {
                             title="${tooltipText}"
                         >
                             <span style="font-size: 14px;">&#x1F4DE;</span>
-                        </span>
+                        </span>`}
                     </td>
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-family: monospace; font-weight: 600; color: #0891B2; white-space: nowrap;">${sub.account_id}</td>
                     <td style="padding: 0.35rem 0.5rem; border-bottom: 1px solid #E5E7EB; font-weight: 500; white-space: nowrap;">${sub.subscriber_name}</td>

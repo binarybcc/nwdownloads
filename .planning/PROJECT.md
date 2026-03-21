@@ -73,10 +73,10 @@ MyCommPilot (BroadWorks) VOIP system at ws2.mycommpilot.com provides call logs f
 | Embed trends in overview response           | Single HTTP request, data always in sync                       | ✓ Good    |
 | Web scraping for call logs (not XSI API)    | XSI not enabled by carrier                                     | — Pending |
 | Hourly scraping 8am-8pm ET                  | Covers business hours, captures 20-entry window before rolloff | — Pending |
-| Phone icon + row coloring for call status   | Option B from UI discussion — most info at a glance, sortable  | — Pending |
-| Row colors carry into XLSX export           | Staff need printable/shareable contact lists with status       | — Pending |
+| Phone icon + row coloring for call status   | Option B from UI discussion — most info at a glance, sortable  | Phase 6 ✓ |
+| Row colors carry into XLSX export           | Staff need printable/shareable contact lists with status       | Phase 6 ✓ |
 | Balanced model profile for GSD agents       | No novel architecture — extending established patterns         | — Pending |
 
 ---
 
-_Last updated: 2026-03-20 after v2.1 milestone initialization_
+_Last updated: 2026-03-21 after Phase 6 completion (Call Status UI and Export)_

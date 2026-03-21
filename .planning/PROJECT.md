@@ -34,7 +34,15 @@ Circulation managers can see subscriber health at a glance and take action on re
 
 ### Active
 
-(None — start next milestone via `/gsd:new-milestone` to define requirements)
+#### Current Milestone: v2.2 — Monthly Subscriber Handling & Dashboard Refinements
+
+**Goal:** Exempt monthly subscribers from call status alerts, expand trend view to 13 weeks, implement call log retention, and add CSR call count reporting.
+
+**Target features:**
+- Monthly subscriber exemption from call status styling/sorting
+- 13-week trend expansion for "Show trend over time"
+- 90-day call log retention with automated purge
+- Outgoing call count by CSR on settings page
 
 ### Out of Scope
 
@@ -85,4 +93,4 @@ Future enhancement candidates from v2.1 REQUIREMENTS.md: manual call outcome ann
 
 ---
 
-_Last updated: 2026-03-21 after v2.1 milestone completion_
+_Last updated: 2026-03-20 after v2.2 milestone start_

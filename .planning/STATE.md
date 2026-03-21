@@ -1,30 +1,32 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Call Integration & Dashboard Enhancements
-status: completed
-stopped_at: Milestone v2.1 archived
-last_updated: '2026-03-21'
+milestone: v2.2
+milestone_name: Monthly Subscriber Handling & Dashboard Refinements
+status: active
+stopped_at: null
+last_updated: '2026-03-20'
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-21)
+See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Circulation managers can see subscriber health at a glance and take action on retention
-**Current focus:** v2.1 milestone complete — planning next milestone
+**Current focus:** v2.2 — Monthly subscriber handling, 13-week trend, call log retention, CSR call counts
 
 ## Current Position
 
-Milestone v2.1 shipped 2026-03-21. All 4 phases (3-6), 7 plans complete.
-Next step: `/gsd:new-milestone` to define v2.2 or v3.0 scope.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-20 — Milestone v2.2 started
 
 ## Performance Metrics
 
@@ -33,15 +35,6 @@ Next step: `/gsd:new-milestone` to define v2.2 or v3.0 scope.
 - Total plans completed: 7
 - Phases: 4 (Data Foundation, Call Log Scraper, Expiration Chart, Call Status UI)
 - Single-day execution (2026-03-20)
-
-**By Phase:**
-
-| Phase               | Plans | Total   | Avg/Plan |
-| ------------------- | ----- | ------- | -------- |
-| 3. Data Foundation  | 2     | ~7 min  | ~3.5 min |
-| 4. Call Log Scraper | 2     | ~6 min  | ~3 min   |
-| 5. Expiration Chart | 1     | ~16 min | ~16 min  |
-| 6. Call Status UI   | 2     | ~13 min | ~6.5 min |
 
 ## Accumulated Context
 
@@ -55,11 +48,11 @@ None.
 
 ### Blockers/Concerns
 
-None active. All v2.1 blockers resolved.
+None active.
 
 ## Session Continuity
 
-Last session: 2026-03-21
-Stopped at: Milestone v2.1 archived
+Last session: 2026-03-20
+Stopped at: Defining v2.2 requirements
 Resume file: None
-Next step: `/gsd:new-milestone`
+Next step: Define requirements → create roadmap

@@ -114,8 +114,8 @@ Plans:
 
 Plans:
 
-- [ ] 06-01-PLAN.md — LEFT JOIN call_logs in getExpirationSubscribers(); add call_status, last_call_datetime, call_agent to API response
-- [ ] 06-02-PLAN.md — Status column with colored icons, sort toggle, tooltips, left border; XLSX export with status fills and timestamp row
+- [x] 06-01-PLAN.md — LEFT JOIN call_logs in getExpirationSubscribers(); add call_status, last_call_datetime, call_agent to API response
+- [x] 06-02-PLAN.md — Status column with colored icons, sort toggle, tooltips, left border; XLSX export with status fills and timestamp row
 
 ---
 
@@ -130,4 +130,4 @@ Plans:
 | 3. Data Foundation                      | 2/2       | Complete       | 2026-03-20  | -          |
 | 4. Call Log Scraper                     | 1/2       | In Progress    |             | -          |
 | 5. Expiration Chart Expansion           | v2.1      | 0/1            | Not started | -          |
-| 6. Call Status UI and Export            | v2.1      | 0/2            | Not started | -          |
+| 6. Call Status UI and Export            | v2.1      | 2/2            | Complete    | 2026-03-20 |

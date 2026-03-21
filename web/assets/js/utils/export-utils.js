@@ -22,7 +22,11 @@
  * @returns {object} SheetJS fill object with fgColor rgb
  */
 function getExportStatusFill(sub) {
-  if (!sub || !sub.call_status) return { fgColor: { rgb: 'FEE2E2' } }; // red - no contact
+  if (!sub) return {};
+  // Monthly subscriber with no call activity: no fill (plain white row)
+  if (sub.is_monthly && !sub.call_status) return {};
+  // Annual subscriber with no call activity: red urgency fill
+  if (!sub.call_status) return { fgColor: { rgb: 'FEE2E2' } };
   if (sub.call_status === 'placed') return { fgColor: { rgb: 'DCFCE7' } }; // green - placed
   return { fgColor: { rgb: 'FEF9C3' } }; // yellow - received/missed
 }

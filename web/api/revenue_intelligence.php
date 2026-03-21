@@ -626,62 +626,93 @@ function handleSubscriberListRequest(): void
             $where_clause = '';
         switch ($bucket) {
             case 'Expired':
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(paid_thru, CURDATE()) < 0';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(ss.paid_thru, CURDATE()) < 0';
 
                 break;
             case '0-4 weeks':
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(paid_thru, CURDATE()) BETWEEN 0 AND 28';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(ss.paid_thru, CURDATE()) BETWEEN 0 AND 28';
 
                 break;
             case '5-8 weeks':
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(paid_thru, CURDATE()) BETWEEN 29 AND 56';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(ss.paid_thru, CURDATE()) BETWEEN 29 AND 56';
 
                 break;
             case '9-12 weeks':
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(paid_thru, CURDATE()) BETWEEN 57 AND 84';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             $where_clause = 'DATEDIFF(ss.paid_thru, CURDATE()) BETWEEN 57 AND 84';
 
                 break;
         }
 
-        // Fetch subscribers
+        // Fetch subscribers with call status and monthly detection
         $sql = "
             SELECT
-                sub_num as account_id,
-                name as subscriber_name,
-                paper_code,
-                paper_name,
-                business_unit,
-                paid_thru as expiration_date,
-                DATEDIFF(paid_thru, CURDATE()) as days_until_expiration,
-                delivery_type,
-                last_payment_amount,
-                phone,
-                email,
+                ss.sub_num as account_id,
+                ss.name as subscriber_name,
+                ss.paper_code,
+                ss.paper_name,
+                ss.business_unit,
+                ss.paid_thru as expiration_date,
+                DATEDIFF(ss.paid_thru, CURDATE()) as days_until_expiration,
+                ss.delivery_type,
+                ss.last_payment_amount,
+                ss.phone,
+                ss.email,
                 CONCAT_WS(', ',
-                    NULLIF(address, ''),
-                    NULLIF(city_state_postal, '')
+                    NULLIF(ss.address, ''),
+                    NULLIF(ss.city_state_postal, '')
                 ) as mailing_address,
-                route,
-                rate_name as current_rate,
-                subscription_length,
-                ABS(last_payment_amount) as rate_amount
-            FROM subscriber_snapshots
-            WHERE snapshot_date = :snapshot_date
-              AND paid_thru IS NOT NULL
+                ss.route,
+                ss.rate_name as current_rate,
+                ss.subscription_length,
+                ABS(ss.last_payment_amount) as rate_amount,
+                ss.payment_status as payment_method,
+                cl.call_direction as call_status,
+                cl.call_timestamp as last_call_datetime,
+                cl.source_group as call_agent,
+                CASE
+                    WHEN ss.last_payment_amount BETWEEN -25.00 AND -0.01 THEN 1
+                    ELSE 0
+                END as is_monthly
+            FROM subscriber_snapshots ss
+            LEFT JOIN (
+                SELECT phone_normalized, call_direction, call_timestamp, source_group,
+                       ROW_NUMBER() OVER (PARTITION BY phone_normalized ORDER BY call_timestamp DESC) as rn
+                FROM call_logs
+                WHERE call_timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                AND phone_normalized IS NOT NULL
+            ) cl ON cl.phone_normalized COLLATE utf8mb4_general_ci = ss.phone_normalized AND cl.rn = 1
+            WHERE ss.snapshot_date = :snapshot_date
+              AND ss.paid_thru IS NOT NULL
               AND $where_clause
-            ORDER BY paid_thru ASC, name ASC
+            ORDER BY
+                CASE
+                    WHEN cl.call_direction IS NULL AND ss.last_payment_amount NOT BETWEEN -25.00 AND -0.01 THEN 0
+                    WHEN cl.call_direction IN ('received', 'missed') THEN 1
+                    WHEN cl.call_direction = 'placed' THEN 2
+                    ELSE 3
+                END ASC,
+                ss.paid_thru ASC, ss.name ASC
         ";
         $stmt = $pdo->prepare($sql);
         $stmt->execute(['snapshot_date' => $snapshot_date]);
         $subscribers = $stmt->fetchAll();
+
+        // Get call log sync timestamp
+        $syncStmt = $pdo->query("SELECT MAX(call_timestamp) as last_sync FROM call_logs");
+        $callDataAsOf = $syncStmt->fetchColumn();
+
     // Return response
-        echo json_encode([
+        $response = [
             'success' => true,
             'bucket' => $bucket,
             'snapshot_date' => $snapshot_date,
             'count' => count($subscribers),
             'subscribers' => $subscribers
-        ], JSON_PRETTY_PRINT);
+        ];
+        if ($callDataAsOf) {
+            $response['call_data_as_of'] = $callDataAsOf;
+        }
+        echo json_encode($response, JSON_PRETTY_PRINT);
     } catch (Exception $e) {
         http_response_code(400);
         echo json_encode([

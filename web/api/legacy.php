@@ -1436,6 +1436,10 @@ function getSubscribers(PDO $pdo, array $params): array
  */
 function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapshotDate, string $bucket): array
 {
+    // Monthly subscriber payment thresholds
+    $monthlyPaymentMin = -25.00;
+    $monthlyPaymentMax = -0.01;
+
     // Call status subquery: most recent call within 30 days per phone number
     $callLogSubquery = "
         LEFT JOIN (
@@ -1445,6 +1449,14 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
             WHERE call_timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
             AND phone_normalized IS NOT NULL
         ) cl ON cl.phone_normalized COLLATE utf8mb4_general_ci = ss.phone_normalized AND cl.rn = 1
+    ";
+
+    // Monthly subscriber detection: payment between -$25.00 and -$0.01 indicates monthly billing
+    $isMonthlyCase = ",
+        CASE
+            WHEN ss.last_payment_amount BETWEEN {$monthlyPaymentMin} AND {$monthlyPaymentMax} THEN 1
+            ELSE 0
+        END as is_monthly
     ";
 
     // Calculate date range for bucket
@@ -1473,6 +1485,7 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
                     cl.call_direction as call_status,
                     cl.call_timestamp as last_call_datetime,
                     cl.source_group as call_agent
+                    {$isMonthlyCase}
                 FROM subscriber_snapshots ss
                 {$callLogSubquery}
                 WHERE ss.business_unit = :business_unit
@@ -1515,6 +1528,7 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
                     cl.call_direction as call_status,
                     cl.call_timestamp as last_call_datetime,
                     cl.source_group as call_agent
+                    {$isMonthlyCase}
                 FROM subscriber_snapshots ss
                 {$callLogSubquery}
                 WHERE ss.business_unit = :business_unit
@@ -1561,6 +1575,7 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
                     cl.call_direction as call_status,
                     cl.call_timestamp as last_call_datetime,
                     cl.source_group as call_agent
+                    {$isMonthlyCase}
                 FROM subscriber_snapshots ss
                 {$callLogSubquery}
                 WHERE ss.business_unit = :business_unit
@@ -1607,6 +1622,7 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
                     cl.call_direction as call_status,
                     cl.call_timestamp as last_call_datetime,
                     cl.source_group as call_agent
+                    {$isMonthlyCase}
                 FROM subscriber_snapshots ss
                 {$callLogSubquery}
                 WHERE ss.business_unit = :business_unit
@@ -1653,6 +1669,7 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
                     cl.call_direction as call_status,
                     cl.call_timestamp as last_call_datetime,
                     cl.source_group as call_agent
+                    {$isMonthlyCase}
                 FROM subscriber_snapshots ss
                 {$callLogSubquery}
                 WHERE ss.business_unit = :business_unit
@@ -1699,6 +1716,7 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
                     cl.call_direction as call_status,
                     cl.call_timestamp as last_call_datetime,
                     cl.source_group as call_agent
+                    {$isMonthlyCase}
                 FROM subscriber_snapshots ss
                 {$callLogSubquery}
                 WHERE ss.business_unit = :business_unit
@@ -1745,6 +1763,7 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
                     cl.call_direction as call_status,
                     cl.call_timestamp as last_call_datetime,
                     cl.source_group as call_agent
+                    {$isMonthlyCase}
                 FROM subscriber_snapshots ss
                 {$callLogSubquery}
                 WHERE ss.business_unit = :business_unit
@@ -1791,6 +1810,7 @@ function getExpirationSubscribers(PDO $pdo, string $businessUnit, string $snapsh
                     cl.call_direction as call_status,
                     cl.call_timestamp as last_call_datetime,
                     cl.source_group as call_agent
+                    {$isMonthlyCase}
                 FROM subscriber_snapshots ss
                 {$callLogSubquery}
                 WHERE ss.business_unit = :business_unit

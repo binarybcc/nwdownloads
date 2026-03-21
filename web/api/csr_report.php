@@ -72,13 +72,23 @@ try {
     $pdo = connectDB($db_config);
     $isSummaryMode = isset($_GET['summary']) && $_GET['summary'] === 'true';
 
-    // Summary query: per-CSR totals for last 60 days
+    // Business hours filter for missed calls: M-F 8am-5pm ET (timestamps stored in ET)
+    $bizHours = "WEEKDAY(call_timestamp) < 5 AND HOUR(call_timestamp) >= 8 AND HOUR(call_timestamp) < 17";
+
+    // Summary query: per-CSR totals for last 60 days, split by 4-digit extension vs other
+    // Missed calls only counted during business hours (shared line, after-hours misses are noise)
     $summarySQL = "
         SELECT
             COALESCE(source_group, 'UNKNOWN') AS source_group,
+            SUM(CASE WHEN call_direction = 'placed' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS placed_ext,
+            SUM(CASE WHEN call_direction = 'placed' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS placed_other,
             SUM(CASE WHEN call_direction = 'placed' THEN 1 ELSE 0 END) AS placed,
+            SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS received_ext,
+            SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS received_other,
             SUM(CASE WHEN call_direction = 'received' THEN 1 ELSE 0 END) AS received,
-            SUM(CASE WHEN call_direction = 'missed' THEN 1 ELSE 0 END) AS missed,
+            SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) = 4 AND {$bizHours} THEN 1 ELSE 0 END) AS missed_ext,
+            SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) != 4 AND {$bizHours} THEN 1 ELSE 0 END) AS missed_other,
+            SUM(CASE WHEN call_direction = 'missed' AND {$bizHours} THEN 1 ELSE 0 END) AS missed,
             COUNT(*) AS total
         FROM call_logs
         WHERE call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
@@ -92,12 +102,18 @@ try {
     $summary = array_map(
         function ($row) use ($csrNames) {
             return [
-            'name'     => mapCsrName($row['source_group'], $csrNames),
-            'group'    => $row['source_group'],
-            'placed'   => (int) $row['placed'],
-            'received' => (int) $row['received'],
-            'missed'   => (int) $row['missed'],
-            'total'    => (int) $row['total'],
+            'name'           => mapCsrName($row['source_group'], $csrNames),
+            'group'          => $row['source_group'],
+            'placed'         => (int) $row['placed'],
+            'placed_ext'     => (int) $row['placed_ext'],
+            'placed_other'   => (int) $row['placed_other'],
+            'received'       => (int) $row['received'],
+            'received_ext'   => (int) $row['received_ext'],
+            'received_other' => (int) $row['received_other'],
+            'missed'         => (int) $row['missed'],
+            'missed_ext'     => (int) $row['missed_ext'],
+            'missed_other'   => (int) $row['missed_other'],
+            'total'          => (int) $row['total'],
             ];
         },
         $summaryRows
@@ -114,9 +130,15 @@ try {
                     '%Y-%m-%d'
                 ) AS week_start,
                 COALESCE(source_group, 'UNKNOWN') AS source_group,
+                SUM(CASE WHEN call_direction = 'placed' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS placed_ext,
+                SUM(CASE WHEN call_direction = 'placed' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS placed_other,
                 SUM(CASE WHEN call_direction = 'placed' THEN 1 ELSE 0 END) AS placed,
+                SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS received_ext,
+                SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS received_other,
                 SUM(CASE WHEN call_direction = 'received' THEN 1 ELSE 0 END) AS received,
-                SUM(CASE WHEN call_direction = 'missed' THEN 1 ELSE 0 END) AS missed
+                SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) = 4 AND {$bizHours} THEN 1 ELSE 0 END) AS missed_ext,
+                SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) != 4 AND {$bizHours} THEN 1 ELSE 0 END) AS missed_other,
+                SUM(CASE WHEN call_direction = 'missed' AND {$bizHours} THEN 1 ELSE 0 END) AS missed
             FROM call_logs
             WHERE call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
             GROUP BY yw, week_start, COALESCE(source_group, 'UNKNOWN')
@@ -128,30 +150,97 @@ try {
         $weekly = array_map(
             function ($row) use ($csrNames) {
                 return [
-                'yw'         => $row['yw'],
-                'week_start' => $row['week_start'],
-                'name'       => mapCsrName($row['source_group'], $csrNames),
-                'group'      => $row['source_group'],
-                'placed'     => (int) $row['placed'],
-                'received'   => (int) $row['received'],
-                'missed'     => (int) $row['missed'],
+                'yw'             => $row['yw'],
+                'week_start'     => $row['week_start'],
+                'name'           => mapCsrName($row['source_group'], $csrNames),
+                'group'          => $row['source_group'],
+                'placed'         => (int) $row['placed'],
+                'placed_ext'     => (int) $row['placed_ext'],
+                'placed_other'   => (int) $row['placed_other'],
+                'received'       => (int) $row['received'],
+                'received_ext'   => (int) $row['received_ext'],
+                'received_other' => (int) $row['received_other'],
+                'missed'         => (int) $row['missed'],
+                'missed_ext'     => (int) $row['missed_ext'],
+                'missed_other'   => (int) $row['missed_other'],
                 ];
             },
             $weeklyRows
         );
     }
 
-    // Last updated timestamp
+    // Subscriber call matching (full mode only): placed external calls to known subscriber phone numbers
+    $subscriberCalls = [];
+    if (!$isSummaryMode) {
+        // Get latest snapshot date for subscriber phone lookup
+        $latestSnap = $pdo->query("SELECT MAX(snapshot_date) FROM daily_snapshots")->fetchColumn();
+
+        // Weekly subscriber-call counts per CSR
+        $subCallSQL = "
+            SELECT
+                YEARWEEK(cl.call_timestamp, 3) AS yw,
+                DATE_FORMAT(
+                    DATE_SUB(cl.call_timestamp, INTERVAL WEEKDAY(cl.call_timestamp) DAY),
+                    '%Y-%m-%d'
+                ) AS week_start,
+                COALESCE(cl.source_group, 'UNKNOWN') AS source_group,
+                SUM(CASE WHEN ss.phone_normalized IS NOT NULL THEN 1 ELSE 0 END) AS to_subscriber,
+                SUM(CASE WHEN ss.phone_normalized IS NULL THEN 1 ELSE 0 END) AS to_other
+            FROM call_logs cl
+            LEFT JOIN (
+                SELECT DISTINCT phone_normalized
+                FROM subscriber_snapshots
+                WHERE snapshot_date = :snapshot_date
+                AND phone_normalized IS NOT NULL
+            ) ss ON ss.phone_normalized COLLATE utf8mb4_general_ci = cl.phone_normalized
+            WHERE cl.call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND cl.call_direction = 'placed'
+            AND LENGTH(cl.remote_number) != 4
+            GROUP BY yw, week_start, COALESCE(cl.source_group, 'UNKNOWN')
+            ORDER BY yw, source_group
+        ";
+        $subCallStmt = $pdo->prepare($subCallSQL);
+        $subCallStmt->execute([':snapshot_date' => $latestSnap]);
+        $subCallRows = $subCallStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $subscriberCalls = array_map(
+            function ($row) use ($csrNames) {
+                return [
+                'yw'            => $row['yw'],
+                'week_start'    => $row['week_start'],
+                'name'          => mapCsrName($row['source_group'], $csrNames),
+                'group'         => $row['source_group'],
+                'to_subscriber' => (int) $row['to_subscriber'],
+                'to_other'      => (int) $row['to_other'],
+                ];
+            },
+            $subCallRows
+        );
+    }
+
+    // Date range and last updated
+    $dateRangeStmt = $pdo->query("
+        SELECT MIN(call_timestamp) AS earliest, MAX(call_timestamp) AS latest
+        FROM call_logs
+        WHERE call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+    ");
+    $dateRange = $dateRangeStmt->fetch(PDO::FETCH_ASSOC);
+
     $lastUpdatedStmt = $pdo->query("SELECT MAX(imported_at) AS last_updated FROM call_logs");
     $lastUpdatedRow = $lastUpdatedStmt->fetch(PDO::FETCH_ASSOC);
     $lastUpdated = $lastUpdatedRow['last_updated'] ?? null;
 
     echo json_encode(
         [
-        'success'      => true,
-        'summary'      => $summary,
-        'weekly'       => $weekly,
-        'last_updated' => $lastUpdated,
+        'success'          => true,
+        'summary'          => $summary,
+        'weekly'           => $weekly,
+        'subscriber_calls' => $subscriberCalls,
+        'date_range'       => [
+            'earliest' => $dateRange['earliest'] ?? null,
+            'latest'   => $dateRange['latest'] ?? null,
+        ],
+        'last_updated'     => $lastUpdated,
         ]
     );
 } catch (Exception $e) {

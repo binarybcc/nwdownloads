@@ -1,0 +1,73 @@
+# Requirements: NWDownloads Circulation Dashboard
+
+**Defined:** 2026-03-20
+**Core Value:** Circulation managers can see subscriber health at a glance and take action on retention
+
+## v2.2 Requirements
+
+Requirements for milestone v2.2 — Monthly Subscriber Handling & Dashboard Refinements.
+
+### Monthly Subscriber Handling
+
+- [ ] **MONTH-01**: Monthly subscribers (last payment between -$0.01 and -$25.00) display with normal row styling (no red call status color) in subscriber list
+- [ ] **MONTH-02**: Monthly subscribers show no phone icon unless call log activity exists for that subscriber
+- [ ] **MONTH-03**: Monthly subscribers sort to the bottom of the subscriber list in default sort order
+- [ ] **MONTH-04**: Monthly subscribers export with no row coloring in XLSX unless call log activity exists
+
+### Trend View
+
+- [ ] **TREND-01**: "Show trend over time" displays 13 weeks of data (expanded from current)
+
+### Call Log Maintenance
+
+- [ ] **MAINT-01**: Call log import script purges records older than 90 days during each run
+
+### CSR Reporting
+
+- [ ] **CSR-01**: Settings page displays outgoing call count per CSR (mapped from scraper phone lines) for the last 60 days
+
+## Future Requirements
+
+### Call Enhancements (deferred from v2.1)
+
+- **CALL-F01**: Manual call outcome annotation
+- **CALL-F02**: XSI API integration if carrier enables
+- **CALL-F03**: Call duration tracking
+- **CALL-F04**: Agent attribution display (multiple staff icons)
+
+### Dashboard Enhancements (deferred from v2.1)
+
+- **DASH-F01**: Visual de-emphasis of far-out expiration weeks
+- **DASH-F02**: New starts count on BU cards
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Real-time call event push | BroadWorks XSI-Events not available |
+| Inbound call count on settings | Only outgoing calls requested for CSR reporting |
+| Date picker for CSR report | Fixed 60-day window sufficient for now |
+| Monthly subscriber auto-detection from subscription type | Using payment amount heuristic (-$0.01 to -$25.00) per business rules |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| MONTH-01 | — | Pending |
+| MONTH-02 | — | Pending |
+| MONTH-03 | — | Pending |
+| MONTH-04 | — | Pending |
+| TREND-01 | — | Pending |
+| MAINT-01 | — | Pending |
+| CSR-01 | — | Pending |
+
+**Coverage:**
+- v2.2 requirements: 7 total
+- Mapped to phases: 0
+- Unmapped: 7 (awaiting roadmap)
+
+---
+*Requirements defined: 2026-03-20*
+*Last updated: 2026-03-20 after initial definition*

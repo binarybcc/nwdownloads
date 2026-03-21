@@ -5,7 +5,7 @@
 
 ## v2.2 Requirements
 
-Requirements for milestone v2.2 — Monthly Subscriber Handling & Dashboard Refinements.
+Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refinements.
 
 ### Monthly Subscriber Handling
 
@@ -51,23 +51,21 @@ Requirements for milestone v2.2 — Monthly Subscriber Handling & Dashboard Refi
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MONTH-01 | — | Pending |
-| MONTH-02 | — | Pending |
-| MONTH-03 | — | Pending |
-| MONTH-04 | — | Pending |
-| TREND-01 | — | Pending |
-| MAINT-01 | — | Pending |
-| CSR-01 | — | Pending |
+| MONTH-01 | Phase 7 | Pending |
+| MONTH-02 | Phase 7 | Pending |
+| MONTH-03 | Phase 7 | Pending |
+| MONTH-04 | Phase 7 | Pending |
+| TREND-01 | Phase 8 | Pending |
+| MAINT-01 | Phase 8 | Pending |
+| CSR-01 | Phase 9 | Pending |
 
 **Coverage:**
 - v2.2 requirements: 7 total
-- Mapped to phases: 0
-- Unmapped: 7 (awaiting roadmap)
+- Mapped to phases: 7
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 after initial definition*
+*Last updated: 2026-03-20 after roadmap creation*

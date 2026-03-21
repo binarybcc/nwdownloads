@@ -43,11 +43,11 @@
   2. A monthly subscriber with no call log activity shows no phone icon; a monthly subscriber WITH call log activity shows the appropriate phone icon
   3. Monthly subscribers appear at the bottom of the subscriber list in default sort order
   4. XLSX export renders monthly subscriber rows with no status coloring unless call log activity exists for that subscriber
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md -- Add is_monthly SQL flag to PHP API (server-side detection)
+- [ ] 07-02-PLAN.md -- Frontend monthly-aware rendering, sorting, and XLSX export
 
 ### Phase 8: Trend Expansion & Log Retention
 **Goal**: Trend charts show a full quarter of history and call log data is automatically maintained
@@ -86,6 +86,6 @@ Phases 7, 8, 9 can execute in any order (no inter-dependencies). Recommended: 7 
 | 4. Call Log Scraper | v2.1 | 2/2 | Complete | 2026-03-20 |
 | 5. Expiration Chart Expansion | v2.1 | 1/1 | Complete | 2026-03-20 |
 | 6. Call Status UI and Export | v2.1 | 2/2 | Complete | 2026-03-20 |
-| 7. Monthly Subscriber Exemption | v2.2 | 0/? | Not started | - |
+| 7. Monthly Subscriber Exemption | v2.2 | 0/2 | Planned | - |
 | 8. Trend Expansion & Log Retention | v2.2 | 0/? | Not started | - |
 | 9. CSR Call Reporting | v2.2 | 0/? | Not started | - |

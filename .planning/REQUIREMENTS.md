@@ -24,7 +24,7 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 
 ### CSR Reporting
 
-- [ ] **CSR-01**: Settings page displays outgoing call count per CSR (mapped from scraper phone lines) for the last 60 days
+- [x] **CSR-01**: Settings page displays outgoing call count per CSR (mapped from scraper phone lines) for the last 60 days
 
 ## Future Requirements
 
@@ -59,7 +59,7 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 | MONTH-04 | Phase 7 | Complete |
 | TREND-01 | Phase 8 | Complete |
 | MAINT-01 | Phase 8 | Complete |
-| CSR-01 | Phase 9 | Pending |
+| CSR-01 | Phase 9 | Complete |
 
 **Coverage:**
 - v2.2 requirements: 7 total

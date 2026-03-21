@@ -66,11 +66,22 @@ require_once 'version.php';
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead>
                         <tr>
-                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CSR Name</th>
-                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outgoing</th>
-                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Received</th>
-                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Missed</th>
-                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th rowspan="2" class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider align-bottom">CSR Name</th>
+                            <th colspan="3" class="px-2 py-2 bg-blue-50 text-center text-xs font-medium text-blue-700 uppercase tracking-wider border-b border-blue-200">Outgoing</th>
+                            <th colspan="3" class="px-2 py-2 bg-green-50 text-center text-xs font-medium text-green-700 uppercase tracking-wider border-b border-green-200">Received</th>
+                            <th colspan="3" class="px-2 py-2 bg-red-50 text-center text-xs font-medium text-red-700 uppercase tracking-wider border-b border-red-200">Missed</th>
+                            <th rowspan="2" class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider align-bottom">Total</th>
+                        </tr>
+                        <tr>
+                            <th class="px-3 py-2 bg-blue-50 text-center text-xs font-medium text-blue-600">Ext</th>
+                            <th class="px-3 py-2 bg-blue-50 text-center text-xs font-medium text-blue-600">Other</th>
+                            <th class="px-3 py-2 bg-blue-50 text-center text-xs font-medium text-blue-700 font-bold">All</th>
+                            <th class="px-3 py-2 bg-green-50 text-center text-xs font-medium text-green-600">Ext</th>
+                            <th class="px-3 py-2 bg-green-50 text-center text-xs font-medium text-green-600">Other</th>
+                            <th class="px-3 py-2 bg-green-50 text-center text-xs font-medium text-green-700 font-bold">All</th>
+                            <th class="px-3 py-2 bg-red-50 text-center text-xs font-medium text-red-600">Ext</th>
+                            <th class="px-3 py-2 bg-red-50 text-center text-xs font-medium text-red-600">Other</th>
+                            <th class="px-3 py-2 bg-red-50 text-center text-xs font-medium text-red-700 font-bold">All</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="bg-white divide-y divide-gray-200">
@@ -160,25 +171,36 @@ require_once 'version.php';
                 '<div class="p-6 text-center text-red-600">' + message + '</div>';
         }
 
+        // All table values are integers from our own API — safe for innerHTML
         function buildTable(summary) {
             var tbody = document.getElementById('tableBody');
-            var totalPlaced = 0;
-            var totalReceived = 0;
-            var totalMissed = 0;
-            var totalAll = 0;
+            var totals = { placed_ext: 0, placed_other: 0, placed: 0, received_ext: 0, received_other: 0, received: 0, missed_ext: 0, missed_other: 0, missed: 0, total: 0 };
 
             summary.forEach(function (csr) {
-                totalPlaced += csr.placed;
-                totalReceived += csr.received;
-                totalMissed += csr.missed;
-                totalAll += csr.total;
+                totals.placed_ext += csr.placed_ext;
+                totals.placed_other += csr.placed_other;
+                totals.placed += csr.placed;
+                totals.received_ext += csr.received_ext;
+                totals.received_other += csr.received_other;
+                totals.received += csr.received;
+                totals.missed_ext += csr.missed_ext;
+                totals.missed_other += csr.missed_other;
+                totals.missed += csr.missed;
+                totals.total += csr.total;
 
                 var row = document.createElement('tr');
+                var cell = function(val, cls) { return '<td class="px-3 py-4 whitespace-nowrap text-sm text-center ' + cls + '">' + (val || '-') + '</td>'; };
                 row.innerHTML =
                     '<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">' + csr.name + '</td>' +
-                    '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">' + csr.placed + '</td>' +
-                    '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">' + csr.received + '</td>' +
-                    '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">' + csr.missed + '</td>' +
+                    cell(csr.placed_ext, 'text-blue-400') +
+                    cell(csr.placed_other, 'text-blue-600') +
+                    cell(csr.placed, 'font-semibold text-blue-800') +
+                    cell(csr.received_ext, 'text-green-400') +
+                    cell(csr.received_other, 'text-green-600') +
+                    cell(csr.received, 'font-semibold text-green-800') +
+                    cell(csr.missed_ext, 'text-red-400') +
+                    cell(csr.missed_other, 'text-red-600') +
+                    cell(csr.missed, 'font-semibold text-red-800') +
                     '<td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">' + csr.total + '</td>';
                 tbody.appendChild(row);
             });
@@ -186,12 +208,19 @@ require_once 'version.php';
             // Totals row
             var totalsRow = document.createElement('tr');
             totalsRow.className = 'bg-gray-50';
+            var bold = function(val, cls) { return '<td class="px-3 py-4 whitespace-nowrap text-sm text-center font-bold ' + cls + '">' + val + '</td>'; };
             totalsRow.innerHTML =
                 '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">Total</td>' +
-                '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">' + totalPlaced + '</td>' +
-                '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">' + totalReceived + '</td>' +
-                '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">' + totalMissed + '</td>' +
-                '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">' + totalAll + '</td>';
+                bold(totals.placed_ext, 'text-blue-400') +
+                bold(totals.placed_other, 'text-blue-600') +
+                bold(totals.placed, 'text-blue-800') +
+                bold(totals.received_ext, 'text-green-400') +
+                bold(totals.received_other, 'text-green-600') +
+                bold(totals.received, 'text-green-800') +
+                bold(totals.missed_ext, 'text-red-400') +
+                bold(totals.missed_other, 'text-red-600') +
+                bold(totals.missed, 'text-red-800') +
+                '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">' + totals.total + '</td>';
             tbody.appendChild(totalsRow);
         }
 
@@ -213,27 +242,31 @@ require_once 'version.php';
                 csrs.push({ name: csr.name, group: csr.group });
             });
 
-            // Build datasets: for each CSR, 3 stacked datasets (placed, received, missed)
+            // Build datasets: for each CSR, 6 stacked layers (ext/other for placed, received, missed)
+            // Darker shade = 4-digit extension (internal), lighter shade = other (external)
             var datasets = [];
-            var directionColors = {
-                placed:   'rgba(59, 130, 246, 0.7)',
-                received: 'rgba(34, 197, 94, 0.7)',
-                missed:   'rgba(239, 68, 68, 0.5)'
-            };
+            var layerConfig = [
+                { key: 'placed_ext',     label: 'Placed (Ext)',    color: 'rgba(37, 99, 235, 0.85)'  },
+                { key: 'placed_other',   label: 'Placed (Other)',  color: 'rgba(147, 197, 253, 0.8)' },
+                { key: 'received_ext',   label: 'Received (Ext)',  color: 'rgba(22, 163, 74, 0.85)'  },
+                { key: 'received_other', label: 'Received (Other)',color: 'rgba(134, 239, 172, 0.8)' },
+                { key: 'missed_ext',     label: 'Missed (Ext)',    color: 'rgba(220, 38, 38, 0.85)'  },
+                { key: 'missed_other',   label: 'Missed (Other)', color: 'rgba(252, 165, 165, 0.7)' }
+            ];
 
             csrs.forEach(function (csr) {
-                ['placed', 'received', 'missed'].forEach(function (direction) {
+                layerConfig.forEach(function (layer) {
                     var dataPoints = weekStarts.map(function (ws) {
                         var match = weekly.find(function (row) {
                             return row.week_start === ws && row.group === csr.group;
                         });
-                        return match ? match[direction] : 0;
+                        return match ? match[layer.key] : 0;
                     });
 
                     datasets.push({
-                        label: csr.name + ' - ' + direction.charAt(0).toUpperCase() + direction.slice(1),
+                        label: csr.name + ' - ' + layer.label,
                         data: dataPoints,
-                        backgroundColor: directionColors[direction],
+                        backgroundColor: layer.color,
                         stack: csr.group
                     });
                 });
@@ -263,6 +296,13 @@ require_once 'version.php';
                             labels: {
                                 boxWidth: 12,
                                 padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                }
                             }
                         }
                     }

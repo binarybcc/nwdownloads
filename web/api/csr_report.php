@@ -72,12 +72,18 @@ try {
     $pdo = connectDB($db_config);
     $isSummaryMode = isset($_GET['summary']) && $_GET['summary'] === 'true';
 
-    // Summary query: per-CSR totals for last 60 days
+    // Summary query: per-CSR totals for last 60 days, split by 4-digit extension vs other
     $summarySQL = "
         SELECT
             COALESCE(source_group, 'UNKNOWN') AS source_group,
+            SUM(CASE WHEN call_direction = 'placed' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS placed_ext,
+            SUM(CASE WHEN call_direction = 'placed' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS placed_other,
             SUM(CASE WHEN call_direction = 'placed' THEN 1 ELSE 0 END) AS placed,
+            SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS received_ext,
+            SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS received_other,
             SUM(CASE WHEN call_direction = 'received' THEN 1 ELSE 0 END) AS received,
+            SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS missed_ext,
+            SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS missed_other,
             SUM(CASE WHEN call_direction = 'missed' THEN 1 ELSE 0 END) AS missed,
             COUNT(*) AS total
         FROM call_logs
@@ -92,12 +98,18 @@ try {
     $summary = array_map(
         function ($row) use ($csrNames) {
             return [
-            'name'     => mapCsrName($row['source_group'], $csrNames),
-            'group'    => $row['source_group'],
-            'placed'   => (int) $row['placed'],
-            'received' => (int) $row['received'],
-            'missed'   => (int) $row['missed'],
-            'total'    => (int) $row['total'],
+            'name'           => mapCsrName($row['source_group'], $csrNames),
+            'group'          => $row['source_group'],
+            'placed'         => (int) $row['placed'],
+            'placed_ext'     => (int) $row['placed_ext'],
+            'placed_other'   => (int) $row['placed_other'],
+            'received'       => (int) $row['received'],
+            'received_ext'   => (int) $row['received_ext'],
+            'received_other' => (int) $row['received_other'],
+            'missed'         => (int) $row['missed'],
+            'missed_ext'     => (int) $row['missed_ext'],
+            'missed_other'   => (int) $row['missed_other'],
+            'total'          => (int) $row['total'],
             ];
         },
         $summaryRows
@@ -114,8 +126,14 @@ try {
                     '%Y-%m-%d'
                 ) AS week_start,
                 COALESCE(source_group, 'UNKNOWN') AS source_group,
+                SUM(CASE WHEN call_direction = 'placed' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS placed_ext,
+                SUM(CASE WHEN call_direction = 'placed' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS placed_other,
                 SUM(CASE WHEN call_direction = 'placed' THEN 1 ELSE 0 END) AS placed,
+                SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS received_ext,
+                SUM(CASE WHEN call_direction = 'received' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS received_other,
                 SUM(CASE WHEN call_direction = 'received' THEN 1 ELSE 0 END) AS received,
+                SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) = 4 THEN 1 ELSE 0 END) AS missed_ext,
+                SUM(CASE WHEN call_direction = 'missed' AND LENGTH(remote_number) != 4 THEN 1 ELSE 0 END) AS missed_other,
                 SUM(CASE WHEN call_direction = 'missed' THEN 1 ELSE 0 END) AS missed
             FROM call_logs
             WHERE call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
@@ -128,13 +146,19 @@ try {
         $weekly = array_map(
             function ($row) use ($csrNames) {
                 return [
-                'yw'         => $row['yw'],
-                'week_start' => $row['week_start'],
-                'name'       => mapCsrName($row['source_group'], $csrNames),
-                'group'      => $row['source_group'],
-                'placed'     => (int) $row['placed'],
-                'received'   => (int) $row['received'],
-                'missed'     => (int) $row['missed'],
+                'yw'             => $row['yw'],
+                'week_start'     => $row['week_start'],
+                'name'           => mapCsrName($row['source_group'], $csrNames),
+                'group'          => $row['source_group'],
+                'placed'         => (int) $row['placed'],
+                'placed_ext'     => (int) $row['placed_ext'],
+                'placed_other'   => (int) $row['placed_other'],
+                'received'       => (int) $row['received'],
+                'received_ext'   => (int) $row['received_ext'],
+                'received_other' => (int) $row['received_other'],
+                'missed'         => (int) $row['missed'],
+                'missed_ext'     => (int) $row['missed_ext'],
+                'missed_other'   => (int) $row['missed_other'],
                 ];
             },
             $weeklyRows

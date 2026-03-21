@@ -16,15 +16,15 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 
 ### Trend View
 
-- [ ] **TREND-01**: "Show trend over time" displays 13 weeks of data (expanded from current)
+- [x] **TREND-01**: "Show trend over time" displays 13 weeks of data (expanded from current)
 
 ### Call Log Maintenance
 
-- [ ] **MAINT-01**: Call log import script purges records older than 90 days during each run
+- [x] **MAINT-01**: Call log import script purges records older than 90 days during each run
 
 ### CSR Reporting
 
-- [ ] **CSR-01**: Settings page displays outgoing call count per CSR (mapped from scraper phone lines) for the last 60 days
+- [x] **CSR-01**: Settings page displays outgoing call count per CSR (mapped from scraper phone lines) for the last 60 days
 
 ## Future Requirements
 
@@ -57,9 +57,9 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 | MONTH-02 | Phase 7 | Complete |
 | MONTH-03 | Phase 7 | Complete |
 | MONTH-04 | Phase 7 | Complete |
-| TREND-01 | Phase 8 | Pending |
-| MAINT-01 | Phase 8 | Pending |
-| CSR-01 | Phase 9 | Pending |
+| TREND-01 | Phase 8 | Complete |
+| MAINT-01 | Phase 8 | Complete |
+| CSR-01 | Phase 9 | Complete |
 
 **Coverage:**
 - v2.2 requirements: 7 total

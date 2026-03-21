@@ -187,6 +187,15 @@ foreach ($users as $user) {
 // Logout and report
 $scraper->logout();
 log_msg("=== Done. Scraped: {$totalScraped}, New: {$totalInserted} ===");
+
+// Purge old call logs (90-day retention)
+try {
+    $purgeStmt = $pdo->exec("DELETE FROM call_logs WHERE call_timestamp < DATE_SUB(NOW(), INTERVAL 90 DAY)");
+    log_msg("Purged {$purgeStmt} call_logs records older than 90 days");
+} catch (\PDOException $e) {
+    log_msg("WARNING: Call log purge failed: " . $e->getMessage());
+}
+
 exit(0);
 
 // ── Helper Functions ──────────────────────────────────────────────────────────

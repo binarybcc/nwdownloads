@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Monthly Subscriber Handling & Dashboard Refinements
-status: verifying
-stopped_at: Phase 8 context gathered
-last_updated: "2026-03-21T15:48:13.444Z"
-last_activity: 2026-03-21 -- Completed 07-02 (frontend monthly rendering, sorting, export)
+status: executing
+stopped_at: Completed 09-01-PLAN.md (CSR Call Reporting)
+last_updated: "2026-03-21T19:10:20.054Z"
+last_activity: 2026-03-21 -- Completed 08-01 (13-week trend expansion)
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 
 ## Current Position
 
-Phase: 7 of 9 (Monthly Subscriber Exemption) -- first phase of v2.2 -- COMPLETE
-Plan: 2 of 2 complete
-Status: Phase complete (verification deferred to end-of-milestone)
-Last activity: 2026-03-21 -- Completed 07-02 (frontend monthly rendering, sorting, export)
+Phase: 9 of 9 (CSR Call Reporting)
+Plan: 1 of 1 complete
+Status: All v2.2 plans complete -- awaiting deployment and deferred verifications
+Last activity: 2026-03-21 -- Completed 09-01 (CSR Call Reporting)
 
-Progress: [██████████] 100% (2/2 plans in phase 7)
+Progress: [██████████] 100% (5/5 plans in v2.2)
 
 ## Performance Metrics
 
@@ -53,6 +53,14 @@ All v2.1 decisions logged in PROJECT.md Key Decisions table.
 - Empty object {} return for monthly export fill (no background color)
 - End-to-end verification deferred to end-of-milestone deployment
 
+**v2.2 (Phase 8):**
+- Call log purge uses call_timestamp (business date) not imported_at for 90-day retention
+- Purge runs in-script after import, not as separate cron job
+- PDO exec() for parameterless DELETE; try/catch logs warning on failure without crashing
+- [Phase 08-01]: Kept 12weeks in weeksMap for backward URL compat; replaced 12weeks button with 13weeks in slider UI
+- [Phase 09]: Task 3 human-verify deferred to end-of-milestone deployment (user cannot verify from current location)
+- [Phase 09]: CSR name mapping as PHP array (BC->Brittany Carroll, CW->Chloe Welch) with Unknown fallback
+
 ### Pending Todos
 
 None.
@@ -63,7 +71,7 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-21T15:48:13.442Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-trend-expansion-log-retention/08-CONTEXT.md
-Next step: Phase 8 planning (Trend Expansion & Log Retention)
+Last session: 2026-03-21T19:10:20.052Z
+Stopped at: Completed 09-01-PLAN.md (CSR Call Reporting)
+Resume file: None
+Next step: Deploy v2.2 to production, then verify deferred checkpoints (Phase 7 and Phase 9)

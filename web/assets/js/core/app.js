@@ -956,7 +956,7 @@ function renderBusinessUnits() {
                      onclick="event.stopPropagation(); openTrendDetail('${unitName}');"
                      title="Click to view detailed trend">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="text-xs font-medium text-gray-500">12-Week Trend</div>
+                        <div class="text-xs font-medium text-gray-500">13-Week Trend</div>
                         <div class="text-xs text-blue-500">Click to expand</div>
                     </div>
                     <div style="position: relative; height: 120px;">
@@ -1322,7 +1322,7 @@ function exportToExcel() {
   const paperSheet = XLSX.utils.aoa_to_sheet(paperData);
   XLSX.utils.book_append_sheet(wb, paperSheet, 'By Publication');
 
-  // Sheet 4: 12-Week Trend
+  // Sheet 4: 13-Week Trend
   const trendData = [
     ['Date', 'Paid Subscribers', 'Total (incl comp)', 'Deliverable', 'On Vacation'],
   ];
@@ -1336,7 +1336,7 @@ function exportToExcel() {
     ]);
   }
   const trendSheet = XLSX.utils.aoa_to_sheet(trendData);
-  XLSX.utils.book_append_sheet(wb, trendSheet, '12-Week Trend');
+  XLSX.utils.book_append_sheet(wb, trendSheet, '13-Week Trend');
 
   // Download
   XLSX.writeFile(wb, `circulation-export-${data.week.label.replace(/\s/g, '-')}.xlsx`);
@@ -1617,7 +1617,7 @@ function renderBusinessUnitDetail(unitName, data) {
   const trendId = `trend-${unitName.replace(/\s+/g, '-').toLowerCase()}`;
   html += `
         <div>
-            <h4 class="text-sm font-semibold text-gray-700 mb-3">📊 12-Week Trend</h4>
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">📊 13-Week Trend</h4>
             <div style="position: relative; height: 200px;">
                 <canvas id="${trendId}"></canvas>
             </div>

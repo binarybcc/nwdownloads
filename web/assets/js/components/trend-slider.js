@@ -50,7 +50,7 @@ class TrendSlider {
         console.log('🎨 TrendSlider.open() received context:', context);
         this.context = {
             ...context,
-            timeRange: context.timeRange || '4weeks'
+            timeRange: context.timeRange || '13weeks'
         };
         console.log('🎨 TrendSlider.context stored:', this.context);
 
@@ -149,6 +149,7 @@ class TrendSlider {
         const timeRangeLabels = {
             '4weeks': '4 Weeks',
             '12weeks': '12 Weeks',
+            '13weeks': '13 Weeks',
             '26weeks': '26 Weeks',
             '52weeks': '52 Weeks'
         };
@@ -233,7 +234,7 @@ class TrendSlider {
                     display: flex;
                     gap: 0.75rem;
                 ">
-                    ${['4weeks', '12weeks', '26weeks', '52weeks'].map(range => `
+                    ${['4weeks', '13weeks', '26weeks', '52weeks'].map(range => `
                         <button
                             class="trend-time-range-btn"
                             data-range="${range}"
@@ -617,6 +618,7 @@ class TrendSlider {
         const timeRangeLabels = {
             '4weeks': '4 weeks',
             '12weeks': '12 weeks',
+            '13weeks': '13 weeks',
             '26weeks': '26 weeks',
             '52weeks': '52 weeks'
         };

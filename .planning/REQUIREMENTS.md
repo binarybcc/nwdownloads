@@ -20,7 +20,7 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 
 ### Call Log Maintenance
 
-- [ ] **MAINT-01**: Call log import script purges records older than 90 days during each run
+- [x] **MAINT-01**: Call log import script purges records older than 90 days during each run
 
 ### CSR Reporting
 
@@ -58,7 +58,7 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 | MONTH-03 | Phase 7 | Complete |
 | MONTH-04 | Phase 7 | Complete |
 | TREND-01 | Phase 8 | Pending |
-| MAINT-01 | Phase 8 | Pending |
+| MAINT-01 | Phase 8 | Complete |
 | CSR-01 | Phase 9 | Pending |
 
 **Coverage:**

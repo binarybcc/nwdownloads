@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Monthly Subscriber Handling & Dashboard Refinements
-status: verifying
-stopped_at: Phase 8 context gathered
-last_updated: "2026-03-21T15:48:13.444Z"
-last_activity: 2026-03-21 -- Completed 07-02 (frontend monthly rendering, sorting, export)
+status: executing
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-03-21T16:38:00.429Z"
+last_activity: 2026-03-21 -- Completed 08-02 (call log 90-day retention purge)
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_plans: 4
+  completed_plans: 3
+  percent: 75
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 
 ## Current Position
 
-Phase: 7 of 9 (Monthly Subscriber Exemption) -- first phase of v2.2 -- COMPLETE
+Phase: 8 of 9 (Trend Expansion & Log Retention)
 Plan: 2 of 2 complete
-Status: Phase complete (verification deferred to end-of-milestone)
-Last activity: 2026-03-21 -- Completed 07-02 (frontend monthly rendering, sorting, export)
+Status: Executing phase 8 plans
+Last activity: 2026-03-21 -- Completed 08-02 (call log 90-day retention purge)
 
-Progress: [██████████] 100% (2/2 plans in phase 7)
+Progress: [████████░░] 75% (3/4 plans in v2.2)
 
 ## Performance Metrics
 
@@ -53,6 +53,11 @@ All v2.1 decisions logged in PROJECT.md Key Decisions table.
 - Empty object {} return for monthly export fill (no background color)
 - End-to-end verification deferred to end-of-milestone deployment
 
+**v2.2 (Phase 8):**
+- Call log purge uses call_timestamp (business date) not imported_at for 90-day retention
+- Purge runs in-script after import, not as separate cron job
+- PDO exec() for parameterless DELETE; try/catch logs warning on failure without crashing
+
 ### Pending Todos
 
 None.
@@ -63,7 +68,7 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-21T15:48:13.442Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-trend-expansion-log-retention/08-CONTEXT.md
-Next step: Phase 8 planning (Trend Expansion & Log Retention)
+Last session: 2026-03-21T16:38:00.427Z
+Stopped at: Completed 08-02-PLAN.md
+Resume file: None
+Next step: Execute remaining phase 8 plans (08-01 if not yet done) or proceed to phase 9

@@ -94,8 +94,22 @@ require_once 'version.php';
             No call data available for the last 60 days.
         </div>
 
-        <!-- Chart -->
-        <h2 class="text-lg font-semibold text-gray-900 mt-8 mb-4">Weekly Call Volume</h2>
+        <!-- Hero Chart: Calls to Known Subscribers -->
+        <div class="mt-8 mb-2">
+            <h2 class="text-lg font-semibold text-gray-900">Calls to Known Subscribers</h2>
+            <p class="text-sm text-gray-500">Outbound calls matched to a subscriber phone number on file (floor count)</p>
+            <p id="heroDateRange" class="text-xs text-gray-400 mt-1"></p>
+        </div>
+
+        <div id="heroSkeleton" class="animate-pulse h-48 bg-gray-200 rounded-lg mb-8"></div>
+
+        <div id="heroContainer" class="hidden mb-8">
+            <canvas id="heroChart"></canvas>
+        </div>
+
+        <!-- Detail Chart: All Call Activity -->
+        <h2 class="text-lg font-semibold text-gray-900 mt-4 mb-1">All Call Activity</h2>
+        <p id="detailDateRange" class="text-xs text-gray-400 mb-4"></p>
 
         <div id="chartSkeleton" class="animate-pulse h-64 bg-gray-200 rounded-lg"></div>
 
@@ -150,7 +164,22 @@ require_once 'version.php';
                         buildTable(data.summary);
                     }
 
-                    // Build chart
+                    // Show date range
+                    if (data.date_range && data.date_range.earliest) {
+                        var fmt = function(d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+                        var rangeText = fmt(data.date_range.earliest) + ' – ' + fmt(data.date_range.latest);
+                        document.getElementById('heroDateRange').textContent = rangeText;
+                        document.getElementById('detailDateRange').textContent = rangeText;
+                    }
+
+                    // Build hero chart (subscriber calls)
+                    document.getElementById('heroSkeleton').classList.add('hidden');
+                    if (data.subscriber_calls && data.subscriber_calls.length > 0) {
+                        document.getElementById('heroContainer').classList.remove('hidden');
+                        buildHeroChart(data.subscriber_calls, data.summary);
+                    }
+
+                    // Build detail chart
                     document.getElementById('chartSkeleton').classList.add('hidden');
                     if (data.weekly.length === 0) {
                         document.getElementById('chartEmpty').classList.remove('hidden');
@@ -222,6 +251,95 @@ require_once 'version.php';
                 bold(totals.missed, 'text-red-800') +
                 '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">' + totals.total + '</td>';
             tbody.appendChild(totalsRow);
+        }
+
+        function buildHeroChart(subscriberCalls, summary) {
+            // Get unique week starts
+            var weekStarts = [];
+            var weekLabels = [];
+            subscriberCalls.forEach(function (row) {
+                if (weekStarts.indexOf(row.week_start) === -1) {
+                    weekStarts.push(row.week_start);
+                    var d = new Date(row.week_start + 'T00:00:00');
+                    weekLabels.push('Week of ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                }
+            });
+
+            // Get unique CSRs
+            var csrs = [];
+            summary.forEach(function (csr) {
+                csrs.push({ name: csr.name, group: csr.group });
+            });
+
+            // CSR colors: bold for subscriber calls, muted for other
+            var csrColors = [
+                { subscriber: 'rgba(37, 99, 235, 0.9)',  other: 'rgba(191, 219, 254, 0.6)' },
+                { subscriber: 'rgba(5, 150, 105, 0.9)',  other: 'rgba(167, 243, 208, 0.6)' },
+                { subscriber: 'rgba(168, 85, 247, 0.9)', other: 'rgba(221, 214, 254, 0.6)' }
+            ];
+
+            var datasets = [];
+            csrs.forEach(function (csr, idx) {
+                var colors = csrColors[idx % csrColors.length];
+
+                // Subscriber calls (bold)
+                var subData = weekStarts.map(function (ws) {
+                    var match = subscriberCalls.find(function (row) {
+                        return row.week_start === ws && row.group === csr.group;
+                    });
+                    return match ? match.to_subscriber : 0;
+                });
+                datasets.push({
+                    label: csr.name + ' — To Subscribers',
+                    data: subData,
+                    backgroundColor: colors.subscriber,
+                    borderColor: colors.subscriber.replace('0.9', '1'),
+                    borderWidth: 1,
+                    stack: csr.group
+                });
+
+                // Other outbound (muted)
+                var otherData = weekStarts.map(function (ws) {
+                    var match = subscriberCalls.find(function (row) {
+                        return row.week_start === ws && row.group === csr.group;
+                    });
+                    return match ? match.to_other : 0;
+                });
+                datasets.push({
+                    label: csr.name + ' — Other Outbound',
+                    data: otherData,
+                    backgroundColor: colors.other,
+                    borderColor: colors.other.replace('0.6', '0.8'),
+                    borderWidth: 1,
+                    stack: csr.group
+                });
+            });
+
+            var ctx = document.getElementById('heroChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: { labels: weekLabels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Outbound Calls' } }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 14, padding: 12 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function buildChart(weekly, summary) {

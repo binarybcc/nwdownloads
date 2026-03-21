@@ -165,17 +165,78 @@ try {
         );
     }
 
-    // Last updated timestamp
+    // Subscriber call matching (full mode only): placed external calls to known subscriber phone numbers
+    $subscriberCalls = [];
+    if (!$isSummaryMode) {
+        // Get latest snapshot date for subscriber phone lookup
+        $latestSnap = $pdo->query("SELECT MAX(snapshot_date) FROM daily_snapshots")->fetchColumn();
+
+        // Weekly subscriber-call counts per CSR
+        $subCallSQL = "
+            SELECT
+                YEARWEEK(cl.call_timestamp, 3) AS yw,
+                DATE_FORMAT(
+                    DATE_SUB(cl.call_timestamp, INTERVAL WEEKDAY(cl.call_timestamp) DAY),
+                    '%Y-%m-%d'
+                ) AS week_start,
+                COALESCE(cl.source_group, 'UNKNOWN') AS source_group,
+                SUM(CASE WHEN ss.phone_normalized IS NOT NULL THEN 1 ELSE 0 END) AS to_subscriber,
+                SUM(CASE WHEN ss.phone_normalized IS NULL THEN 1 ELSE 0 END) AS to_other
+            FROM call_logs cl
+            LEFT JOIN (
+                SELECT DISTINCT phone_normalized
+                FROM subscriber_snapshots
+                WHERE snapshot_date = :snapshot_date
+                AND phone_normalized IS NOT NULL
+            ) ss ON ss.phone_normalized COLLATE utf8mb4_general_ci = cl.phone_normalized
+            WHERE cl.call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND cl.call_direction = 'placed'
+            AND LENGTH(cl.remote_number) != 4
+            GROUP BY yw, week_start, COALESCE(cl.source_group, 'UNKNOWN')
+            ORDER BY yw, source_group
+        ";
+        $subCallStmt = $pdo->prepare($subCallSQL);
+        $subCallStmt->execute([':snapshot_date' => $latestSnap]);
+        $subCallRows = $subCallStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $subscriberCalls = array_map(
+            function ($row) use ($csrNames) {
+                return [
+                'yw'            => $row['yw'],
+                'week_start'    => $row['week_start'],
+                'name'          => mapCsrName($row['source_group'], $csrNames),
+                'group'         => $row['source_group'],
+                'to_subscriber' => (int) $row['to_subscriber'],
+                'to_other'      => (int) $row['to_other'],
+                ];
+            },
+            $subCallRows
+        );
+    }
+
+    // Date range and last updated
+    $dateRangeStmt = $pdo->query("
+        SELECT MIN(call_timestamp) AS earliest, MAX(call_timestamp) AS latest
+        FROM call_logs
+        WHERE call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+    ");
+    $dateRange = $dateRangeStmt->fetch(PDO::FETCH_ASSOC);
+
     $lastUpdatedStmt = $pdo->query("SELECT MAX(imported_at) AS last_updated FROM call_logs");
     $lastUpdatedRow = $lastUpdatedStmt->fetch(PDO::FETCH_ASSOC);
     $lastUpdated = $lastUpdatedRow['last_updated'] ?? null;
 
     echo json_encode(
         [
-        'success'      => true,
-        'summary'      => $summary,
-        'weekly'       => $weekly,
-        'last_updated' => $lastUpdated,
+        'success'          => true,
+        'summary'          => $summary,
+        'weekly'           => $weekly,
+        'subscriber_calls' => $subscriberCalls,
+        'date_range'       => [
+            'earliest' => $dateRange['earliest'] ?? null,
+            'latest'   => $dateRange['latest'] ?? null,
+        ],
+        'last_updated'     => $lastUpdated,
         ]
     );
 } catch (Exception $e) {

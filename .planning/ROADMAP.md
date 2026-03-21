@@ -56,10 +56,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Clicking "Show trend over time" on a business unit displays 13 weeks of data in the trend modal
   2. After the call log import script runs, no call_logs records older than 90 days remain in the database
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: TBD
+- [ ] 08-01-PLAN.md -- Expand trend views to 13-week defaults (backend PHP + frontend JS)
+- [ ] 08-02-PLAN.md -- Add 90-day call log purge to import script
 
 ### Phase 9: CSR Call Reporting
 **Goal**: Managers can see how many outgoing calls each CSR has made
@@ -87,5 +88,5 @@ Phases 7, 8, 9 can execute in any order (no inter-dependencies). Recommended: 7 
 | 5. Expiration Chart Expansion | v2.1 | 1/1 | Complete | 2026-03-20 |
 | 6. Call Status UI and Export | v2.1 | 2/2 | Complete | 2026-03-20 |
 | 7. Monthly Subscriber Exemption | 2/2 | Complete   | 2026-03-21 | - |
-| 8. Trend Expansion & Log Retention | v2.2 | 0/? | Not started | - |
+| 8. Trend Expansion & Log Retention | v2.2 | 0/2 | Planned | - |
 | 9. CSR Call Reporting | v2.2 | 0/? | Not started | - |

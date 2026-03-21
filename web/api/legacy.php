@@ -553,7 +553,7 @@ function findPerformers(array $by_business_unit, array $comparisons): array
 function getBusinessUnitTrendData(PDO $pdo, string $businessUnit, int $weekNum, int $year): array
 {
     $trend = [];
-    $startWeekNum = $weekNum - 11;
+    $startWeekNum = $weekNum - 12;
     $startYear = $year;
 
     // Handle year boundary
@@ -565,7 +565,7 @@ function getBusinessUnitTrendData(PDO $pdo, string $businessUnit, int $weekNum, 
 
     $lastNonNullValue = null;
 
-    for ($i = 0; $i < 12; $i++) {
+    for ($i = 0; $i < 13; $i++) {
         $currentWeekNum = $startWeekNum + $i;
         $currentYear = $startYear;
         // Handle year boundary within loop
@@ -2214,7 +2214,7 @@ function getHistoricalTrend(PDO $pdo, array $params): array
     $businessUnit = $params['business_unit'] ?? '';
     $metricType = $params['metric_type'] ?? '';
     $metricValue = $params['metric_value'] ?? '';
-    $timeRange = $params['time_range'] ?? '12weeks';
+    $timeRange = $params['time_range'] ?? '13weeks';
     $endDate = $params['end_date'] ?? date('Y-m-d');
 // Validate required parameters
     if (empty($businessUnit) || empty($metricType) || empty($metricValue)) {
@@ -2225,10 +2225,11 @@ function getHistoricalTrend(PDO $pdo, array $params): array
     $weeksMap = [
         '4weeks' => 4,
         '12weeks' => 12,
+        '13weeks' => 13,
         '26weeks' => 26,
         '52weeks' => 52
     ];
-    $numWeeks = $weeksMap[$timeRange] ?? 12;
+    $numWeeks = $weeksMap[$timeRange] ?? 13;
 // Get Saturday for end date
     $endSaturday = getSaturdayForWeek($endDate);
 // Calculate start date
@@ -3043,7 +3044,7 @@ try {
                 'business_unit' => $_GET['business_unit'] ?? '',
                 'metric_type' => $_GET['metric_type'] ?? '',
                 'metric_value' => $_GET['metric_value'] ?? '',
-                'time_range' => $_GET['time_range'] ?? '12weeks',
+                'time_range' => $_GET['time_range'] ?? '13weeks',
                 'end_date' => $_GET['end_date'] ?? date('Y-m-d')
                                                                                                                                                                                                                                                                  ];
                                                                                                                                                                                                                                                                  $data = getHistoricalTrend($pdo, $params);

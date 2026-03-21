@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Monthly Subscriber Handling & Dashboard Refinements
 status: executing
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-03-21T16:38:00.429Z"
+stopped_at: Completed 08-01-PLAN.md (trend expansion to 13 weeks)
+last_updated: "2026-03-21T16:38:52.018Z"
 last_activity: 2026-03-21 -- Completed 08-02 (call log 90-day retention purge)
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 75
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 ## Current Position
 
 Phase: 8 of 9 (Trend Expansion & Log Retention)
-Plan: 2 of 2 complete
+Plan: 1 of 2 complete
 Status: Executing phase 8 plans
-Last activity: 2026-03-21 -- Completed 08-02 (call log 90-day retention purge)
+Last activity: 2026-03-21 -- Completed 08-01 (13-week trend expansion)
 
 Progress: [████████░░] 75% (3/4 plans in v2.2)
 
@@ -57,6 +57,7 @@ All v2.1 decisions logged in PROJECT.md Key Decisions table.
 - Call log purge uses call_timestamp (business date) not imported_at for 90-day retention
 - Purge runs in-script after import, not as separate cron job
 - PDO exec() for parameterless DELETE; try/catch logs warning on failure without crashing
+- [Phase 08-01]: Kept 12weeks in weeksMap for backward URL compat; replaced 12weeks button with 13weeks in slider UI
 
 ### Pending Todos
 
@@ -68,7 +69,7 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-21T16:38:00.427Z
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-03-21T16:38:52.017Z
+Stopped at: Completed 08-01-PLAN.md (trend expansion to 13 weeks)
 Resume file: None
 Next step: Execute remaining phase 8 plans (08-01 if not yet done) or proceed to phase 9

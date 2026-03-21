@@ -16,7 +16,7 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 
 ### Trend View
 
-- [ ] **TREND-01**: "Show trend over time" displays 13 weeks of data (expanded from current)
+- [x] **TREND-01**: "Show trend over time" displays 13 weeks of data (expanded from current)
 
 ### Call Log Maintenance
 
@@ -57,7 +57,7 @@ Requirements for milestone v2.2 -- Monthly Subscriber Handling & Dashboard Refin
 | MONTH-02 | Phase 7 | Complete |
 | MONTH-03 | Phase 7 | Complete |
 | MONTH-04 | Phase 7 | Complete |
-| TREND-01 | Phase 8 | Pending |
+| TREND-01 | Phase 8 | Complete |
 | MAINT-01 | Phase 8 | Complete |
 | CSR-01 | Phase 9 | Pending |
 

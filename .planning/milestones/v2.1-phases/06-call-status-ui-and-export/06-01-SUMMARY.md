@@ -69,7 +69,7 @@ Each task was committed atomically:
 
 1. **Task 1: Add LEFT JOIN call_logs to getExpirationSubscribers() and call_data_as_of to getSubscribers()** - `11c71b5` (feat)
 
-**Plan metadata:** [pending] (docs: complete plan)
+**Plan metadata:** `8db02d6` (docs: complete plan)
 
 ## Files Created/Modified
 

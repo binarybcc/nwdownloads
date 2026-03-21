@@ -2,22 +2,11 @@
 
 ## What This Is
 
-A newspaper circulation dashboard for tracking subscriber metrics across multiple business units (South Carolina, Wyoming, Michigan) and publications. Features interactive trend charts, subscription expiration tracking, renewal/churn analysis, new starts tracking, and automated data import from Newzware. Production runs on Synology NAS (native Apache/PHP/MariaDB).
+A newspaper circulation dashboard for tracking subscriber metrics across multiple business units (South Carolina, Wyoming, Michigan) and publications. Features interactive trend charts, subscription expiration tracking with 8-week view, renewal/churn analysis, new starts tracking, automated data import from Newzware, VOIP call log integration with contact status indicators, and color-coded XLSX export. Production runs on Synology NAS (native Apache/PHP/MariaDB).
 
 ## Core Value
 
 Circulation managers can see subscriber health at a glance and take action on retention — knowing who's expiring, who's been contacted, and where trends are heading.
-
-## Current Milestone: v2.1 Call Integration & Dashboard Enhancements
-
-**Goal:** Integrate VOIP call logs with expiration data so circulation staff can see which expiring subscribers have been contacted, plus fix import bugs and expand the expiration view.
-
-**Target features:**
-
-- Fix new starts CSV import (date format compatibility)
-- Expand subscription expiration chart from 4-week to 8-week view
-- MyCommPilot call log scraper with hourly automated collection
-- Call status overlay in expiration subscriber table with XLSX export
 
 ## Requirements
 
@@ -36,10 +25,16 @@ Circulation managers can see subscriber health at a glance and take action on re
 - ✓ Automated weekly import of AllSubscriber, Vacation, Renewal CSVs — v1.x
 - ✓ New starts importer with renewal cross-reference classification — v1.x
 - ✓ Paid vs complimentary subscriber tracking — v1.x (PRs #43-44)
+- ✓ New starts CSV import with dual date format support (M/D/YY + YYYY-MM-DD) — v2.1
+- ✓ Phone normalization pipeline (10-digit CHAR matching across subscribers and call logs) — v2.1
+- ✓ BroadWorks call log scraper with hourly NAS daemon automation — v2.1
+- ✓ 8-week expiration chart with red-to-green color gradient — v2.1
+- ✓ Call status overlay in subscriber table (phone icons, sort, tooltips, borders) — v2.1
+- ✓ XLSX export with status-colored row fills and sync timestamp — v2.1
 
 ### Active
 
-See REQUIREMENTS.md for v2.1 requirements.
+(None — start next milestone via `/gsd:new-milestone` to define requirements)
 
 ### Out of Scope
 
@@ -47,36 +42,47 @@ See REQUIREMENTS.md for v2.1 requirements.
 - XSI REST API for call logs — not enabled by carrier (Segra), using web scraping
 - Real-time call event push — BroadWorks XSI-Events not available
 - Call duration tracking — Basic Call Logs don't include duration
+- Inbound calls from non-subscribers in UI — only subscriber-matched calls shown
+- Multiple staff attribution icons — single "contacted" status sufficient for MVP
+- Synology Task Scheduler for scraper — deletes jobs, using NAS daemon instead
+- PhpSpreadsheet server-side export — SheetJS client-side supports cell styling
 
 ## Context
 
-Tech stack: PHP 8.2, Chart.js 4.4.0 (CDN), vanilla JavaScript, Tailwind CSS. Production on Synology NAS (native Apache/PHP/MariaDB). No Docker — native stack only.
+Shipped v2.1 with ~35,966 LOC (PHP/JS/SQL). Tech stack: PHP 8.2, Chart.js 4.4.0 (CDN), vanilla JavaScript, Tailwind CSS, xlsx-js-style@1.2.0 (CDN). Production on Synology NAS (native Apache/PHP/MariaDB). No Docker — native stack only.
 
-Since v1 milestone (2026-02-09), significant features shipped outside GSD: BU trend detail modal (PRs #32-35), stop analysis importer, new starts importer, paid/comp subscriber tracking (PRs #43-44). Current package.json version: v2.0.0.
+MyCommPilot (BroadWorks) VOIP integration at ws2.mycommpilot.com scrapes call logs for two circulation staff lines (Brittany Carroll, Chloe Welch) via NAS daemon running hourly 8am-8pm ET. Key limitation: only 20 entries per call type visible at any time.
 
-MyCommPilot (BroadWorks) VOIP system at ws2.mycommpilot.com provides call logs for two circulation staff lines (Brittany Carroll, Chloe Welch). Integration doc at `docs/MYCOMMPILOT-INTEGRATION.md` has complete PHP scraper class and auth flow. Key limitation: only 20 entries per call type visible at any time — must scrape frequently.
+Known tech debt: `fetch_call_logs.php` hardcodes DB password instead of loading from `.env.credentials` (low severity).
+
+Future enhancement candidates from v2.1 REQUIREMENTS.md: manual call outcome annotation (CALL-F01), XSI API if carrier enables (CALL-F02), call duration tracking (CALL-F03), agent attribution display (CALL-F04), 90-day log retention policy (CALL-F05), visual de-emphasis of far-out weeks (DASH-F01), new starts count on BU cards (DASH-F02).
 
 ## Constraints
 
 - **Tech Stack**: Must use existing Chart.js 4.4.0 — no new JS dependencies
 - **VOIP API**: Web scraping only (no XSI API), 20-entry rolling window per call type
-- **Scheduling**: launchd on Mac (not Synology Task Scheduler — it deletes jobs)
+- **Scheduling**: NAS daemon (S99call_scraper.sh) for call scraping — not Synology Task Scheduler
 - **Compatibility**: Native Synology NAS only (no Docker)
 - **Credentials**: MyCommPilot creds in `.env.mycommpilot` (gitignored)
-- **XLSX Export**: Must preserve row coloring for call status indicators
+- **XLSX Export**: Must preserve row coloring for call status indicators (xlsx-js-style)
 
 ## Key Decisions
 
-| Decision                                    | Rationale                                                      | Outcome   |
-| ------------------------------------------- | -------------------------------------------------------------- | --------- |
-| Single line (Total Active only) in BU cards | Keep card charts clean and readable at small size              | ✓ Good    |
-| Embed trends in overview response           | Single HTTP request, data always in sync                       | ✓ Good    |
-| Web scraping for call logs (not XSI API)    | XSI not enabled by carrier                                     | — Pending |
-| Hourly scraping 8am-8pm ET                  | Covers business hours, captures 20-entry window before rolloff | — Pending |
-| Phone icon + row coloring for call status   | Option B from UI discussion — most info at a glance, sortable  | Phase 6 ✓ |
-| Row colors carry into XLSX export           | Staff need printable/shareable contact lists with status       | Phase 6 ✓ |
-| Balanced model profile for GSD agents       | No novel architecture — extending established patterns         | — Pending |
+| Decision                                    | Rationale                                                      | Outcome |
+| ------------------------------------------- | -------------------------------------------------------------- | ------- |
+| Single line (Total Active only) in BU cards | Keep card charts clean and readable at small size              | ✓ Good  |
+| Embed trends in overview response           | Single HTTP request, data always in sync                       | ✓ Good  |
+| Web scraping for call logs (not XSI API)    | XSI not enabled by carrier                                     | ✓ Good  |
+| Hourly scraping 8am-8pm ET                  | Covers business hours, captures 20-entry window before rolloff | ✓ Good  |
+| Phone icon + row coloring for call status   | Option B from UI discussion — most info at a glance, sortable  | ✓ Good  |
+| Row colors carry into XLSX export           | Staff need printable/shareable contact lists with status       | ✓ Good  |
+| NAS daemon instead of macOS launchd         | Runs on NAS directly — no dependency on Mac being awake        | ✓ Good  |
+| xlsx-js-style instead of community SheetJS  | Community edition strips .s cell styles needed for row fills   | ✓ Good  |
+| COLLATE fix for cross-table JOIN            | Collation mismatch between call_logs and subscriber_snapshots  | ✓ Good  |
+| Reusable $callLogSubquery PHP variable      | DRY SQL across 8 expiration bucket queries                     | ✓ Good  |
+| parseDate() checks YYYY-MM-DD first         | Most specific pattern first, avoids M/D/YY ambiguity           | ✓ Good  |
+| Phone normalization at ingest (not query)   | Indexed CHAR(10) column for fast JOINs                         | ✓ Good  |
 
 ---
 
-_Last updated: 2026-03-21 after Phase 6 completion (Call Status UI and Export)_
+_Last updated: 2026-03-21 after v2.1 milestone completion_

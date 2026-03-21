@@ -69,10 +69,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. The settings page displays a table showing each CSR name with their outgoing call count for the last 60 days
   2. CSR names are mapped from the scraper phone lines (not raw phone numbers)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 09-01: TBD
+- [ ] 09-01-PLAN.md -- CSR call reporting API, report page with table and chart, settings card
 
 ## Progress
 
@@ -89,4 +89,4 @@ Phases 7, 8, 9 can execute in any order (no inter-dependencies). Recommended: 7 
 | 6. Call Status UI and Export | v2.1 | 2/2 | Complete | 2026-03-20 |
 | 7. Monthly Subscriber Exemption | 2/2 | Complete   | 2026-03-21 | - |
 | 8. Trend Expansion & Log Retention | v2.2 | 0/2 | Planned | - |
-| 9. CSR Call Reporting | v2.2 | 0/? | Not started | - |
+| 9. CSR Call Reporting | v2.2 | 0/1 | Planned | - |

@@ -197,6 +197,37 @@ require_once 'version.php';
                 </div>
             </a>
 
+            <!-- CSR Call Activity Card -->
+            <a href="csr_report.php" id="csrCard" class="settings-card bg-white rounded-lg shadow-md p-6 cursor-pointer border-2 border-transparent hover:border-teal-200">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div id="csrCallCount" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">
+                        Loading...
+                    </div>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">CSR Call Activity</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    View outgoing, received, and missed call counts per CSR over the last 60 days.
+                </p>
+                <div id="csrSummaryStats" class="text-xs text-gray-500 mb-4">
+                    <div class="flex justify-between mb-1">
+                        <span>Loading stats...</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-teal-600 font-medium">
+                    <span>View Full Report</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                    </svg>
+                </div>
+            </a>
+
             <!-- User Management Card (Placeholder) -->
             <div class="settings-card bg-white rounded-lg shadow-md p-6 opacity-60 border-2 border-transparent">
                 <div class="flex items-start justify-between mb-4">
@@ -388,8 +419,37 @@ require_once 'version.php';
             }
         }
 
+        // Load CSR call stats on page load
+        async function loadCsrStats() {
+            try {
+                const response = await fetch('api/csr_report.php?summary=true');
+                const data = await response.json();
+                if (data.success && data.summary.length > 0) {
+                    const totalOutgoing = data.summary.reduce((sum, csr) => sum + csr.placed, 0);
+                    // Update badge with total outgoing count
+                    const badge = document.getElementById('csrCallCount');
+                    badge.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-800';
+                    badge.textContent = totalOutgoing + ' outgoing';
+                    // Update summary stats with per-CSR outgoing counts
+                    const statsDiv = document.getElementById('csrSummaryStats');
+                    statsDiv.innerHTML = data.summary.map(csr =>
+                        `<div class="flex justify-between mb-1"><span>${csr.name}:</span><span>${csr.placed} placed</span></div>`
+                    ).join('');
+                } else {
+                    document.getElementById('csrCallCount').textContent = 'No data';
+                    document.getElementById('csrSummaryStats').innerHTML = '<div class="text-gray-400">No call data available</div>';
+                }
+            } catch (error) {
+                console.error('Failed to load CSR stats:', error);
+                document.getElementById('csrCallCount').textContent = 'Error';
+            }
+        }
+
         // Load stats on page load
-        document.addEventListener('DOMContentLoaded', loadCacheStats);
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCacheStats();
+            loadCsrStats();
+        });
 
         // Refresh stats every 30 seconds
         setInterval(loadCacheStats, 30000);

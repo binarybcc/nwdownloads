@@ -97,20 +97,38 @@ require_once 'version.php';
         </div>
 
         <!-- Insight Cards -->
-        <div id="insightCards" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        <div id="insightCards" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
 
             <!-- Callback Rate -->
-            <div class="bg-white rounded-lg shadow p-5 border-l-4 border-indigo-400">
-                <h3 class="text-sm font-semibold text-gray-700 mb-3">Subscriber Callback Rate</h3>
-                <p class="text-xs text-gray-400 mb-3">Of unique subscriber numbers called, how many called back within 48 hrs?</p>
-                <div id="callbackStats" class="space-y-2"></div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center gap-3 mb-1">
+                    <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">Subscriber Callback Rate</h3>
+                        <p class="text-xs text-gray-500">Called back within 48 hrs of outbound call</p>
+                    </div>
+                </div>
+                <div id="callbackStats" class="mt-4 space-y-4"></div>
             </div>
 
             <!-- Workload Ratio -->
-            <div class="bg-white rounded-lg shadow p-5 border-l-4 border-amber-400">
-                <h3 class="text-sm font-semibold text-gray-700 mb-3">Calls per Expiring Subscriber</h3>
-                <p class="text-xs text-gray-400 mb-3">Outbound calls to known subscribers vs. subscribers expiring 0-4 weeks</p>
-                <div id="workloadStats" class="space-y-2"></div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center gap-3 mb-1">
+                    <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-900">Outreach Coverage</h3>
+                        <p class="text-xs text-gray-500">Calls to subscribers vs. expiring 0–4 weeks</p>
+                    </div>
+                </div>
+                <div id="workloadStats" class="mt-4 space-y-3"></div>
             </div>
 
         </div>
@@ -281,40 +299,52 @@ require_once 'version.php';
             tbody.appendChild(totalsRow);
         }
 
+        // All values are integers/strings from our own API — safe for innerHTML
         function buildInsightCards(callbacks, workload) {
-            // Callback rate card
+            // Callback rate card — per-CSR rows with progress bars
             var cbContainer = document.getElementById('callbackStats');
             var cbHTML = '';
             callbacks.forEach(function (cb) {
-                var barWidth = Math.max(cb.rate_pct, 2);
+                var barWidth = Math.max(cb.rate_pct, 3);
+                var barColor = cb.rate_pct >= 20 ? 'bg-indigo-500' : 'bg-indigo-300';
                 cbHTML +=
-                    '<div class="flex items-center gap-3">' +
-                    '<span class="text-sm text-gray-600 w-28 truncate">' + cb.name + '</span>' +
-                    '<div class="flex-1 bg-gray-100 rounded-full h-5 relative">' +
-                    '<div class="bg-indigo-400 h-5 rounded-full flex items-center justify-end pr-2" style="width:' + barWidth + '%">' +
-                    '<span class="text-xs font-bold text-white">' + cb.rate_pct + '%</span>' +
+                    '<div class="bg-gray-50 rounded-lg p-3">' +
+                    '<div class="flex items-center justify-between mb-2">' +
+                    '<span class="text-sm font-medium text-gray-700">' + cb.name + '</span>' +
+                    '<span class="text-lg font-bold text-indigo-600">' + cb.rate_pct + '<span class="text-xs font-normal text-gray-400">%</span></span>' +
                     '</div>' +
+                    '<div class="w-full bg-gray-200 rounded-full h-2.5">' +
+                    '<div class="' + barColor + ' h-2.5 rounded-full transition-all" style="width:' + barWidth + '%"></div>' +
                     '</div>' +
-                    '<span class="text-xs text-gray-500 w-20 text-right">' + cb.got_callback + ' / ' + cb.placed_to_subs + '</span>' +
+                    '<div class="flex justify-between mt-1.5">' +
+                    '<span class="text-xs text-gray-400">' + cb.got_callback + ' of ' + cb.placed_to_subs + ' unique numbers called back</span>' +
+                    '</div>' +
                     '</div>';
             });
             cbContainer.innerHTML = cbHTML;
 
-            // Workload ratio card
+            // Workload ratio card — per-CSR with large metric and context bar
             var wlContainer = document.getElementById('workloadStats');
             var wlHTML = '';
+            var expCount = workload[0].expiring_count;
             workload.forEach(function (wl) {
+                // Visual: what fraction of expiring subs have been called
+                var coveragePct = expCount > 0 ? Math.min(Math.round((wl.calls_to_subs / expCount) * 100), 100) : 0;
+                var barColor = coveragePct >= 10 ? 'bg-amber-500' : 'bg-amber-300';
                 wlHTML +=
-                    '<div class="flex items-center justify-between">' +
-                    '<span class="text-sm text-gray-600">' + wl.name + '</span>' +
-                    '<div class="text-right">' +
-                    '<span class="text-2xl font-bold text-amber-600">' + wl.calls_per_sub + '</span>' +
-                    '<span class="text-xs text-gray-500 ml-1">calls/sub</span>' +
+                    '<div class="bg-gray-50 rounded-lg p-3">' +
+                    '<div class="flex items-center justify-between mb-2">' +
+                    '<span class="text-sm font-medium text-gray-700">' + wl.name + '</span>' +
+                    '<span class="text-lg font-bold text-amber-600">' + wl.calls_to_subs + ' <span class="text-xs font-normal text-gray-400">calls</span></span>' +
+                    '</div>' +
+                    '<div class="w-full bg-gray-200 rounded-full h-2.5">' +
+                    '<div class="' + barColor + ' h-2.5 rounded-full transition-all" style="width:' + Math.max(coveragePct, 2) + '%"></div>' +
+                    '</div>' +
+                    '<div class="flex justify-between mt-1.5">' +
+                    '<span class="text-xs text-gray-400">' + coveragePct + '% of ' + expCount + ' expiring subscribers contacted</span>' +
                     '</div>' +
                     '</div>';
             });
-            wlHTML += '<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">' +
-                workload[0].expiring_count + ' subscribers expiring 0-4 weeks (as of latest snapshot)</p>';
             wlContainer.innerHTML = wlHTML;
         }
 

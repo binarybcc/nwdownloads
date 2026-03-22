@@ -218,6 +218,88 @@ try {
         );
     }
 
+    // Response rate: placed calls to subscribers that got a callback within 48 hours (full mode only)
+    $callbacks = [];
+    if (!$isSummaryMode && !empty($latestSnap)) {
+        $callbackSQL = "
+            SELECT
+                COALESCE(outbound.source_group, 'UNKNOWN') AS source_group,
+                COUNT(DISTINCT outbound.phone_normalized) AS placed_to_subs,
+                COUNT(DISTINCT callback.phone_normalized) AS got_callback
+            FROM call_logs outbound
+            INNER JOIN (
+                SELECT DISTINCT phone_normalized
+                FROM subscriber_snapshots
+                WHERE snapshot_date = :snapshot_date
+                AND phone_normalized IS NOT NULL
+            ) ss ON ss.phone_normalized COLLATE utf8mb4_general_ci = outbound.phone_normalized
+            LEFT JOIN call_logs callback
+                ON callback.phone_normalized = outbound.phone_normalized
+                AND callback.call_direction = 'received'
+                AND callback.call_timestamp > outbound.call_timestamp
+                AND callback.call_timestamp <= DATE_ADD(outbound.call_timestamp, INTERVAL 48 HOUR)
+            WHERE outbound.call_timestamp >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND outbound.call_direction = 'placed'
+            AND LENGTH(outbound.remote_number) != 4
+            GROUP BY COALESCE(outbound.source_group, 'UNKNOWN')
+            ORDER BY source_group
+        ";
+        $callbackStmt = $pdo->prepare($callbackSQL);
+        $callbackStmt->execute([':snapshot_date' => $latestSnap]);
+        $callbackRows = $callbackStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $callbacks = array_map(
+            function ($row) use ($csrNames) {
+                $placed = (int) $row['placed_to_subs'];
+                $gotCallback = (int) $row['got_callback'];
+                return [
+                'name'         => mapCsrName($row['source_group'], $csrNames),
+                'group'        => $row['source_group'],
+                'placed_to_subs' => $placed,
+                'got_callback' => $gotCallback,
+                'rate_pct'     => $placed > 0 ? round(($gotCallback / $placed) * 100) : 0,
+                ];
+            },
+            $callbackRows
+        );
+    }
+
+    // Calls per expiring subscriber (full mode only)
+    $workload = [];
+    if (!$isSummaryMode && !empty($latestSnap)) {
+        // Count expiring subscribers (0-4 weeks) from latest snapshot
+        $expiringSQL = "
+            SELECT COUNT(*) AS expiring_count
+            FROM subscriber_snapshots
+            WHERE snapshot_date = :snapshot_date
+            AND paid_thru IS NOT NULL
+            AND DATEDIFF(paid_thru, :snapshot_date2) BETWEEN 0 AND 28
+        ";
+        $expiringStmt = $pdo->prepare($expiringSQL);
+        $expiringStmt->execute([':snapshot_date' => $latestSnap, ':snapshot_date2' => $latestSnap]);
+        $expiringCount = (int) $expiringStmt->fetchColumn();
+
+        // Total placed-to-subscriber calls per CSR (already computed in subscriber_calls)
+        $totalSubCalls = [];
+        foreach ($subscriberCalls as $row) {
+            $group = $row['group'];
+            if (!isset($totalSubCalls[$group])) {
+                $totalSubCalls[$group] = 0;
+            }
+            $totalSubCalls[$group] += $row['to_subscriber'];
+        }
+
+        foreach ($totalSubCalls as $group => $calls) {
+            $workload[] = [
+                'name'            => mapCsrName($group, $csrNames),
+                'group'           => $group,
+                'calls_to_subs'   => $calls,
+                'expiring_count'  => $expiringCount,
+                'calls_per_sub'   => $expiringCount > 0 ? round($calls / $expiringCount, 2) : 0,
+            ];
+        }
+    }
+
     // Date range and last updated
     $dateRangeStmt = $pdo->query("
         SELECT MIN(call_timestamp) AS earliest, MAX(call_timestamp) AS latest
@@ -236,6 +318,8 @@ try {
         'summary'          => $summary,
         'weekly'           => $weekly,
         'subscriber_calls' => $subscriberCalls,
+        'callbacks'        => $callbacks,
+        'workload'         => $workload,
         'date_range'       => [
             'earliest' => $dateRange['earliest'] ?? null,
             'latest'   => $dateRange['latest'] ?? null,

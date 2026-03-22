@@ -96,6 +96,25 @@ require_once 'version.php';
             No call data available for the last 60 days.
         </div>
 
+        <!-- Insight Cards -->
+        <div id="insightCards" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+
+            <!-- Callback Rate -->
+            <div class="bg-white rounded-lg shadow p-5 border-l-4 border-indigo-400">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Subscriber Callback Rate</h3>
+                <p class="text-xs text-gray-400 mb-3">Of unique subscriber numbers called, how many called back within 48 hrs?</p>
+                <div id="callbackStats" class="space-y-2"></div>
+            </div>
+
+            <!-- Workload Ratio -->
+            <div class="bg-white rounded-lg shadow p-5 border-l-4 border-amber-400">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Calls per Expiring Subscriber</h3>
+                <p class="text-xs text-gray-400 mb-3">Outbound calls to known subscribers vs. subscribers expiring 0-4 weeks</p>
+                <div id="workloadStats" class="space-y-2"></div>
+            </div>
+
+        </div>
+
         <!-- Hero Chart: Calls to Known Subscribers -->
         <div class="mt-8 mb-2">
             <h2 class="text-lg font-semibold text-gray-900">Calls to Known Subscribers</h2>
@@ -165,6 +184,12 @@ require_once 'version.php';
                         document.getElementById('tableContainer').classList.remove('hidden');
                         document.getElementById('tableFootnote').classList.remove('hidden');
                         buildTable(data.summary);
+                    }
+
+                    // Build insight cards
+                    if (data.callbacks && data.callbacks.length > 0 && data.workload && data.workload.length > 0) {
+                        document.getElementById('insightCards').classList.remove('hidden');
+                        buildInsightCards(data.callbacks, data.workload);
                     }
 
                     // Show date range
@@ -254,6 +279,43 @@ require_once 'version.php';
                 bold(totals.missed, 'text-red-800') +
                 '<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">' + totals.total + '</td>';
             tbody.appendChild(totalsRow);
+        }
+
+        function buildInsightCards(callbacks, workload) {
+            // Callback rate card
+            var cbContainer = document.getElementById('callbackStats');
+            var cbHTML = '';
+            callbacks.forEach(function (cb) {
+                var barWidth = Math.max(cb.rate_pct, 2);
+                cbHTML +=
+                    '<div class="flex items-center gap-3">' +
+                    '<span class="text-sm text-gray-600 w-28 truncate">' + cb.name + '</span>' +
+                    '<div class="flex-1 bg-gray-100 rounded-full h-5 relative">' +
+                    '<div class="bg-indigo-400 h-5 rounded-full flex items-center justify-end pr-2" style="width:' + barWidth + '%">' +
+                    '<span class="text-xs font-bold text-white">' + cb.rate_pct + '%</span>' +
+                    '</div>' +
+                    '</div>' +
+                    '<span class="text-xs text-gray-500 w-20 text-right">' + cb.got_callback + ' / ' + cb.placed_to_subs + '</span>' +
+                    '</div>';
+            });
+            cbContainer.innerHTML = cbHTML;
+
+            // Workload ratio card
+            var wlContainer = document.getElementById('workloadStats');
+            var wlHTML = '';
+            workload.forEach(function (wl) {
+                wlHTML +=
+                    '<div class="flex items-center justify-between">' +
+                    '<span class="text-sm text-gray-600">' + wl.name + '</span>' +
+                    '<div class="text-right">' +
+                    '<span class="text-2xl font-bold text-amber-600">' + wl.calls_per_sub + '</span>' +
+                    '<span class="text-xs text-gray-500 ml-1">calls/sub</span>' +
+                    '</div>' +
+                    '</div>';
+            });
+            wlHTML += '<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">' +
+                workload[0].expiring_count + ' subscribers expiring 0-4 weeks (as of latest snapshot)</p>';
+            wlContainer.innerHTML = wlHTML;
         }
 
         function buildHeroChart(subscriberCalls, summary) {

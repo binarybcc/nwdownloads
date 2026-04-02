@@ -4,14 +4,17 @@
  * Circulation Dashboard - Login Page
  *
  * Authenticates users against Newzware authentication system.
- * Only users with usertype="NW" are granted access.
+ * Supports auto-login via Newzware cookies (.upstatetoday.com domain).
  */
 
-// Include config FIRST (sets session security settings)
 require_once 'config.php';
+require_once 'lib/NwAuth.php';
 require_once 'brute_force_protection.php';
-// Start session AFTER config loaded (session settings must be set before session_start)
+
+use CirculationDashboard\NwAuth;
+
 session_start();
+
 // Generate CSRF token if not exists
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -23,79 +26,49 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
     exit;
 }
 
+// ─────────────────────────────────────────────────
+// Auto-login: try Newzware cookies before showing form
+// ─────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $auth = new NwAuth();
+    $autoResult = $auth->tryAutoLogin();
+
+    if ($autoResult['success']) {
+        $auth->createSession($autoResult['user']);
+        header('Location: index.php');
+        exit;
+    }
+}
+
+// ─────────────────────────────────────────────────
+// Handle login form submission
+// ─────────────────────────────────────────────────
 $error = '';
-// Handle Login Submission
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $login_id = trim($_POST['login_id'] ?? '');
     $password = trim($_POST['password'] ?? '');
-// SECURITY: Validate CSRF token
+
+    // SECURITY: Validate CSRF token
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
         error_log('SECURITY: CSRF validation failed from IP: ' . $_SERVER['REMOTE_ADDR']);
     } elseif (!empty($login_id) && !checkBruteForce($login_id)) {
-        // SECURITY: Check brute force protection
         $error = $_SESSION['lockout_message'] ?? 'Too many failed attempts. Please try again later.';
     } elseif (empty($login_id) || empty($password)) {
         $error = 'Please enter both username and password.';
     } else {
-    // Prepare API Request
-        $params = [
-            'site' => NW_SITE_ID,
-            'login_id' => $login_id,
-            'password' => $password
-        ];
-        $requestUrl = NW_AUTH_URL . '?' . http_build_query($params);
-    // Initialize cURL
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $requestUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-        if ($httpCode === 200 && $response) {
-            try {
-                $xml = new SimpleXMLElement($response);
-                // STRICT AUTHENTICATION LOGIC
-                // 1. Check if authenticated is "Yes"
-                // 2. Check if usertype is "NW"
-                $isAuthenticated = (string) $xml->authenticated === 'Yes';
-                $userType = (string) $xml->usertype;
-                if ($isAuthenticated && $userType === 'NW') {
-                // Success: Set Session
-                    $_SESSION['logged_in'] = true;
-                    $_SESSION['user'] = (string) $xml->login;
-                    $_SESSION['user_type'] = $userType;
-                    $_SESSION['login_time'] = time();
-                    $_SESSION['last_activity'] = time();
-                // SECURITY: Regenerate session ID to prevent fixation attacks
-                    session_regenerate_id(true);
-                // SECURITY: Reset brute force counter after successful login
-                    resetAttempts($login_id);
-                // Redirect to dashboard
-                    header('Location: index.php');
-                    exit;
-                } else {
-                // Auth failed or User Type not allowed
-                    $error = 'Access Denied. Invalid credentials or unauthorized user type.';
-                // SECURITY: Record failed attempt for brute force protection
-                    recordFailedAttempt($login_id);
-                }
-            } catch (Exception $e) {
-                $error = 'System Error: Unable to process authentication response.';
-                error_log('Auth XML Parse Error: ' . $e->getMessage());
-            // SECURITY: Record attempt even on system error (could be attack probe)
-                recordFailedAttempt($login_id);
-            }
+        $auth = new NwAuth();
+        $result = $auth->loginWithPassword($login_id, $password);
+
+        if ($result['success']) {
+            $auth->createSession($result['user']);
+            $auth->setNewzwareCookies($result['user']);
+            resetAttempts($login_id);
+            header('Location: index.php');
+            exit;
         } else {
-            $error = 'System Error: Unable to connect to authentication server.';
-            if ($curlError) {
-                error_log('Auth cURL Error: ' . $curlError);
-            }
-            // SECURITY: Record attempt even on connection error
+            $error = $result['error'];
             recordFailedAttempt($login_id);
         }
     }

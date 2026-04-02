@@ -261,7 +261,7 @@ class NwAuth
     private function updateHashCookie($newHash)
     {
         $secure   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
-        $domain   = COOKIE_DOMAIN;
+        $domain   = $this->getParentDomain();
         $midnight = strtotime('tomorrow');
 
         setcookie(NW_COOKIE_HASH, $newHash, [

@@ -1,48 +1,65 @@
 <?php
 
 /**
- * Authentication Check
+ * Authentication Guard
  *
  * Include this file at the top of any page that requires authentication.
- * Redirects to login.php if user is not logged in or session has expired.
+ *
+ * Flow:
+ *   1. Already has a PHP session? → continue (fastest path)
+ *   2. Has Newzware cookies (hash + login_id)? → verify with API → auto-login
+ *   3. Neither? → redirect to login.php
  */
 
-// Include config FIRST (sets session security settings)
 require_once __DIR__ . '/config.php';
-// Start session AFTER config loaded (session settings must be set before session_start)
+require_once __DIR__ . '/lib/NwAuth.php';
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Check if user is logged in
-if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-// Not logged in - redirect to login page
-    header('Location: login.php');
-    exit;
-}
+// ─────────────────────────────────────────────────
+// Path 1: Active PHP session — check validity
+// ─────────────────────────────────────────────────
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+    // Check session timeout
+    if (defined('SESSION_TIMEOUT')) {
+        $inactive = time() - ($_SESSION['last_activity'] ?? 0);
+        if ($inactive > SESSION_TIMEOUT) {
+            session_unset();
+            session_destroy();
+            header('Location: login.php?timeout=1');
+            exit;
+        }
+        $_SESSION['last_activity'] = time();
+    }
 
-// Check session timeout (optional security feature)
-if (defined('SESSION_TIMEOUT')) {
-    $inactive = time() - ($_SESSION['last_activity'] ?? 0);
-    if ($inactive > SESSION_TIMEOUT) {
-    // Session expired - destroy and redirect
+    // Verify user type is still allowed
+    if (isset($_SESSION['user_type']) && !in_array($_SESSION['user_type'], NW_ALLOWED_USER_TYPES, true)) {
         session_unset();
         session_destroy();
-        header('Location: login.php?timeout=1');
+        header('Location: login.php?error=unauthorized');
         exit;
     }
 
-    // Update last activity time
-    $_SESSION['last_activity'] = time();
+    // Session valid — continue to page
+    return;
 }
 
-// Optional: Verify user type is still "NW"
-if (isset($_SESSION['user_type']) && $_SESSION['user_type'] !== 'NW') {
-// Unauthorized user type
-    session_unset();
-    session_destroy();
-    header('Location: login.php?error=unauthorized');
-    exit;
+// ─────────────────────────────────────────────────
+// Path 2: No session — try auto-login via cookies
+// ─────────────────────────────────────────────────
+$auth = new NwAuth();
+$result = $auth->tryAutoLogin();
+
+if ($result['success']) {
+    $auth->createSession($result['user']);
+    // Session created — continue to page
+    return;
 }
 
-// User is authenticated - continue with page load
+// ─────────────────────────────────────────────────
+// Path 3: No session, no valid cookies — login required
+// ─────────────────────────────────────────────────
+header('Location: login.php');
+exit;

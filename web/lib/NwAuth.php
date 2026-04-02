@@ -1,5 +1,7 @@
 <?php
 
+namespace CirculationDashboard;
+
 /**
  * Newzware Authentication Client
  *

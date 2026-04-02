@@ -11,6 +11,8 @@ require_once 'config.php';
 require_once 'lib/NwAuth.php';
 require_once 'brute_force_protection.php';
 
+use CirculationDashboard\NwAuth;
+
 session_start();
 
 // Generate CSRF token if not exists

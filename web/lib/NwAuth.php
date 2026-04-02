@@ -278,6 +278,12 @@ class NwAuth
     {
         $host = $_SERVER['HTTP_HOST'] ?? '';
         $host = strtolower(explode(':', $host)[0]);
+
+        // IP addresses (e.g., 192.168.1.254) — no parent domain concept
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            return '';
+        }
+
         $parts = explode('.', $host);
 
         if (count($parts) <= 2) {

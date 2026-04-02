@@ -75,13 +75,13 @@ class NwAuth
         }
 
         try {
-            $xml = new SimpleXMLElement($response);
+            $xml = new \SimpleXMLElement($response);
             $exitCode = (string) ($xml->{'exit-code'}['code'] ?? '');
 
             if ($exitCode === '0') {
                 return (string) $xml->hash['value'];
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log('NwAuth: Hash renewal XML parse error: ' . $e->getMessage());
         }
 
@@ -189,7 +189,7 @@ class NwAuth
         }
 
         try {
-            $xml = new SimpleXMLElement($response);
+            $xml = new \SimpleXMLElement($response);
 
             $isAuthenticated = (string) $xml->authenticated === 'Yes';
             $userType        = (string) $xml->usertype;
@@ -224,7 +224,7 @@ class NwAuth
             }
 
             return ['success' => false, 'user' => null, 'error' => $error];
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log('NwAuth: XML parse error: ' . $e->getMessage());
             return [
                 'success' => false,

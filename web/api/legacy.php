@@ -2891,12 +2891,12 @@ function getRenewalEvents(
 
 /**
  * @param string $message Error message
+ * @param int $code HTTP status code (default: 400)
  * @return void
  */
-function sendError(string $message): void
+function sendError(string $message, int $code = 400): void
 {
-
-    http_response_code(400);
+    http_response_code($code);
     echo json_encode([
         'success' => false,
         'error' => $message

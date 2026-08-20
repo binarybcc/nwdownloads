@@ -507,7 +507,7 @@ class AllSubscriberImporter
 
                 // Vacation state comes from a separate weekly import and is not present
                 // in this CSV, so carry it across the rebuild instead of destroying it
-                $carried_vacations = $this->fetchVacationState($target_week, $target_year);
+                $carried_vacations = $this->fetchVacationState($target_week, $target_year, $target_snapshot_date);
 
                 // Delete existing data for this week
                 $delete_daily = $this->pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
@@ -873,20 +873,33 @@ class AllSubscriberImporter
     /**
      * Read the vacation state for a week before its rows are rebuilt
      *
-     * Vacation data arrives in a separate weekly import (SubscribersOnVacation) and
-     * appears nowhere in the All Subscriber Report. Rebuilding a week would otherwise
-     * silently erase it — which it did daily from March 2026 until this was fixed.
+     * Dated vacations come from a separate weekly import (SubscribersOnVacation) and
+     * cannot be recovered from the All Subscriber Report, so they must survive the
+     * rebuild — from March 2026 until this was fixed, the daily rebuild erased them.
      *
-     * @return array<int, array<string, mixed>> One row per subscriber currently on vacation
+     * Only vacations still running in the target week are carried. Nothing in the
+     * system ever sets on_vacation back to 0, so carrying expired ones would make
+     * them permanent and leave deliverable under-counted forever.
+     *
+     * Undated flags are deliberately excluded: those come from the report's own zone
+     * column, which the rebuild recomputes from the current file. Carrying them would
+     * override this week's fresh signal with a stale one.
+     *
+     * @param string $week_start Monday of the week being rebuilt, 'Y-m-d'
+     * @return array<int, array<string, mixed>> One row per subscriber still on vacation
      */
-    private function fetchVacationState(int $week_num, int $year): array
+    private function fetchVacationState(int $week_num, int $year, string $week_start): array
     {
         $stmt = $this->pdo->prepare("
             SELECT sub_num, paper_code, vacation_start, vacation_end, vacation_weeks
             FROM subscriber_snapshots
-            WHERE week_num = :week_num AND year = :year AND on_vacation = 1
+            WHERE week_num = :week_num
+              AND year = :year
+              AND on_vacation = 1
+              AND vacation_end IS NOT NULL
+              AND vacation_end >= :week_start
         ");
-        $stmt->execute(['week_num' => $week_num, 'year' => $year]);
+        $stmt->execute(['week_num' => $week_num, 'year' => $year, 'week_start' => $week_start]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -918,7 +931,6 @@ class AllSubscriberImporter
               AND paper_code = :paper_code
         ");
 
-        $restored = 0;
         foreach ($vacations as $vacation) {
             $stmt->execute([
                 'vacation_start' => $vacation['vacation_start'],
@@ -929,10 +941,18 @@ class AllSubscriberImporter
                 'sub_num' => $vacation['sub_num'],
                 'paper_code' => $vacation['paper_code']
             ]);
-            $restored += $stmt->rowCount();
         }
 
         $this->recalculateVacationTotals($week_num, $year);
+
+        // Counted from the rebuilt rows rather than rowCount(), which reports rows
+        // changed rather than matched and would under-report unchanged carry-overs
+        $count_stmt = $this->pdo->prepare("
+            SELECT COUNT(*) FROM subscriber_snapshots
+            WHERE week_num = :week_num AND year = :year AND on_vacation = 1
+        ");
+        $count_stmt->execute(['week_num' => $week_num, 'year' => $year]);
+        $restored = (int)$count_stmt->fetchColumn();
 
         $dropped = count($vacations) - $restored;
         error_log(

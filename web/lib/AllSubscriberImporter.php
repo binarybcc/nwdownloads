@@ -242,6 +242,17 @@ class AllSubscriberImporter
             $rows_to_process[] = $row;
         }
 
+        // Collapse subscribers listed twice on the same paper before counting,
+        // so aggregates and detail rows stay in agreement
+        $deduped = self::collapseDuplicateSubscribers($rows_to_process, $col_map);
+        $rows_to_process = $deduped['rows'];
+        foreach ($deduped['dropped'] as $dropped_key) {
+            $message = "Duplicate subscription collapsed in $filename: $dropped_key "
+                . "(kept the latest Paid Thru)";
+            $debug($message);
+            error_log("⚠️ $message");
+        }
+
         // Now process all collected rows
         foreach ($rows_to_process as $row) {
             try {
@@ -665,6 +676,80 @@ class AllSubscriberImporter
      * @param string $filename Original uploaded filename
      * @return string snapshot_date in 'Y-m-d' format
      */
+    /**
+     * Collapse subscribers listed more than once on the same paper
+     *
+     * The database allows one row per (snapshot_date, sub_num, paper_code), but the
+     * Newzware export carries no unique subscription ID — a subscriber holding two
+     * subscriptions on the same paper appears as two indistinguishable rows. Keep the
+     * one with the latest Paid Thru, which is where the subscriber actually stands.
+     *
+     * Rows missing SUB NUM or Ed are passed through untouched; the caller skips them.
+     *
+     * @param array<int, array<int, string>> $rows Raw CSV data rows
+     * @param array<string, int> $col_map Column name to index map
+     * @return array{rows: array<int, array<int, string>>, dropped: array<int, string>}
+     */
+    public static function collapseDuplicateSubscribers(array $rows, array $col_map): array
+    {
+        $sub_col = $col_map['SUB NUM'] ?? null;
+        $paper_col = $col_map['Ed'] ?? null;
+        $paid_thru_col = $col_map['Paid Thru'] ?? null;
+
+        if ($sub_col === null || $paper_col === null) {
+            return ['rows' => $rows, 'dropped' => []];
+        }
+
+        $kept = [];        // key => position in $result
+        $result = [];
+        $dropped = [];
+
+        foreach ($rows as $row) {
+            $sub_num = trim($row[$sub_col] ?? '');
+            $paper_code = trim($row[$paper_col] ?? '');
+
+            if ($sub_num === '' || $paper_code === '') {
+                $result[] = $row;
+                continue;
+            }
+
+            $key = $sub_num . '|' . $paper_code;
+
+            if (!isset($kept[$key])) {
+                $kept[$key] = count($result);
+                $result[] = $row;
+                continue;
+            }
+
+            $dropped[] = $key;
+
+            $position = $kept[$key];
+            $incumbent = $paid_thru_col === null ? '' : trim($result[$position][$paid_thru_col] ?? '');
+            $challenger = $paid_thru_col === null ? '' : trim($row[$paid_thru_col] ?? '');
+
+            if (self::paidThruRank($challenger) > self::paidThruRank($incumbent)) {
+                $result[$position] = $row;
+            }
+        }
+
+        return ['rows' => $result, 'dropped' => $dropped];
+    }
+
+    /**
+     * Sortable rank for a Paid Thru value; blank or unparseable dates rank lowest
+     * so a stale row never displaces a subscriber's current subscription.
+     */
+    private static function paidThruRank(string $paid_thru): int
+    {
+        if ($paid_thru === '') {
+            return PHP_INT_MIN;
+        }
+
+        $timestamp = strtotime($paid_thru);
+
+        return $timestamp === false ? PHP_INT_MIN : $timestamp;
+    }
+
     private function extractSnapshotDateFromFilename(string $filename): string
     {
         // Pattern: AllSubscriberReport + YYYYMMDDHHMMSS + .csv

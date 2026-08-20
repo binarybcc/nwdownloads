@@ -505,6 +505,10 @@ class AllSubscriberImporter
                     ->setISODate($target_year, $target_week, 1)
                     ->format('Y-m-d');
 
+                // Vacation state comes from a separate weekly import and is not present
+                // in this CSV, so carry it across the rebuild instead of destroying it
+                $carried_vacations = $this->fetchVacationState($target_week, $target_year, $target_snapshot_date);
+
                 // Delete existing data for this week
                 $delete_daily = $this->pdo->prepare("DELETE FROM daily_snapshots WHERE week_num = ? AND year = ?");
                 $delete_daily->execute([$target_week, $target_year]);
@@ -598,6 +602,8 @@ class AllSubscriberImporter
                         $stats['subscriber_records_imported']++;
                     }
                 }
+
+                $this->restoreVacationState($target_week, $target_year, $carried_vacations);
             }
 
             error_log("✅ SoftBackfill complete: $total_weeks_processed weeks processed ($total_real real, $total_backfilled backfilled)");
@@ -862,5 +868,125 @@ class AllSubscriberImporter
     private static function paidThruRank(string $paid_thru): string
     {
         return self::parseDate($paid_thru) ?? '';
+    }
+
+    /**
+     * Read the vacation state for a week before its rows are rebuilt
+     *
+     * Dated vacations come from a separate weekly import (SubscribersOnVacation) and
+     * cannot be recovered from the All Subscriber Report, so they must survive the
+     * rebuild — from March 2026 until this was fixed, the daily rebuild erased them.
+     *
+     * Only vacations still running in the target week are carried. Nothing in the
+     * system ever sets on_vacation back to 0, so carrying expired ones would make
+     * them permanent and leave deliverable under-counted forever.
+     *
+     * Undated flags are deliberately excluded: those come from the report's own zone
+     * column, which the rebuild recomputes from the current file. Carrying them would
+     * override this week's fresh signal with a stale one.
+     *
+     * @param string $week_start Monday of the week being rebuilt, 'Y-m-d'
+     * @return array<int, array<string, mixed>> One row per subscriber still on vacation
+     */
+    private function fetchVacationState(int $week_num, int $year, string $week_start): array
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT sub_num, paper_code, vacation_start, vacation_end, vacation_weeks
+            FROM subscriber_snapshots
+            WHERE week_num = :week_num
+              AND year = :year
+              AND on_vacation = 1
+              AND vacation_end IS NOT NULL
+              AND vacation_end >= :week_start
+        ");
+        $stmt->execute(['week_num' => $week_num, 'year' => $year, 'week_start' => $week_start]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Re-apply vacation state after a week's rows have been rebuilt
+     *
+     * Subscribers who have since dropped off the report simply do not match, which is
+     * the correct outcome — their vacation ends with their subscription. Paper totals
+     * are recalculated afterward so deliverable never counts a subscriber on vacation.
+     *
+     * @param array<int, array<string, mixed>> $vacations Rows from fetchVacationState()
+     */
+    private function restoreVacationState(int $week_num, int $year, array $vacations): void
+    {
+        if (empty($vacations)) {
+            return;
+        }
+
+        $stmt = $this->pdo->prepare("
+            UPDATE subscriber_snapshots
+            SET on_vacation = 1,
+                vacation_start = :vacation_start,
+                vacation_end = :vacation_end,
+                vacation_weeks = :vacation_weeks
+            WHERE week_num = :week_num
+              AND year = :year
+              AND sub_num = :sub_num
+              AND paper_code = :paper_code
+        ");
+
+        foreach ($vacations as $vacation) {
+            $stmt->execute([
+                'vacation_start' => $vacation['vacation_start'],
+                'vacation_end' => $vacation['vacation_end'],
+                'vacation_weeks' => $vacation['vacation_weeks'],
+                'week_num' => $week_num,
+                'year' => $year,
+                'sub_num' => $vacation['sub_num'],
+                'paper_code' => $vacation['paper_code']
+            ]);
+        }
+
+        $this->recalculateVacationTotals($week_num, $year);
+
+        // Counted from the rebuilt rows rather than rowCount(), which reports rows
+        // changed rather than matched and would under-report unchanged carry-overs
+        $count_stmt = $this->pdo->prepare("
+            SELECT COUNT(*) FROM subscriber_snapshots
+            WHERE week_num = :week_num AND year = :year AND on_vacation = 1
+        ");
+        $count_stmt->execute(['week_num' => $week_num, 'year' => $year]);
+        $restored = (int)$count_stmt->fetchColumn();
+
+        $dropped = count($vacations) - $restored;
+        error_log(
+            "🏖️ Vacation state carried across rebuild of week $week_num, $year: "
+            . "$restored restored" . ($dropped > 0 ? ", $dropped no longer on the report" : "")
+        );
+    }
+
+    /**
+     * Recalculate a week's vacation and deliverable totals from its subscriber rows
+     */
+    private function recalculateVacationTotals(int $week_num, int $year): void
+    {
+        $stmt = $this->pdo->prepare("
+            UPDATE daily_snapshots ds
+            SET ds.on_vacation = (
+                    SELECT COUNT(*)
+                    FROM subscriber_snapshots ss
+                    WHERE ss.week_num = ds.week_num
+                      AND ss.year = ds.year
+                      AND ss.paper_code = ds.paper_code
+                      AND ss.on_vacation = 1
+                ),
+                ds.deliverable = ds.total_active - (
+                    SELECT COUNT(*)
+                    FROM subscriber_snapshots ss
+                    WHERE ss.week_num = ds.week_num
+                      AND ss.year = ds.year
+                      AND ss.paper_code = ds.paper_code
+                      AND ss.on_vacation = 1
+                )
+            WHERE ds.week_num = :week_num AND ds.year = :year
+        ");
+
+        $stmt->execute(['week_num' => $week_num, 'year' => $year]);
     }
 }

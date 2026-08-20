@@ -333,6 +333,13 @@ class VacationImporter
                 WHERE ss.snapshot_date = ds.snapshot_date
                   AND ss.paper_code = ds.paper_code
                   AND ss.on_vacation = 1
+            ),
+            ds.deliverable = ds.total_active - (
+                SELECT COUNT(*)
+                FROM subscriber_snapshots ss
+                WHERE ss.snapshot_date = ds.snapshot_date
+                  AND ss.paper_code = ds.paper_code
+                  AND ss.on_vacation = 1
             )
             WHERE ds.snapshot_date = (
                 SELECT MAX(snapshot_date) FROM subscriber_snapshots

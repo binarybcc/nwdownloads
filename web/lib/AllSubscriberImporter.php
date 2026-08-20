@@ -359,8 +359,8 @@ class AllSubscriberImporter
                     'subscription_length' => $subscription_length,
                     'delivery_type' => $delivery_type,
                     'payment_status' => $payment_status,
-                    'begin_date' => $this->parseDate($begin_date),
-                    'paid_thru' => $this->parseDate($paid_thru),
+                    'begin_date' => self::parseDate($begin_date),
+                    'paid_thru' => self::parseDate($paid_thru),
                     'daily_rate' => !empty($daily_rate) ? floatval($daily_rate) : null,
                     'on_vacation' => $on_vacation ? 1 : 0,
                     'address' => $address,
@@ -372,7 +372,7 @@ class AllSubscriberImporter
                     'phone_normalized' => $this->normalizePhone($phone),
                     'email' => $email,
                     'login_id' => $login_id,
-                    'last_login' => $this->parseDate($last_login)
+                    'last_login' => self::parseDate($last_login)
                 ];
             } catch (Exception $e) {
                 error_log("Row $row_num error: " . $e->getMessage());
@@ -676,80 +676,6 @@ class AllSubscriberImporter
      * @param string $filename Original uploaded filename
      * @return string snapshot_date in 'Y-m-d' format
      */
-    /**
-     * Collapse subscribers listed more than once on the same paper
-     *
-     * The database allows one row per (snapshot_date, sub_num, paper_code), but the
-     * Newzware export carries no unique subscription ID — a subscriber holding two
-     * subscriptions on the same paper appears as two indistinguishable rows. Keep the
-     * one with the latest Paid Thru, which is where the subscriber actually stands.
-     *
-     * Rows missing SUB NUM or Ed are passed through untouched; the caller skips them.
-     *
-     * @param array<int, array<int, string>> $rows Raw CSV data rows
-     * @param array<string, int> $col_map Column name to index map
-     * @return array{rows: array<int, array<int, string>>, dropped: array<int, string>}
-     */
-    public static function collapseDuplicateSubscribers(array $rows, array $col_map): array
-    {
-        $sub_col = $col_map['SUB NUM'] ?? null;
-        $paper_col = $col_map['Ed'] ?? null;
-        $paid_thru_col = $col_map['Paid Thru'] ?? null;
-
-        if ($sub_col === null || $paper_col === null) {
-            return ['rows' => $rows, 'dropped' => []];
-        }
-
-        $kept = [];        // key => position in $result
-        $result = [];
-        $dropped = [];
-
-        foreach ($rows as $row) {
-            $sub_num = trim($row[$sub_col] ?? '');
-            $paper_code = trim($row[$paper_col] ?? '');
-
-            if ($sub_num === '' || $paper_code === '') {
-                $result[] = $row;
-                continue;
-            }
-
-            $key = $sub_num . '|' . $paper_code;
-
-            if (!isset($kept[$key])) {
-                $kept[$key] = count($result);
-                $result[] = $row;
-                continue;
-            }
-
-            $dropped[] = $key;
-
-            $position = $kept[$key];
-            $incumbent = $paid_thru_col === null ? '' : trim($result[$position][$paid_thru_col] ?? '');
-            $challenger = $paid_thru_col === null ? '' : trim($row[$paid_thru_col] ?? '');
-
-            if (self::paidThruRank($challenger) > self::paidThruRank($incumbent)) {
-                $result[$position] = $row;
-            }
-        }
-
-        return ['rows' => $result, 'dropped' => $dropped];
-    }
-
-    /**
-     * Sortable rank for a Paid Thru value; blank or unparseable dates rank lowest
-     * so a stale row never displaces a subscriber's current subscription.
-     */
-    private static function paidThruRank(string $paid_thru): int
-    {
-        if ($paid_thru === '') {
-            return PHP_INT_MIN;
-        }
-
-        $timestamp = strtotime($paid_thru);
-
-        return $timestamp === false ? PHP_INT_MIN : $timestamp;
-    }
-
     private function extractSnapshotDateFromFilename(string $filename): string
     {
         // Pattern: AllSubscriberReport + YYYYMMDDHHMMSS + .csv
@@ -802,7 +728,7 @@ class AllSubscriberImporter
      * @param string $dateString Date string to parse
      * @return string|null Parsed date in 'Y-m-d' format or null if invalid
      */
-    private function parseDate(string $dateString): ?string
+    private static function parseDate(string $dateString): ?string
     {
         if (empty($dateString)) {
             return null;
@@ -864,5 +790,77 @@ class AllSubscriberImporter
             'week' => (int)$dt->format('W'),  // ISO week number
             'year' => (int)$dt->format('o')   // ISO week-numbering year (handles year boundaries correctly)
         ];
+    }
+
+    /**
+     * Collapse subscribers listed more than once on the same paper
+     *
+     * The database allows one row per (snapshot_date, sub_num, paper_code), but the
+     * Newzware export carries no unique subscription ID — a subscriber holding two
+     * subscriptions on the same paper appears as two indistinguishable rows. Keep the
+     * one with the latest Paid Thru, which is where the subscriber actually stands.
+     *
+     * Rows missing SUB NUM or Ed are passed through untouched; the caller skips them.
+     *
+     * @param array<int, array<int, string>> $rows Raw CSV data rows
+     * @param array<string, int> $col_map Column name to index map
+     * @return array{rows: array<int, array<int, string>>, dropped: array<int, string>}
+     */
+    public static function collapseDuplicateSubscribers(array $rows, array $col_map): array
+    {
+        $sub_col = $col_map['SUB NUM'] ?? null;
+        $paper_col = $col_map['Ed'] ?? null;
+        $paid_thru_col = $col_map['Paid Thru'] ?? null;
+
+        if ($sub_col === null || $paper_col === null) {
+            return ['rows' => $rows, 'dropped' => []];
+        }
+
+        $kept = [];        // key => position in $result
+        $result = [];
+        $dropped = [];
+
+        foreach ($rows as $row) {
+            $sub_num = trim($row[$sub_col] ?? '');
+            $paper_code = trim($row[$paper_col] ?? '');
+
+            if ($sub_num === '' || $paper_code === '') {
+                $result[] = $row;
+                continue;
+            }
+
+            $key = $sub_num . '|' . $paper_code;
+
+            if (!isset($kept[$key])) {
+                $kept[$key] = count($result);
+                $result[] = $row;
+                continue;
+            }
+
+            $dropped[] = $key;
+
+            $position = $kept[$key];
+            $incumbent = $paid_thru_col === null ? '' : trim($result[$position][$paid_thru_col] ?? '');
+            $challenger = $paid_thru_col === null ? '' : trim($row[$paid_thru_col] ?? '');
+
+            if (self::paidThruRank($challenger) > self::paidThruRank($incumbent)) {
+                $result[$position] = $row;
+            }
+        }
+
+        return ['rows' => $result, 'dropped' => $dropped];
+    }
+
+    /**
+     * Sortable rank for a Paid Thru value
+     *
+     * Ranks through the same parser that stores the value, so "latest by rank" and
+     * "latest by stored value" can never disagree. Blank and unparseable dates rank
+     * lowest, so a stale row never displaces a subscriber's current subscription.
+     * Returns 'Y-m-d', which sorts correctly as a plain string.
+     */
+    private static function paidThruRank(string $paid_thru): string
+    {
+        return self::parseDate($paid_thru) ?? '';
     }
 }

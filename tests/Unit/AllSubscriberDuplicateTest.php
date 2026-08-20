@@ -108,6 +108,23 @@ class AllSubscriberDuplicateTest extends TestCase
         $this->assertSame('2027-01-22', $result['rows'][0][2]);
     }
 
+    /**
+     * Ranking runs through the same parser that stores the value, so a M/D/YY date
+     * from a manual export compares correctly against an ISO date from an automated one.
+     */
+    public function testComparesMixedDateFormatsCorrectly(): void
+    {
+        $rows = [
+            ['6326', 'TJ', '2027-01-22', '2026-07-07'],
+            ['6326', 'TJ', '2/14/27', '2026-07-22'],
+        ];
+
+        $result = AllSubscriberImporter::collapseDuplicateSubscribers($rows, self::COL_MAP);
+
+        $this->assertCount(1, $result['rows']);
+        $this->assertSame('2/14/27', $result['rows'][0][2]);
+    }
+
     /** Rows the main parser would skip anyway must pass through untouched. */
     public function testRowsMissingKeyFieldsArePassedThrough(): void
     {

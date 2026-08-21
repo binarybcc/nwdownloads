@@ -7,8 +7,10 @@
  * Date: 2025-12-01
  */
 
-// Require authentication
-require_once 'auth_check.php';
+// Require authentication. Path is anchored to this file because legacy.php lives in
+// api/ while auth_check.php is one level up — a bare relative path only resolved when
+// the including script happened to run from web/, so direct requests fatalled with 500.
+require_once __DIR__ . '/../auth_check.php';
 // Error reporting (disable in production)
 error_reporting(E_ALL);
 ini_set('display_errors', 0);

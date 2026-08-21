@@ -37,7 +37,13 @@ require_once __DIR__ . '/lib/RenewalImporter.php';
 require_once __DIR__ . '/lib/NewStartsImporter.php';
 require_once __DIR__ . '/lib/StopAnalysisImporter.php';
 require_once __DIR__ . '/SimpleCache.php';
+require_once __DIR__ . '/notifications/INotifier.php';
+require_once __DIR__ . '/notifications/EmailNotifier.php';
+require_once __DIR__ . '/notifications/DashboardNotifier.php';
 
+use CirculationDashboard\Notifications\EmailNotifier;
+use CirculationDashboard\Notifications\DashboardNotifier;
+use CirculationDashboard\Processors\ProcessResult;
 use CirculationDashboard\AllSubscriberImporter;
 use CirculationDashboard\VacationImporter;
 use CirculationDashboard\RenewalImporter;
@@ -110,10 +116,15 @@ foreach ($files as $filepath) {
 
         move_file($processing_path, COMPLETED_DIR . $filename);
         $processed++;
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
+        // Throwable, not Exception: a PHP Error (TypeError, bad method call after a
+        // signature change) would otherwise escape, kill the script mid-loop, leave the
+        // file stuck in processing/, and silently skip every remaining file — exactly
+        // the kind of silent failure the notifications below exist to prevent.
         log_msg("  FAILED: " . $e->getMessage());
         move_file($processing_path, FAILED_DIR . $filename);
         $failed++;
+        notify_failure($pdo, $filename, $e->getMessage());
     }
 }
 
@@ -133,22 +144,20 @@ function connect_db(): PDO
 
 function run_importer(PDO $pdo, string $filepath, string $filename): array
 {
-    if (str_starts_with($filename, 'AllSubscriberReport')) {
-        return (new AllSubscriberImporter($pdo))->import($filepath, $filename);
+    $importers = [
+        'allsubscriber' => AllSubscriberImporter::class,
+        'vacation'      => VacationImporter::class,
+        'renewal'       => RenewalImporter::class,
+        'newstarts'     => NewStartsImporter::class,
+        'stopanalysis'  => StopAnalysisImporter::class,
+    ];
+
+    $type = detect_type($filename);
+    if (!isset($importers[$type])) {
+        throw new Exception("Unknown file type: $filename");
     }
-    if (str_starts_with($filename, 'SubscribersOnVacation')) {
-        return (new VacationImporter($pdo))->import($filepath, $filename);
-    }
-    if (str_starts_with($filename, 'RenewalChurnReport')) {
-        return (new RenewalImporter($pdo))->import($filepath, $filename);
-    }
-    if (str_starts_with($filename, 'NewSubscriptionStarts') || str_starts_with($filename, 'NewStart')) {
-        return (new NewStartsImporter($pdo))->import($filepath, $filename);
-    }
-    if (str_starts_with($filename, 'StopAnalysisReport') || str_starts_with($filename, 'StopAnalysis')) {
-        return (new StopAnalysisImporter($pdo))->import($filepath, $filename);
-    }
-    throw new Exception("Unknown file type: $filename");
+
+    return (new $importers[$type]($pdo))->import($filepath, $filename);
 }
 
 function format_result(array $result): string
@@ -171,6 +180,59 @@ function format_result(array $result): string
         return "total={$result['total_processed']} truly_new={$result['truly_new']} restarts={$result['restarts']}";
     }
     return json_encode($result);
+}
+
+/**
+ * Map a filename to its file type
+ *
+ * Single source of truth for routing: run_importer() picks the importer from this,
+ * and failure notifications use it to label the file. Keeping one table means the
+ * two cannot drift apart.
+ */
+function detect_type(string $filename): string
+{
+    $types = [
+        'AllSubscriberReport'    => 'allsubscriber',
+        'SubscribersOnVacation'  => 'vacation',
+        'RenewalChurnReport'     => 'renewal',
+        'NewSubscriptionStarts'  => 'newstarts',
+        'NewStart'               => 'newstarts',
+        'StopAnalysisReport'     => 'stopanalysis',
+        'StopAnalysis'           => 'stopanalysis',
+    ];
+
+    foreach ($types as $prefix => $type) {
+        if (str_starts_with($filename, $prefix)) {
+            return $type;
+        }
+    }
+
+    return 'unknown';
+}
+
+/**
+ * Alert on a failed file
+ *
+ * The notifiers existed but were only wired into process-inbox.php, which never runs
+ * in production — so 38 consecutive failures between 2026-07-08 and 2026-08-20 went
+ * unnoticed for seven weeks. Notification problems must never stop processing, so
+ * everything here is best-effort and reported to the log.
+ */
+function notify_failure(PDO $pdo, string $filename, string $error): void
+{
+    try {
+        $result = ProcessResult::failure($filename, detect_type($filename), $error);
+
+        foreach ([new DashboardNotifier($pdo), new EmailNotifier($pdo)] as $notifier) {
+            try {
+                $notifier->sendFailure($result);
+            } catch (Throwable $e) {
+                log_msg("  WARNING: " . get_class($notifier) . " failed: " . $e->getMessage());
+            }
+        }
+    } catch (Throwable $e) {
+        log_msg("  WARNING: Could not send failure notification: " . $e->getMessage());
+    }
 }
 
 function move_file(string $from, string $to): void

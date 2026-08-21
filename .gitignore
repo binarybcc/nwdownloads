@@ -54,6 +54,8 @@ debug_*.php
 !docs/troubleshooting-rules.json
 # Exception: Project configuration files (required for versioning/tooling)
 !package.json
+!composer.json
+!composer.lock
 !commitlint.config.js
 !.versionrc.json
 # Exception: GSD planning config
@@ -86,7 +88,6 @@ package-lock.json
 
 # Testing and Code Quality
 /vendor/
-composer.lock
 .phpunit.cache/
 coverage/
 tests/Fixtures/temp/

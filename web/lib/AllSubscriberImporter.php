@@ -442,11 +442,16 @@ class AllSubscriberImporter
                     if ($is_real_data) {
                         // Existing data is REAL - respect it and stop backfilling
                         if ($weeks_back == 0) {
-                            // Upload week: only replace if new file is newer
-                            if ($existing['source_date'] < $file_date) {
-                                error_log("♻️ Replacing upload week $current_week, $current_year with newer data (old: {$existing['source_date']}, new: $file_date)");
+                            // Upload week: replace with same-day or newer data. Same-day is
+                            // allowed so a file can be re-run during a recovery; the rebuild
+                            // is idempotent. Only genuinely older files are refused.
+                            if ($existing['source_date'] <= $file_date) {
+                                error_log("♻️ Replacing upload week $current_week, $current_year (old: {$existing['source_date']}, new: $file_date)");
                             } else {
-                                throw new Exception("Cannot replace real data from {$existing['source_date']} with older file from $file_date");
+                                throw new Exception(
+                                    "Refusing to overwrite week $current_week, $current_year: it holds newer data from "
+                                    . "{$existing['source_date']} and this file is from $file_date."
+                                );
                             }
                         } else {
                             // Backfill week: stop when hitting real data

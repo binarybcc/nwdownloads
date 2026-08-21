@@ -17,8 +17,7 @@ class WeekBoundariesTest extends TestCase
      */
     public function testGetWeekBoundariesReturnsSundayToSaturday(): void
     {
-        // Load the function from api.php
-        require_once PROJECT_ROOT . '/web/api.php';
+        require_once PROJECT_ROOT . '/web/api/shared/utils.php';
 
         // Test with a Wednesday (should return Sunday before it and Saturday after)
         $result = getWeekBoundaries('2025-12-03'); // Wednesday
@@ -29,17 +28,21 @@ class WeekBoundariesTest extends TestCase
 
     /**
      * Test week number calculation for Monday snapshots
-     * Monday snapshots should represent the previous week's data
+     *
+     * getWeekBoundaries() numbers a week from the date itself, so Monday 2025-11-24
+     * is ISO week 48 — consistent with testSaturdaySnapshotWeekNumber() below. The
+     * "data represents the previous week" convention lives in AllSubscriberImporter,
+     * which subtracts 7 days from the file date before calling this; it is not part
+     * of this function's contract.
      */
-    public function testMondaySnapshotRepresentsPreviousWeek(): void
+    public function testMondayIsNumberedByItsOwnIsoWeek(): void
     {
-        require_once PROJECT_ROOT . '/web/api.php';
+        require_once PROJECT_ROOT . '/web/api/shared/utils.php';
 
-        // Nov 24, 2025 is a Monday
-        // It should be assigned to Week 47 (the week that just ended)
+        // Nov 24, 2025 is a Monday, in ISO week 48
         $result = getWeekBoundaries('2025-11-24');
 
-        $this->assertEquals(47, $result['week_num']);
+        $this->assertEquals(48, $result['week_num']);
         $this->assertEquals(2025, $result['year']);
     }
 
@@ -48,7 +51,7 @@ class WeekBoundariesTest extends TestCase
      */
     public function testSaturdaySnapshotWeekNumber(): void
     {
-        require_once PROJECT_ROOT . '/web/api.php';
+        require_once PROJECT_ROOT . '/web/api/shared/utils.php';
 
         // Dec 6, 2025 is a Saturday
         // It should be Week 49
@@ -63,7 +66,7 @@ class WeekBoundariesTest extends TestCase
      */
     public function testYearBoundaryWeekNumbers(): void
     {
-        require_once PROJECT_ROOT . '/web/api.php';
+        require_once PROJECT_ROOT . '/web/api/shared/utils.php';
 
         // Week 1 of 2026 (early January)
         $result = getWeekBoundaries('2026-01-04'); // Sunday
@@ -83,7 +86,7 @@ class WeekBoundariesTest extends TestCase
      */
     public function testAllDaysInWeekHaveSameBoundaries(): void
     {
-        require_once PROJECT_ROOT . '/web/api.php';
+        require_once PROJECT_ROOT . '/web/api/shared/utils.php';
 
         // Test all 7 days in Week 49 (Nov 30 - Dec 6, 2025)
         $dates = [

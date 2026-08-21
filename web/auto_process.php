@@ -37,7 +37,13 @@ require_once __DIR__ . '/lib/RenewalImporter.php';
 require_once __DIR__ . '/lib/NewStartsImporter.php';
 require_once __DIR__ . '/lib/StopAnalysisImporter.php';
 require_once __DIR__ . '/SimpleCache.php';
+require_once __DIR__ . '/notifications/INotifier.php';
+require_once __DIR__ . '/notifications/EmailNotifier.php';
+require_once __DIR__ . '/notifications/DashboardNotifier.php';
 
+use CirculationDashboard\Notifications\EmailNotifier;
+use CirculationDashboard\Notifications\DashboardNotifier;
+use CirculationDashboard\Processors\ProcessResult;
 use CirculationDashboard\AllSubscriberImporter;
 use CirculationDashboard\VacationImporter;
 use CirculationDashboard\RenewalImporter;
@@ -114,6 +120,7 @@ foreach ($files as $filepath) {
         log_msg("  FAILED: " . $e->getMessage());
         move_file($processing_path, FAILED_DIR . $filename);
         $failed++;
+        notify_failure($pdo, $filename, $e->getMessage());
     }
 }
 
@@ -171,6 +178,55 @@ function format_result(array $result): string
         return "total={$result['total_processed']} truly_new={$result['truly_new']} restarts={$result['restarts']}";
     }
     return json_encode($result);
+}
+
+/**
+ * File type identifier for notifications, mirroring run_importer()'s routing
+ */
+function detect_type(string $filename): string
+{
+    $types = [
+        'AllSubscriberReport'    => 'allsubscriber',
+        'SubscribersOnVacation'  => 'vacation',
+        'RenewalChurnReport'     => 'renewal',
+        'NewSubscriptionStarts'  => 'newstarts',
+        'NewStart'               => 'newstarts',
+        'StopAnalysisReport'     => 'stopanalysis',
+        'StopAnalysis'           => 'stopanalysis',
+    ];
+
+    foreach ($types as $prefix => $type) {
+        if (str_starts_with($filename, $prefix)) {
+            return $type;
+        }
+    }
+
+    return 'unknown';
+}
+
+/**
+ * Alert on a failed file
+ *
+ * The notifiers existed but were only wired into process-inbox.php, which never runs
+ * in production — so 38 consecutive failures between 2026-07-08 and 2026-08-20 went
+ * unnoticed for seven weeks. Notification problems must never stop processing, so
+ * everything here is best-effort and reported to the log.
+ */
+function notify_failure(PDO $pdo, string $filename, string $error): void
+{
+    try {
+        $result = ProcessResult::failure($filename, detect_type($filename), $error);
+
+        foreach ([new DashboardNotifier($pdo), new EmailNotifier($pdo)] as $notifier) {
+            try {
+                $notifier->sendFailure($result);
+            } catch (Throwable $e) {
+                log_msg("  WARNING: " . get_class($notifier) . " failed: " . $e->getMessage());
+            }
+        }
+    } catch (Throwable $e) {
+        log_msg("  WARNING: Could not send failure notification: " . $e->getMessage());
+    }
 }
 
 function move_file(string $from, string $to): void

@@ -16,6 +16,13 @@ require_once __DIR__ . '/lib/NwAuth.php';
 
 use CirculationDashboard\NwAuth;
 
+// Authentication is an HTTP concept. Under CLI there is no session to start and no
+// browser to redirect, and reaching the CLI already requires shell access — so guard
+// nothing rather than killing the process. Web requests never use the CLI SAPI.
+if (php_sapi_name() === 'cli') {
+    return;
+}
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }

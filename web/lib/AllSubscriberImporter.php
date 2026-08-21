@@ -19,6 +19,8 @@
 
 namespace CirculationDashboard;
 
+require_once __DIR__ . '/WeekAlreadyClosedException.php';
+
 use PDO;
 use Exception;
 use DateTime;
@@ -442,17 +444,33 @@ class AllSubscriberImporter
                     if ($is_real_data) {
                         // Existing data is REAL - respect it and stop backfilling
                         if ($weeks_back == 0) {
-                            // Upload week: replace with same-day or newer data. Same-day is
-                            // allowed so a file can be re-run during a recovery; the rebuild
-                            // is idempotent. Only genuinely older files are refused.
-                            if ($existing['source_date'] <= $file_date) {
-                                error_log("♻️ Replacing upload week $current_week, $current_year (old: {$existing['source_date']}, new: $file_date)");
-                            } else {
+                            // A week's snapshot is the export taken once that week has
+                            // finished — the following Monday. Later exports in the same
+                            // week describe a later reality and would pollute the trend,
+                            // so an authoritative snapshot is never overwritten by one.
+                            $week_monday = (new DateTime())
+                                ->setISODate($current_year, $current_week, 1)
+                                ->format('Y-m-d');
+
+                            $incoming_is_authoritative = self::isAuthoritativeExport($week_monday, $file_date);
+                            $existing_is_authoritative = self::isAuthoritativeExport($week_monday, $existing['source_date']);
+
+                            if ($existing_is_authoritative && !$incoming_is_authoritative) {
+                                throw new WeekAlreadyClosedException(
+                                    "Week $current_week, $current_year is already closed with its "
+                                    . "end-of-week snapshot from {$existing['source_date']}; "
+                                    . "$file_date is a mid-week export and would pollute the trend."
+                                );
+                            }
+
+                            if (!$incoming_is_authoritative && $existing['source_date'] > $file_date) {
                                 throw new Exception(
                                     "Refusing to overwrite week $current_week, $current_year: it holds newer data from "
                                     . "{$existing['source_date']} and this file is from $file_date."
                                 );
                             }
+
+                            error_log("♻️ Replacing upload week $current_week, $current_year (old: {$existing['source_date']}, new: $file_date)");
                         } else {
                             // Backfill week: stop when hitting real data
                             error_log("🛑 Backfill stopped at Week $current_week, $current_year (has REAL data from {$existing['source_date']})");
@@ -873,6 +891,24 @@ class AllSubscriberImporter
     private static function paidThruRank(string $paid_thru): string
     {
         return self::parseDate($paid_thru) ?? '';
+    }
+
+    /**
+     * Is this export the authoritative snapshot for the week starting $week_monday?
+     *
+     * The export runs at ~05:10, so the file produced on the Monday after a week ends
+     * captures subscribers as they stood at the close of that week. That is the one
+     * file that describes the week rather than some later moment, and it is exactly
+     * the file the importer's "-7 days" rule was designed around.
+     *
+     * @param string $week_monday Monday the week starts, 'Y-m-d'
+     * @param string $file_date Date the export was produced, 'Y-m-d'
+     */
+    public static function isAuthoritativeExport(string $week_monday, string $file_date): bool
+    {
+        $closes_on = (new DateTime($week_monday))->modify('+7 days')->format('Y-m-d');
+
+        return $file_date === $closes_on;
     }
 
     /**

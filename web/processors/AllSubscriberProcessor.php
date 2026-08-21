@@ -190,6 +190,10 @@ class AllSubscriberProcessor implements IFileProcessor
             $successResult->processingDuration = $duration;
 
             return $successResult;
+        } catch (\CirculationDashboard\WeekAlreadyClosedException $e) {
+            // Not a failure: the week already holds its end-of-week snapshot. Let it
+            // reach the caller intact so it can be reported as a skip.
+            throw $e;
         } catch (Exception $e) {
             // Calculate processing duration even on failure
             $duration = microtime(true) - $startTime;

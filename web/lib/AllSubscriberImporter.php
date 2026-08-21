@@ -19,6 +19,8 @@
 
 namespace CirculationDashboard;
 
+require_once __DIR__ . '/WeekAlreadyClosedException.php';
+
 use PDO;
 use Exception;
 use DateTime;
@@ -112,7 +114,7 @@ class AllSubscriberImporter
         // Step 2: Process CSV as normal
         $handle = fopen($filepath, 'r');
         if (!$handle) {
-            throw new Exception('Could not open uploaded file');
+            $this->failUpload($upload_id, 'Could not open uploaded file');
         }
 
         // Find the header row (contains "SUB NUM")
@@ -135,7 +137,7 @@ class AllSubscriberImporter
         }
 
         if (!$header) {
-            throw new Exception('Could not find header row (looking for "SUB NUM" column). This does not appear to be an All Subscriber Report.');
+            $this->failUpload($upload_id, 'Could not find header row (looking for "SUB NUM" column). This does not appear to be an All Subscriber Report.');
         }
 
         // Trim whitespace from column names
@@ -158,7 +160,7 @@ class AllSubscriberImporter
         }
 
         if (!empty($missing_columns)) {
-            throw new Exception('CSV does not appear to be an All Subscriber Report (missing required columns: ' . implode(', ', $missing_columns) . ')');
+            $this->failUpload($upload_id, 'CSV does not appear to be an All Subscriber Report (missing required columns: ' . implode(', ', $missing_columns) . ')');
         }
 
         // Map column indices
@@ -382,7 +384,7 @@ class AllSubscriberImporter
         fclose($handle);
 
         if (empty($snapshots)) {
-            throw new Exception('No valid data found in CSV file (or all data is before 2025-01-01)');
+            $this->failUpload($upload_id, 'No valid data found in CSV file (or all data is before 2025-01-01)');
         }
 
         // SOFT BACKFILL ALGORITHM
@@ -442,17 +444,31 @@ class AllSubscriberImporter
                     if ($is_real_data) {
                         // Existing data is REAL - respect it and stop backfilling
                         if ($weeks_back == 0) {
-                            // Upload week: replace with same-day or newer data. Same-day is
-                            // allowed so a file can be re-run during a recovery; the rebuild
-                            // is idempotent. Only genuinely older files are refused.
-                            if ($existing['source_date'] <= $file_date) {
-                                error_log("♻️ Replacing upload week $current_week, $current_year (old: {$existing['source_date']}, new: $file_date)");
-                            } else {
+                            // A week's snapshot is the export taken once that week has
+                            // finished — the following Monday. Later exports in the same
+                            // week describe a later reality and would pollute the trend,
+                            // so an authoritative snapshot is never overwritten by one.
+                            $week_monday = self::isoWeekMonday($current_year, $current_week);
+
+                            $incoming_is_authoritative = self::isAuthoritativeExport($week_monday, $file_date);
+                            $existing_is_authoritative = self::isAuthoritativeExport($week_monday, $existing['source_date']);
+
+                            if ($existing_is_authoritative && !$incoming_is_authoritative) {
+                                throw new WeekAlreadyClosedException(
+                                    "Week $current_week, $current_year is already closed with its "
+                                    . "end-of-week snapshot from {$existing['source_date']}; "
+                                    . "$file_date is a mid-week export and would pollute the trend."
+                                );
+                            }
+
+                            if (!$incoming_is_authoritative && $existing['source_date'] > $file_date) {
                                 throw new Exception(
                                     "Refusing to overwrite week $current_week, $current_year: it holds newer data from "
                                     . "{$existing['source_date']} and this file is from $file_date."
                                 );
                             }
+
+                            error_log("♻️ Replacing upload week $current_week, $current_year (old: {$existing['source_date']}, new: $file_date)");
                         } else {
                             // Backfill week: stop when hitting real data
                             error_log("🛑 Backfill stopped at Week $current_week, $current_year (has REAL data from {$existing['source_date']})");
@@ -506,9 +522,7 @@ class AllSubscriberImporter
                 $is_backfilled = $week_info['is_backfilled'];
                 $weeks_offset = $week_info['weeks_offset'];
 
-                $target_snapshot_date = (new DateTime())
-                    ->setISODate($target_year, $target_week, 1)
-                    ->format('Y-m-d');
+                $target_snapshot_date = self::isoWeekMonday($target_year, $target_week);
 
                 // Vacation state comes from a separate weekly import and is not present
                 // in this CSV, so carry it across the rebuild instead of destroying it
@@ -632,6 +646,16 @@ class AllSubscriberImporter
                 'subscriber_count' => $stats['subscriber_records_imported'],
                 'upload_id' => $upload_id
             ]);
+        } catch (WeekAlreadyClosedException $e) {
+            // Routine on five mornings a week, so it must not land in the audit trail as
+            // a failure — that would bury real failures under expected ones.
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            $this->recordUploadOutcome($upload_id, 'skipped', $e->getMessage());
+
+            throw $e;
         } catch (Exception $e) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
@@ -873,6 +897,76 @@ class AllSubscriberImporter
     private static function paidThruRank(string $paid_thru): string
     {
         return self::parseDate($paid_thru) ?? '';
+    }
+
+    /**
+     * Record an upload as failed and raise the error
+     *
+     * These validation failures happen before the import transaction opens, so without
+     * this their audit row would sit at 'pending' forever and the failure would never
+     * appear in raw_uploads at all.
+     *
+     * @throws Exception always
+     */
+    private function failUpload(string $upload_id, string $message): void
+    {
+        $this->recordUploadOutcome($upload_id, 'failed', $message);
+
+        throw new Exception($message);
+    }
+
+    /**
+     * Record how an upload ended in the raw_uploads audit trail
+     *
+     * Never allowed to mask the original problem: if the audit write itself fails, the
+     * caller still sees the exception that brought us here.
+     */
+    private function recordUploadOutcome(string $upload_id, string $status, string $message): void
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                UPDATE raw_uploads SET
+                    processing_status = :status,
+                    processing_errors = :message
+                WHERE upload_id = :upload_id
+            ");
+            $stmt->execute([
+                'status' => $status,
+                'message' => $message,
+                'upload_id' => $upload_id
+            ]);
+        } catch (Exception $ignored) {
+            // Ignore errors updating the status
+        }
+    }
+
+    /**
+     * Monday that an ISO week starts on
+     *
+     * The week-anchoring convention lives here so a change to it cannot be applied in
+     * one place and missed in another.
+     */
+    private static function isoWeekMonday(int $year, int $week): string
+    {
+        return (new DateTime())->setISODate($year, $week, 1)->format('Y-m-d');
+    }
+
+    /**
+     * Is this export the authoritative snapshot for the week starting $week_monday?
+     *
+     * The export runs at ~05:10, so the file produced on the Monday after a week ends
+     * captures subscribers as they stood at the close of that week. That is the one
+     * file that describes the week rather than some later moment, and it is exactly
+     * the file the importer's "-7 days" rule was designed around.
+     *
+     * @param string $week_monday Monday the week starts, 'Y-m-d'
+     * @param string $file_date Date the export was produced, 'Y-m-d'
+     */
+    public static function isAuthoritativeExport(string $week_monday, string $file_date): bool
+    {
+        $closes_on = (new DateTime($week_monday))->modify('+7 days')->format('Y-m-d');
+
+        return $file_date === $closes_on;
     }
 
     /**

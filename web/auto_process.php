@@ -15,9 +15,15 @@
  *   StopAnalysisReport*.csv       → StopAnalysisImporter
  *
  * Run via Synology Task Scheduler:
- *   Command: /var/packages/PHP8.2/target/usr/local/bin/php82 /volume1/web/circulation/auto_process.php
- *   Schedule: Weekly, Sunday, 08:02 AM
- *   Run as: root
+ *   Command: bash /volume1/web/circulation/scripts/run-auto-process.sh
+ *   Schedule: Daily, 07:30 AM (the wrapper skips Sunday, when there is no export)
+ *   Run as: it
+ *
+ * Newzware exports the All Subscriber Report every morning Monday-Saturday, but the
+ * dashboard reports weekly trends. A week's snapshot is the export taken once that
+ * week has finished — the following Monday — and mid-week exports for an already
+ * closed week are skipped rather than allowed to overwrite it. The other three
+ * reports are exported once a week on Sunday night.
  *
  * @package CirculationDashboard
  */
@@ -45,6 +51,7 @@ use CirculationDashboard\Notifications\EmailNotifier;
 use CirculationDashboard\Notifications\DashboardNotifier;
 use CirculationDashboard\Processors\ProcessResult;
 use CirculationDashboard\AllSubscriberImporter;
+use CirculationDashboard\WeekAlreadyClosedException;
 use CirculationDashboard\VacationImporter;
 use CirculationDashboard\RenewalImporter;
 use CirculationDashboard\NewStartsImporter;
@@ -93,6 +100,7 @@ log_msg("Found " . count($files) . " file(s) to process.");
 $pdo = connect_db();
 $processed = 0;
 $failed    = 0;
+$skipped   = 0;
 
 foreach ($files as $filepath) {
     $filename = basename($filepath);
@@ -116,6 +124,12 @@ foreach ($files as $filepath) {
 
         move_file($processing_path, COMPLETED_DIR . $filename);
         $processed++;
+    } catch (WeekAlreadyClosedException $e) {
+        // Expected for Tuesday-Saturday exports: the week already holds its end-of-week
+        // snapshot. Not a failure — archive it and move on without alerting.
+        log_msg("  SKIPPED: " . $e->getMessage());
+        move_file($processing_path, COMPLETED_DIR . $filename);
+        $skipped++;
     } catch (Throwable $e) {
         // Throwable, not Exception: a PHP Error (TypeError, bad method call after a
         // signature change) would otherwise escape, kill the script mid-loop, leave the
@@ -128,7 +142,7 @@ foreach ($files as $filepath) {
     }
 }
 
-log_msg("=== Done. Processed: $processed, Failed: $failed ===");
+log_msg("=== Done. Processed: $processed, Skipped: $skipped, Failed: $failed ===");
 exit($failed > 0 ? 1 : 0);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

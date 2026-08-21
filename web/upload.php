@@ -111,6 +111,14 @@ try {
         'summary_html' => $result['summary_html'],
         'cache_cleared' => $cleared_count
     ]);
+} catch (CirculationDashboard\WeekAlreadyClosedException $e) {
+    // A mid-week export for an already-closed week. Expected, not an error — say so
+    // plainly rather than showing the operator a failure.
+    echo json_encode([
+        'success' => true,
+        'skipped' => true,
+        'message' => $e->getMessage()
+    ]);
 } catch (Exception $e) {
     http_response_code(400);
     echo json_encode([

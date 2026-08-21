@@ -116,7 +116,11 @@ foreach ($files as $filepath) {
 
         move_file($processing_path, COMPLETED_DIR . $filename);
         $processed++;
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
+        // Throwable, not Exception: a PHP Error (TypeError, bad method call after a
+        // signature change) would otherwise escape, kill the script mid-loop, leave the
+        // file stuck in processing/, and silently skip every remaining file — exactly
+        // the kind of silent failure the notifications below exist to prevent.
         log_msg("  FAILED: " . $e->getMessage());
         move_file($processing_path, FAILED_DIR . $filename);
         $failed++;
@@ -140,22 +144,20 @@ function connect_db(): PDO
 
 function run_importer(PDO $pdo, string $filepath, string $filename): array
 {
-    if (str_starts_with($filename, 'AllSubscriberReport')) {
-        return (new AllSubscriberImporter($pdo))->import($filepath, $filename);
+    $importers = [
+        'allsubscriber' => AllSubscriberImporter::class,
+        'vacation'      => VacationImporter::class,
+        'renewal'       => RenewalImporter::class,
+        'newstarts'     => NewStartsImporter::class,
+        'stopanalysis'  => StopAnalysisImporter::class,
+    ];
+
+    $type = detect_type($filename);
+    if (!isset($importers[$type])) {
+        throw new Exception("Unknown file type: $filename");
     }
-    if (str_starts_with($filename, 'SubscribersOnVacation')) {
-        return (new VacationImporter($pdo))->import($filepath, $filename);
-    }
-    if (str_starts_with($filename, 'RenewalChurnReport')) {
-        return (new RenewalImporter($pdo))->import($filepath, $filename);
-    }
-    if (str_starts_with($filename, 'NewSubscriptionStarts') || str_starts_with($filename, 'NewStart')) {
-        return (new NewStartsImporter($pdo))->import($filepath, $filename);
-    }
-    if (str_starts_with($filename, 'StopAnalysisReport') || str_starts_with($filename, 'StopAnalysis')) {
-        return (new StopAnalysisImporter($pdo))->import($filepath, $filename);
-    }
-    throw new Exception("Unknown file type: $filename");
+
+    return (new $importers[$type]($pdo))->import($filepath, $filename);
 }
 
 function format_result(array $result): string
@@ -181,7 +183,11 @@ function format_result(array $result): string
 }
 
 /**
- * File type identifier for notifications, mirroring run_importer()'s routing
+ * Map a filename to its file type
+ *
+ * Single source of truth for routing: run_importer() picks the importer from this,
+ * and failure notifications use it to label the file. Keeping one table means the
+ * two cannot drift apart.
  */
 function detect_type(string $filename): string
 {

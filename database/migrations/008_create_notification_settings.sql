@@ -36,7 +36,7 @@ COMMENT='Notification system configuration and preferences';
 -- ============================================================================
 
 INSERT INTO notification_settings (setting_key, setting_value, description) VALUES
-('email_addresses', '["john@upstatetoday.com"]', 'Comma-separated list of email addresses for failure notifications (JSON array)'),
+('email_addresses', '["jcorbin@upstatetoday.com"]', 'Comma-separated list of email addresses for failure notifications (JSON array)'),
 ('enable_failure_emails', 'true', 'Send email notifications when file processing fails'),
 ('enable_success_dashboard', 'true', 'Show success banners on dashboard after successful processing'),
 ('from_email', 'noreply@upstatetoday.com', 'From address for outgoing notification emails'),

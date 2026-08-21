@@ -5,12 +5,15 @@
     "robmorgan/phinx": "^0.13"
   },
   "config": {
-    "optimize-autoloader": true
+    "optimize-autoloader": true,
+    "platform": {
+      "php": "8.2.0"
+    }
   },
   "require-dev": {
     "squizlabs/php_codesniffer": "^4.0",
     "phpstan/phpstan": "^2.1",
     "friendsofphp/php-cs-fixer": "^3.92",
-    "phpunit/phpunit": "^12.5"
+    "phpunit/phpunit": "^11.0"
   }
 }

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.2.1](https://github.com/binarybcc/nwdownloads/compare/v2.2.0...v2.2.1) (2026-08-21)
+
+### Bug Fixes
+
+- **import:** make a week's snapshot the export taken after that week ends ([667f871](https://github.com/binarybcc/nwdownloads/commit/667f8712b36ca9bdebe60154011b9e684938f1bf))
+- **import:** record week skips as skipped, not failed ([810dee9](https://github.com/binarybcc/nwdownloads/commit/810dee9da764d1b7d98dedf26bce603ac8e0060f)), closes [#56](https://github.com/binarybcc/nwdownloads/issues/56)
+- **notifications:** correct failure alert recipient address ([70b764d](https://github.com/binarybcc/nwdownloads/commit/70b764d96d212d546d3d2de3d1eb6580fb7ec04a))
+
 ## [2.2.0](https://github.com/binarybcc/nwdownloads/compare/v2.1.1...v2.2.0) (2026-08-21)
 
 ### Features

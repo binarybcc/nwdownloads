@@ -120,3 +120,6 @@ backups/
 *-report.md
 
 .worktrees/
+
+# Apache config holding real credentials (use .htaccess.production.example as the template)
+web/.htaccess.production

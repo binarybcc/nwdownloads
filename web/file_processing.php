@@ -8,6 +8,7 @@
 require_once 'auth_check.php';
 require_once 'version.php';
 require_once __DIR__ . '/notifications/DashboardNotifier.php';
+require_once __DIR__ . '/lib/Credentials.php';
 
 // Database connection
 // Auto-detect production vs development
@@ -18,8 +19,8 @@ try {
         // Production: Native Synology MariaDB via Unix socket
         $pdo = new PDO(
             'mysql:unix_socket=/run/mysqld/mysqld10.sock;dbname=circulation_dashboard;charset=utf8mb4',
-            'root',
-            'P@ta675N0id',
+            \CirculationDashboard\Credentials::require('DB_USER'),
+            \CirculationDashboard\Credentials::require('DB_PASSWORD'),
             [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

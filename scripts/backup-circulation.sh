@@ -23,9 +23,10 @@ LOG_FILE="${LOG_DIR}/backup-${TIMESTAMP}.log"
 
 # Database configuration
 DB_SOCKET="/run/mysqld/mysqld10.sock"
-DB_USER="root"
-DB_PASS="P@ta675N0id"
 DB_NAME="circulation_dashboard"
+
+# DB_USER / DB_PASS come from the credential file, never from this script
+source "$(dirname "${BASH_SOURCE[0]}")/load-db-credentials.sh"
 
 # MariaDB binary paths (Synology)
 MYSQL="/usr/local/mariadb10/bin/mysql"

@@ -21,9 +21,10 @@ RESTORE_LOG="/volume1/homes/newzware/backup/logs/restore-$(date +%Y-%m-%d-%H%M%S
 
 # Database configuration
 DB_SOCKET="/run/mysqld/mysqld10.sock"
-DB_USER="root"
-DB_PASS="P@ta675N0id"
 DB_NAME="circulation_dashboard"
+
+# DB_USER / DB_PASS come from the credential file, never from this script
+source "$(dirname "${BASH_SOURCE[0]}")/load-db-credentials.sh"
 
 # MariaDB binary paths
 MYSQL="/usr/local/mariadb10/bin/mysql"

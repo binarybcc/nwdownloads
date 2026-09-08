@@ -63,6 +63,31 @@ source .env.credentials && echo "SSH Host: $SSH_HOST"
 | `.env.credentials`         | Your credentials (gitignored)                 |
 | `~/docs/CREDENTIALS.md`    | Global credential reference (never committed) |
 
+### Server-side credential file
+
+CLI scripts that run **on the NAS** cannot see Apache's `SetEnv` variables, so
+they read their database credentials from:
+
+```
+/volume1/web/circulation/.env.credentials    (chmod 600)
+```
+
+| Consumer                                                                                       | Loader                           |
+| ---------------------------------------------------------------------------------------------- | -------------------------------- |
+| `web/fetch_call_logs.php`, `web/auto_process.php`, `web/file_processing.php`                   | `web/lib/Credentials.php`        |
+| `scripts/backup-circulation.sh`, `scripts/restore-database.sh`, `scripts/deploy-production.sh` | `scripts/load-db-credentials.sh` |
+
+Either naming style works — `DB_USER`/`DB_PASSWORD` (matching what Apache sets
+for web requests) or `PROD_DB_USERNAME`/`PROD_DB_PASSWORD` (matching
+`.env.credentials.example`). A real environment variable always wins over the
+file, so nothing needs the file if the environment already supplies it.
+
+Override the location with `CIRCULATION_CREDENTIALS=/path/to/file` when running
+from a checkout rather than the deployed web root.
+
+**No production script may contain a literal password.** `CredentialsTest`
+fails the build if one reappears.
+
 ## Environment Details
 
 |                   | Production                                                          | Development                                |

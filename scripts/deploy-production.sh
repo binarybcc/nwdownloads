@@ -21,8 +21,9 @@ SQL_DIR="${REPO_DIR}/sql"
 MIGRATION_LOG="${PROD_DIR}/.migrations.log"
 DB_SOCKET="/run/mysqld/mysqld10.sock"
 DB_NAME="circulation_dashboard"
-DB_USER="root"
-DB_PASS="P@ta675N0id"
+
+# DB_USER / DB_PASS come from the credential file, never from this script
+source "$(dirname "${BASH_SOURCE[0]}")/load-db-credentials.sh"
 
 # Logging function
 log() {
@@ -186,6 +187,9 @@ main() {
         --exclude='.build_number' \
         --exclude='.migrations.log' \
         --exclude='*.backup' \
+        --exclude='scripts/' \
+        --exclude='logs/' \
+        --exclude='.env*' \
         "${WEB_DIR}/" "${PROD_DIR}/" || error_exit "File sync failed"
     log_success "Files synced"
     echo ""

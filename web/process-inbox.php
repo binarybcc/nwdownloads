@@ -35,14 +35,16 @@ ini_set('error_log', __DIR__ . '/error.log');
 $startTime = microtime(true);
 
 // Detect environment (development vs production)
+require_once __DIR__ . '/lib/Credentials.php';
+
 $isProduction = (php_uname('n') === 'upstatetoday');  // Synology NAS hostname
 
 // Database configuration
 if ($isProduction) {
     // Production: Native Synology MariaDB via Unix socket
     $dsn = 'mysql:unix_socket=/run/mysqld/mysqld10.sock;dbname=circulation_dashboard;charset=utf8mb4';
-    $username = 'root';
-    $password = 'P@ta675N0id';
+    $username = \CirculationDashboard\Credentials::require('DB_USER');
+    $password = \CirculationDashboard\Credentials::require('DB_PASSWORD');
 } else {
     // Non-production fallback: connect via TCP
     $dsn = 'mysql:host=localhost;port=3306;dbname=circulation_dashboard;charset=utf8mb4';

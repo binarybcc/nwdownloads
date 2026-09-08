@@ -22,15 +22,18 @@ if (php_sapi_name() !== 'cli') {
 date_default_timezone_set('America/New_York');
 
 require_once __DIR__ . '/lib/MyCommPilotScraper.php';
+require_once __DIR__ . '/lib/Credentials.php';
+require_once __DIR__ . '/lib/AlertThrottle.php';
 
+use CirculationDashboard\AlertThrottle;
+use CirculationDashboard\Credentials;
 use CirculationDashboard\MyCommPilotScraper;
 
 // ── Config (LOG_FILE must be defined before business-hours guard) ─────────────
 const LOG_FILE    = '/volume1/web/circulation/logs/call_scraper.log';
+const ALERT_STATE = '/volume1/web/circulation/logs/call_scraper_alert_state.json';
 const DB_SOCKET   = '/run/mysqld/mysqld10.sock';
 const DB_NAME     = 'circulation_dashboard';
-const DB_USER     = 'root';
-const DB_PASSWORD  = 'P@ta675N0id';
 
 // ── Business-hours guard (8am-8pm ET) ─────────────────────────────────────────
 $hour = (int) date('G');
@@ -57,34 +60,16 @@ register_shutdown_function(fn() => @unlink(LOCK_FILE));
 
 // ── Credential loading ────────────────────────────────────────────────────────
 $envFile = __DIR__ . '/.env.mycommpilot';
-if (!file_exists($envFile)) {
-    log_msg("ERROR: .env.mycommpilot not found at {$envFile}");
-    send_alert(
-        'Call Scraper: Missing Credentials',
-        "The .env.mycommpilot file was not found at {$envFile}. Scraper cannot run."
-    );
-    exit(1);
-}
 
-$envLines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-$env = [];
-foreach ($envLines as $line) {
-    if (str_starts_with(trim($line), '#')) {
-        continue;
-    }
-    [$key, $val] = explode('=', $line, 2);
-    $env[trim($key)] = trim($val);
-}
-
-$username = $env['MYCOMMPILOT_USERNAME'] ?? null;
-$password = $env['MYCOMMPILOT_PASSWORD'] ?? null;
-
-if (!$username || !$password) {
-    log_msg('ERROR: MYCOMMPILOT_USERNAME or MYCOMMPILOT_PASSWORD missing from .env.mycommpilot');
-    send_alert(
-        'Call Scraper: Invalid Credentials File',
-        "MYCOMMPILOT_USERNAME or MYCOMMPILOT_PASSWORD missing from {$envFile}"
-    );
+try {
+    $username = Credentials::require('MYCOMMPILOT_USERNAME', $envFile);
+    $password = Credentials::require('MYCOMMPILOT_PASSWORD', $envFile);
+    // Validated up front so a credential problem fails before the portal login.
+    Credentials::require('DB_USER');
+    Credentials::require('DB_PASSWORD');
+} catch (\RuntimeException $e) {
+    log_msg('ERROR: ' . $e->getMessage());
+    alert_once(['credentials: ' . $e->getMessage()], 'Call Scraper: Credential Problem', $e->getMessage());
     exit(1);
 }
 
@@ -111,7 +96,8 @@ if (!$loggedIn) {
 
 if (!$loggedIn) {
     log_msg('ERROR: Login to MyCommPilot failed after retry.');
-    send_alert(
+    alert_once(
+        ['login: authentication to MyCommPilot failed'],
         'Call Scraper: Login Failed',
         "Failed to authenticate to MyCommPilot after two attempts.\n"
         . "Username: {$username}\n"
@@ -134,6 +120,7 @@ $stmt = $pdo->prepare("
 
 $totalScraped = 0;
 $totalInserted = 0;
+$failures = [];
 
 // Scrape each user and call type
 foreach ($users as $user) {
@@ -141,12 +128,10 @@ foreach ($users as $user) {
         try {
             $entries = $scraper->getCallLogs($user['key'], $type);
         } catch (\RuntimeException $e) {
-            // Broken parsing or cURL error
+            // Broken parsing or cURL error. Collected and reported once at the
+            // end of the run rather than emailed per failure.
             log_msg("  ERROR [{$user['group']}/{$type}]: {$e->getMessage()}");
-            send_alert(
-                "Call Scraper: Parse Error ({$user['group']}/{$type})",
-                "Error scraping {$type} calls for {$user['group']}:\n{$e->getMessage()}"
-            );
+            $failures[] = "{$user['group']}/{$type}: {$e->getMessage()}";
             continue;
         }
 
@@ -188,6 +173,38 @@ foreach ($users as $user) {
 $scraper->logout();
 log_msg("=== Done. Scraped: {$totalScraped}, New: {$totalInserted} ===");
 
+// One throttled notification per run, plus an all-clear when it recovers.
+$throttle = new AlertThrottle(ALERT_STATE);
+$verdict = $throttle->evaluate($failures);
+
+if ($verdict['action'] === 'alert') {
+    $failing = count($failures);
+    $body = "The call log scraper failed {$failing} of 6 scrapes this run.\n\n"
+        . implode("\n", $failures) . "\n\n"
+        . "Scraped: {$totalScraped} entries, {$totalInserted} new.\n"
+        . 'Log: ' . LOG_FILE . "\n\n"
+        . 'Further identical alerts are suppressed for 6 hours. '
+        . "You will get one more email when this clears.\n";
+    if ($verdict['since'] !== null && $verdict['suppressed'] > 0) {
+        $body .= "\nStill failing since " . date('Y-m-d H:i', $verdict['since'])
+            . " ({$verdict['suppressed']} runs suppressed since the last email).\n";
+    }
+    send_alert("Call Scraper: {$failing} of 6 scrapes failing", $body);
+} elseif ($verdict['action'] === 'recovery') {
+    $since = $verdict['since'] !== null ? date('Y-m-d H:i', $verdict['since']) : 'earlier';
+    send_alert(
+        'Call Scraper: Recovered',
+        "The call log scraper is working again.\n\n"
+        . "Failing since {$since}.\n"
+        . "This run scraped {$totalScraped} entries ({$totalInserted} new).\n"
+    );
+} elseif ($failures !== []) {
+    log_msg(
+        '  ' . count($failures) . ' failure(s) — alert suppressed '
+        . "(already reported; {$verdict['suppressed']} runs since last email)"
+    );
+}
+
 // Purge old call logs (90-day retention)
 try {
     $purgeStmt = $pdo->exec("DELETE FROM call_logs WHERE call_timestamp < DATE_SUB(NOW(), INTERVAL 90 DAY)");
@@ -208,7 +225,7 @@ exit(0);
 function connect_db(): \PDO
 {
     $dsn = 'mysql:unix_socket=' . DB_SOCKET . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-    return new \PDO($dsn, DB_USER, DB_PASSWORD, [
+    return new \PDO($dsn, Credentials::require('DB_USER'), Credentials::require('DB_PASSWORD'), [
         \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
         \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
     ]);
@@ -224,6 +241,24 @@ function log_msg(string $msg): void
     $line = '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL;
     echo $line;
     @file_put_contents(LOG_FILE, $line, FILE_APPEND);
+}
+
+/**
+ * Send an alert for a run that ended early, subject to the same throttling
+ * as end-of-run failures so a persistent outage cannot flood the inbox.
+ *
+ * @param string[] $failures Failure signature for this run
+ * @param string $subject Email subject
+ * @param string $body Email body text
+ */
+function alert_once(array $failures, string $subject, string $body): void
+{
+    $verdict = (new AlertThrottle(ALERT_STATE))->evaluate($failures);
+    if ($verdict['action'] === 'alert') {
+        send_alert($subject, $body . "\n\nIdentical alerts are suppressed for 6 hours.\n");
+    } else {
+        log_msg("  Alert suppressed (already reported; {$verdict['suppressed']} runs since last email)");
+    }
 }
 
 /**

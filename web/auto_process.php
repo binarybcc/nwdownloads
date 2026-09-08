@@ -37,6 +37,7 @@ if (php_sapi_name() !== 'cli') {
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 date_default_timezone_set('America/New_York');
 
+require_once __DIR__ . '/lib/Credentials.php';
 require_once __DIR__ . '/lib/AllSubscriberImporter.php';
 require_once __DIR__ . '/lib/VacationImporter.php';
 require_once __DIR__ . '/lib/RenewalImporter.php';
@@ -68,8 +69,6 @@ const LOCK_FILE      = '/tmp/circulation_auto_process.lock';
 
 const DB_SOCKET   = '/run/mysqld/mysqld10.sock';
 const DB_NAME     = 'circulation_dashboard';
-const DB_USER     = 'root';
-const DB_PASSWORD = 'P@ta675N0id';
 
 // ── Lock: prevent overlapping runs ────────────────────────────────────────────
 if (file_exists(LOCK_FILE)) {
@@ -150,7 +149,7 @@ exit($failed > 0 ? 1 : 0);
 function connect_db(): PDO
 {
     $dsn = 'mysql:unix_socket=' . DB_SOCKET . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-    return new PDO($dsn, DB_USER, DB_PASSWORD, [
+    return new PDO($dsn, \CirculationDashboard\Credentials::require('DB_USER'), \CirculationDashboard\Credentials::require('DB_PASSWORD'), [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);

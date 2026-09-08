@@ -15,7 +15,6 @@ namespace CirculationDashboard;
 class MyCommPilotScraper
 {
     private string $baseUrl = 'https://ws2.mycommpilot.com';
-    private string $httpBase = 'http://ws2.mycommpilot.com:80';
     private $ch;
     private string $cookieFile;
     private string $username;
@@ -57,7 +56,7 @@ class MyCommPilotScraper
      *
      * 1. GET /Login/ to capture session cookies
      * 2. POST /servlet/Login with credentials
-     * 3. GET /Common/folder_contents.jsp to establish HTTP session
+     * 3. GET /Common/folder_contents.jsp to establish the session
      *
      * @return bool True if login succeeded (response contains folder_contents.jsp redirect)
      */
@@ -78,8 +77,9 @@ class MyCommPilotScraper
             return false;
         }
 
-        // Step 3: Establish session on HTTP endpoint (portal redirects HTTPS -> HTTP)
-        $this->get("{$this->httpBase}/Common/folder_contents.jsp?menuId=1");
+        // Step 3: Establish the session. The portal serves sessions over HTTPS only —
+        // plaintext http://...:80 requests are redirected to /Login/ and lose the session.
+        $this->get("{$this->baseUrl}/Common/folder_contents.jsp?menuId=1");
 
         return str_contains($loginResponse, 'folder_contents.jsp');
     }
@@ -89,7 +89,7 @@ class MyCommPilotScraper
      */
     public function logout(): void
     {
-        $this->get("{$this->httpBase}/servlet/Logout");
+        $this->get("{$this->baseUrl}/servlet/Logout");
     }
 
     // ── Call Log Retrieval ───────────────────────────────────────────────────
@@ -110,7 +110,7 @@ class MyCommPilotScraper
     {
         // Set user context — server uses session to determine whose logs to show
         $encodedKey = str_replace('::', '%3A%3A', $userKey);
-        $this->get("{$this->httpBase}/Group/Members/Modify/index.jsp?key={$encodedKey}");
+        $this->get("{$this->baseUrl}/Group/Members/Modify/index.jsp?key={$encodedKey}");
 
         // Fetch the correct call log tab
         $typeMap = [
@@ -119,10 +119,19 @@ class MyCommPilotScraper
             'missed'   => '/User/BasicCallLogs/index.jsp?type=2',
         ];
         $path = $typeMap[$type] ?? '/User/BasicCallLogs/';
-        $html = $this->get("{$this->httpBase}{$path}");
+        $html = $this->get("{$this->baseUrl}{$path}");
 
         if ($html === false) {
             throw new \RuntimeException("Failed to fetch {$type} call logs — cURL error");
+        }
+
+        // A bounced session returns the login page, not the call log table. Report it
+        // as an auth failure so it is not mistaken for a parser problem.
+        if ($this->isLoginPage($html)) {
+            throw new \RuntimeException(
+                "Session lost — portal returned the login page instead of {$type} call logs. "
+                . 'Check credentials, or whether the portal changed its session handling.'
+            );
         }
 
         $entries = $this->parseCallLogs($html);
@@ -173,6 +182,22 @@ class MyCommPilotScraper
         }
 
         return $entries;
+    }
+
+    /**
+     * Detect the portal login page.
+     *
+     * The portal answers any request carrying an invalid session with the login
+     * form rather than an error status, so a bounced session is otherwise
+     * indistinguishable from a call log page containing no rows.
+     *
+     * @param string $html Raw HTML response
+     * @return bool True if the response is the login page
+     */
+    private function isLoginPage(string $html): bool
+    {
+        return str_contains($html, 'EnteredUserID')
+            && !str_contains($html, 'BasicCallLogs');
     }
 
     // ── Utility Methods ──────────────────────────────────────────────────────

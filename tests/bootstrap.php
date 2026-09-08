@@ -21,9 +21,11 @@ define('TESTING', true);
 define('TEST_ROOT', __DIR__);
 define('PROJECT_ROOT', dirname(__DIR__));
 
-// Load environment variables for testing
+// Load environment variables for testing.
+// Unit tests do not touch a database; integration tests that need one read
+// TEST_DB_PASSWORD from the environment. Never hardcode a password here.
 $_ENV['DB_HOST'] = 'localhost';
 $_ENV['DB_PORT'] = '3306';
 $_ENV['DB_NAME'] = 'circulation_dashboard_test';
 $_ENV['DB_USER'] = 'circ_dash';
-$_ENV['DB_PASSWORD'] = 'Barnaby358@Jones!';
+$_ENV['DB_PASSWORD'] = getenv('TEST_DB_PASSWORD') ?: '';

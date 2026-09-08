@@ -32,6 +32,8 @@
         <env name="DB_PORT" value="3306"/>
         <env name="DB_NAME" value="circulation_dashboard_test"/>
         <env name="DB_USER" value="circ_dash"/>
-        <env name="DB_PASSWORD" value="Barnaby358@Jones!"/>
+        <!-- Test DB password comes from the TEST_DB_PASSWORD environment variable.
+             Never hardcode a credential here; this file is committed. -->
+        <env name="DB_PASSWORD" value=""/>
     </php>
 </phpunit>

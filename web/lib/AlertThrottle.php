@@ -82,7 +82,11 @@ class AlertThrottle
         // Same problem, reported recently — stay quiet but count the run.
         $state['suppressed'] = (int) ($state['suppressed'] ?? 0) + 1;
         $this->writeState($state);
-        return ['action' => 'none', 'suppressed' => (int) $state['suppressed'], 'since' => (int) ($state['first_seen'] ?? $now)];
+        return [
+            'action' => 'none',
+            'suppressed' => (int) $state['suppressed'],
+            'since' => (int) ($state['first_seen'] ?? $now),
+        ];
     }
 
     /**

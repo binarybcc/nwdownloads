@@ -64,8 +64,9 @@ $envFile = __DIR__ . '/.env.mycommpilot';
 try {
     $username = Credentials::require('MYCOMMPILOT_USERNAME', $envFile);
     $password = Credentials::require('MYCOMMPILOT_PASSWORD', $envFile);
-    $dbUser   = Credentials::require('DB_USER');
-    $dbPass   = Credentials::require('DB_PASSWORD');
+    // Validated up front so a credential problem fails before the portal login.
+    Credentials::require('DB_USER');
+    Credentials::require('DB_PASSWORD');
 } catch (\RuntimeException $e) {
     log_msg('ERROR: ' . $e->getMessage());
     alert_once(['credentials: ' . $e->getMessage()], 'Call Scraper: Credential Problem', $e->getMessage());
@@ -109,7 +110,7 @@ if (!$loggedIn) {
 log_msg('Login successful.');
 
 // Connect to database
-$pdo = connect_db($dbUser, $dbPass);
+$pdo = connect_db();
 $stmt = $pdo->prepare("
     INSERT IGNORE INTO call_logs
         (call_direction, call_timestamp, remote_number, phone_normalized,
@@ -198,7 +199,10 @@ if ($verdict['action'] === 'alert') {
         . "This run scraped {$totalScraped} entries ({$totalInserted} new).\n"
     );
 } elseif ($failures !== []) {
-    log_msg('  ' . count($failures) . " failure(s) — alert suppressed (already reported; {$verdict['suppressed']} runs since last email)");
+    log_msg(
+        '  ' . count($failures) . ' failure(s) — alert suppressed '
+        . "(already reported; {$verdict['suppressed']} runs since last email)"
+    );
 }
 
 // Purge old call logs (90-day retention)
@@ -216,14 +220,12 @@ exit(0);
 /**
  * Connect to the circulation dashboard database.
  *
- * @param string $user Database username
- * @param string $password Database password
  * @return PDO Database connection
  */
-function connect_db(string $user, string $password): \PDO
+function connect_db(): \PDO
 {
     $dsn = 'mysql:unix_socket=' . DB_SOCKET . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-    return new \PDO($dsn, $user, $password, [
+    return new \PDO($dsn, Credentials::require('DB_USER'), Credentials::require('DB_PASSWORD'), [
         \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
         \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
     ]);

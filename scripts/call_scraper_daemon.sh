@@ -29,16 +29,21 @@ log() {
 # second instance simply overwrote it. An exclusive lock held for the life of
 # the process catches a duplicate started by any user, by any trigger.
 # (Synology has no pgrep, so process-name matching is not an option.)
-LOCKFILE="/tmp/call_scraper_daemon.lock"
+#
+# The lock lives beside the logs, NOT in /tmp: this daemon runs as root at boot,
+# and /tmp is world-writable, so any local user could pre-create the lock path
+# as a symlink and have root truncate an arbitrary file. The log directory is
+# writable only by root and "it", the two accounts that need to coordinate.
+LOCKFILE="$(dirname "$LOGFILE")/.call_scraper_daemon.lock"
 
+# Group-writable so either root or "it" can take it. No chmod is performed here
+# on purpose — never adjust modes on a path another user could have replaced.
 if [ ! -e "$LOCKFILE" ]; then
-    # Created world-writable so either root or "it" can take the lock.
-    ( umask 000; : > "$LOCKFILE" ) 2>/dev/null
+    ( umask 002; : > "$LOCKFILE" ) 2>/dev/null
 fi
-chmod 666 "$LOCKFILE" 2>/dev/null
 
 if [ ! -w "$LOCKFILE" ]; then
-    log "Lock file $LOCKFILE is not writable — another user's daemon owns it. Exiting."
+    log "Lock file $LOCKFILE is not writable — another account's daemon owns it. Exiting."
     exit 0
 fi
 
